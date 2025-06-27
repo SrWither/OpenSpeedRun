@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use crate::core::split::Run;
 use crate::core::timer::Timer;
 use crate::{config::layout::LayoutConfig, core::timer::TimerState};
@@ -115,44 +117,54 @@ impl eframe::App for AppState {
                             ui.label(
                                 RichText::new("Split")
                                     .color(Color32::from_hex(&text_color).unwrap_or(Color32::WHITE))
-                                    .strong(),
+                                    .strong()
+                                    .size(font_size),
                             );
                             ui.label(
                                 RichText::new("Time")
                                     .color(Color32::from_hex(&text_color).unwrap_or(Color32::WHITE))
-                                    .strong(),
+                                    .strong()
+                                    .size(font_size),
                             );
                             ui.end_row();
-
+                    
                             for (i, split) in self.run.splits.iter().enumerate() {
-                                let highlight = i == self.current_split;
-                                let name = if highlight {
-                                    format!("> {}", split.name)
+                                let is_current = i == self.current_split;
+                    
+                                let name_text = if is_current {
+                                    RichText::new(format!("> {}", split.name))
+                                        .color(Color32::YELLOW)
+                                        .strong()
+                                        .size(font_size + 2.0)
                                 } else {
-                                    split.name.clone()
+                                    RichText::new(&split.name)
+                                        .color(Color32::from_hex(&text_color).unwrap_or(Color32::WHITE))
+                                        .strong()
+                                        .size(font_size - 1.0)
                                 };
-
-                                let time = if let Some(dur) = &split.last_time {
-                                    format!(
+                    
+                                let time_text = if let Some(dur) = &split.last_time {
+                                    RichText::new(format!(
                                         "{:02}:{:02}.{:03}",
                                         dur.num_minutes(),
                                         dur.num_seconds() % 60,
                                         dur.num_milliseconds() % 1000
-                                    )
+                                    ))
+                                    .color(Color32::from_rgb(200, 230, 200))
+                                    .size(font_size - 1.0)
                                 } else {
-                                    String::new()
+                                    RichText::new("--:--.---")
+                                        .color(Color32::from_rgb(120, 120, 120))
+                                        .size(font_size - 1.0)
                                 };
-
-                                ui.label(RichText::new(name).color(
-                                    Color32::from_hex(&text_color).unwrap_or(Color32::WHITE),
-                                ));
-                                ui.label(RichText::new(time).color(
-                                    Color32::from_hex(&text_color).unwrap_or(Color32::WHITE),
-                                ));
+                    
+                                ui.label(name_text);
+                                ui.label(time_text);
                                 ui.end_row();
                             }
                         });
                     }
+                    
 
                     ui.add_space(10.0);
                     ui.horizontal(|ui| {
@@ -171,5 +183,16 @@ impl eframe::App for AppState {
             });
 
         ctx.request_repaint(); // para animación
+    }
+}
+
+pub struct AppWrapper {
+    pub app_state: Arc<Mutex<AppState>>,
+}
+
+impl eframe::App for AppWrapper {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        let mut app = self.app_state.lock().unwrap();
+        app.update(ctx, frame);
     }
 }

@@ -1,6 +1,6 @@
 {
     "title": "Super Mario Bros 3",
-    "category": "Any%",
+    "category": "Any% No Wrong Warp",
     "splits": [
       {
         "name": "Level 1-1",
@@ -23,7 +23,42 @@
         "last_time": null
       },
       {
-        "name": "Level 7-1",
+        "name": "Level 8-Tank",
+        "pb_time": null,
+        "last_time": null
+      },
+      {
+        "name": "Level 8-Airship",
+        "pb_time": null,
+        "last_time": null
+      },
+      {
+        "name": "Level 8-Airship",
+        "pb_time": null,
+        "last_time": null
+      },
+      {
+        "name": "Level 8-1",
+        "pb_time": null,
+        "last_time": null
+      },
+      {
+        "name": "Level 8-2",
+        "pb_time": null,
+        "last_time": null
+      },
+      {
+        "name": "Level 8-Castle",
+        "pb_time": null,
+        "last_time": null
+      },
+      {
+        "name": "Level 8-Tank",
+        "pb_time": null,
+        "last_time": null
+      },
+      {
+        "name": "Final Bowser",
         "pb_time": null,
         "last_time": null
       }

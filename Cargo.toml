@@ -3,10 +3,18 @@ name = "open_speed_run"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "openspeedrun"
+path = "src/main.rs"
+
+[[bin]]
+name = "openspeedrun-cli"
+path = "src/cli/main.rs"
+
 [dependencies]
+chrono = { version = "0.4", features = ["serde"] }
 eframe = "0.31"
 egui = "0.31"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-chrono = { version = "0.4", features = ["serde"] }
-rdev = "0.5"
+tokio = { version = "1", features = ["full"] }
