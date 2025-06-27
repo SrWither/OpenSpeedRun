@@ -1,7 +1,7 @@
-use tokio::net::UnixListener;
-use tokio::io::{AsyncBufReadExt, BufReader};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::net::UnixListener;
 
 use crate::gui::AppState;
 
@@ -36,7 +36,10 @@ pub async fn listen_for_commands(app: Arc<Mutex<AppState>>) {
                         let mut app = app.lock().unwrap();
                         match cmd {
                             "split" => app.split(),
-                            "start" => app.timer.start(),
+                            "start" => {
+                                let offset = app.run.start_offset.unwrap_or(0);
+                                app.timer.start_with_offset(offset);
+                            }
                             "pause" => app.timer.pause(),
                             "reset" => app.reset_splits(),
                             other => eprintln!("Unknown command: '{}'", other),

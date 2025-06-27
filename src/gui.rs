@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::split::Run;
 use crate::core::timer::Timer;
 use crate::{config::layout::LayoutConfig, core::timer::TimerState};
+use chrono::Duration;
 use eframe::egui;
 use egui::{Color32, RichText};
 
@@ -31,10 +32,16 @@ impl Default for AppState {
 impl AppState {
     pub fn split(&mut self) {
         if self.timer.state == TimerState::NotStarted {
-            self.timer.start();
+            let offset = self.run.start_offset.unwrap_or(0);
+            self.timer.start_with_offset(offset);
             self.current_split = 0;
         } else if self.timer.state == TimerState::Running {
             let now = self.timer.current_time();
+
+            if now < Duration::zero() {
+                return;
+            }
+
             if let Some(split) = self.run.splits.get_mut(self.current_split) {
                 split.last_time = Some(now);
             }
@@ -96,12 +103,17 @@ impl eframe::App for AppState {
 
                     // Cronómetro grande
                     let elapsed = self.timer.current_time();
+                    let sign = if elapsed < Duration::zero() { "-" } else { "" };
+                    let elapsed_abs = elapsed.abs();
+
                     let time_str = format!(
-                        "{:02}:{:02}.{:03}",
-                        elapsed.num_minutes(),
-                        elapsed.num_seconds() % 60,
-                        elapsed.num_milliseconds() % 1000
+                        "{}{:02}:{:02}.{:03}",
+                        sign,
+                        elapsed_abs.num_minutes(),
+                        elapsed_abs.num_seconds() % 60,
+                        elapsed_abs.num_milliseconds() % 1000
                     );
+
                     ui.add_space(10.0);
                     ui.label(
                         RichText::new(time_str)
@@ -127,10 +139,10 @@ impl eframe::App for AppState {
                                     .size(font_size),
                             );
                             ui.end_row();
-                    
+
                             for (i, split) in self.run.splits.iter().enumerate() {
                                 let is_current = i == self.current_split;
-                    
+
                                 let name_text = if is_current {
                                     RichText::new(format!("> {}", split.name))
                                         .color(Color32::YELLOW)
@@ -138,11 +150,14 @@ impl eframe::App for AppState {
                                         .size(font_size + 2.0)
                                 } else {
                                     RichText::new(&split.name)
-                                        .color(Color32::from_hex(&text_color).unwrap_or(Color32::WHITE))
+                                        .color(
+                                            Color32::from_hex(&text_color)
+                                                .unwrap_or(Color32::WHITE),
+                                        )
                                         .strong()
                                         .size(font_size - 1.0)
                                 };
-                    
+
                                 let time_text = if let Some(dur) = &split.last_time {
                                     RichText::new(format!(
                                         "{:02}:{:02}.{:03}",
@@ -157,19 +172,19 @@ impl eframe::App for AppState {
                                         .color(Color32::from_rgb(120, 120, 120))
                                         .size(font_size - 1.0)
                                 };
-                    
+
                                 ui.label(name_text);
                                 ui.label(time_text);
                                 ui.end_row();
                             }
                         });
                     }
-                    
 
                     ui.add_space(10.0);
                     ui.horizontal(|ui| {
                         if ui.button("Start").clicked() {
-                            self.timer.start();
+                            let offset = self.run.start_offset.unwrap_or(0);
+                            self.timer.start_with_offset(offset);
                         }
                         if ui.button("Pause").clicked() {
                             self.timer.pause();

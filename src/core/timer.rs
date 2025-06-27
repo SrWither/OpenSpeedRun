@@ -23,6 +23,12 @@ impl Timer {
         }
     }
 
+    pub fn start_with_offset(&mut self, offset_millis: i64) {
+        self.start_time = Some(Utc::now() - Duration::milliseconds(offset_millis));
+        self.elapsed = Duration::zero();
+        self.state = TimerState::Running;
+    }
+
     pub fn start(&mut self) {
         self.start_time = Some(Utc::now());
         self.state = TimerState::Running;

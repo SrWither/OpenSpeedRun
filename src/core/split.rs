@@ -13,6 +13,8 @@ pub struct Run {
     pub title: String,
     pub category: String,
     pub splits: Vec<Split>,
+    #[serde(default)]
+    pub start_offset: Option<i64>,
 }
 
 impl Run {
@@ -27,6 +29,7 @@ impl Run {
             title: title.to_string(),
             category: category.to_string(),
             splits,
+            start_offset: Some(0),
         }
     }
 
