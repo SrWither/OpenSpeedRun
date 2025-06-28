@@ -72,7 +72,6 @@ impl ConfigApp {
                 .to_string(),
         );
 
-        println!("selected theme: {:?}", selected_theme);
 
         let theme_editor = selected_theme
             .as_ref()

@@ -27,43 +27,11 @@ impl SplitEditor {
         }
     }
 
-    fn duration_to_string(dur_opt: Option<Duration>) -> String {
-        dur_opt.map_or_else(
-            || "".to_string(),
-            |dur| {
-                let total_millis = dur.num_milliseconds();
-                if total_millis < 0 {
-                    return "-".to_string();
-                }
-                let minutes = total_millis / 60000;
-                let seconds = (total_millis % 60000) / 1000;
-                let millis = total_millis % 1000;
-                format!("{:02}:{:02}.{:03}", minutes, seconds, millis)
-            },
-        )
-    }
-
-    fn string_to_duration(s: &str) -> Option<Duration> {
-        let parts: Vec<&str> = s.split(':').collect();
-        if parts.len() != 2 {
-            return None;
-        }
-        let minutes: i64 = parts[0].parse().ok()?;
-        let sec_parts: Vec<&str> = parts[1].split('.').collect();
-        if sec_parts.len() != 2 {
-            return None;
-        }
-        let seconds: i64 = sec_parts[0].parse().ok()?;
-        let millis: i64 = sec_parts[1].parse().ok()?;
-        Some(
-            Duration::minutes(minutes)
-                + Duration::seconds(seconds)
-                + Duration::milliseconds(millis),
-        )
-    }
-
     fn load_textures(&mut self, ctx: &Context) {
-        let icon_paths: Vec<_> = self.run.splits.iter()
+        let icon_paths: Vec<_> = self
+            .run
+            .splits
+            .iter()
             .filter_map(|split| split.icon_path.as_ref())
             .collect();
 
@@ -111,7 +79,9 @@ impl SplitEditor {
 
             for i in 0..self.run.splits.len() {
                 let split = &mut self.run.splits[i];
-                let texture = split.icon_path.as_ref()
+                let texture = split
+                    .icon_path
+                    .as_ref()
                     .and_then(|path| self.icon_cache.get(path));
 
                 let mut split_changed = false;
@@ -140,7 +110,8 @@ impl SplitEditor {
                                 if let Some(filename) = path.file_name() {
                                     let dest = icons_dir.join(filename);
                                     if fs::copy(&path, &dest).is_ok() {
-                                        new_icon_path = Some(format!("icons/{}", filename.to_string_lossy()));
+                                        new_icon_path =
+                                            Some(format!("icons/{}", filename.to_string_lossy()));
                                     }
                                 }
                             }
@@ -156,10 +127,50 @@ impl SplitEditor {
                     });
 
                     ui.horizontal(|ui| {
-                        ui.label("PB Time (mm:ss.SSS):");
-                        let mut pb_str = Self::duration_to_string(split.pb_time);
-                        if ui.text_edit_singleline(&mut pb_str).changed() {
-                            split.pb_time = Self::string_to_duration(&pb_str);
+                        ui.label("PB Time");
+
+                        let (mut hours, mut minutes, mut seconds, mut micros) =
+                            (0u32, 0u32, 0u32, 0u32);
+                        if let Some(dur) = split.pb_time {
+                            let total_micros = dur.num_microseconds().unwrap_or(0);
+                            if total_micros >= 0 {
+                                let total_micros = total_micros as u32;
+                                hours = total_micros / 3_600_000_000;
+                                let rem = total_micros % 3_600_000_000;
+                                minutes = rem / 60_000_000;
+                                let rem = rem % 60_000_000;
+                                seconds = rem / 1_000_000;
+                                micros = rem % 1_000_000;
+                            }
+                        }
+
+                        let mut changed = false;
+                        ui.label("h");
+                        changed |= ui
+                            .add(egui::DragValue::new(&mut hours).range(0..=99))
+                            .changed();
+
+                        ui.label("m");
+                        changed |= ui
+                            .add(egui::DragValue::new(&mut minutes).range(0..=59))
+                            .changed();
+
+                        ui.label("s");
+                        changed |= ui
+                            .add(egui::DragValue::new(&mut seconds).range(0..=59))
+                            .changed();
+
+                        ui.label("ms");
+                        changed |= ui
+                            .add(egui::DragValue::new(&mut micros).range(0..=999_999))
+                            .changed();
+
+                        if changed {
+                            let total_micros = (hours as i64) * 3_600_000_000
+                                + (minutes as i64) * 60_000_000
+                                + (seconds as i64) * 1_000_000
+                                + (micros as i64);
+                            split.pb_time = Some(Duration::microseconds(total_micros));
                             split_changed = true;
                         }
                     });
