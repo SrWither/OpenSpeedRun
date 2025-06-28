@@ -231,7 +231,7 @@ impl eframe::App for ConfigApp {
             if let Some((name, is_theme)) = &self.item_to_delete {
                 let name = name.clone();
                 let is_theme = *is_theme;
-                egui::Window::new("Confirmar eliminación")
+                egui::Window::new("Confirm Deletion")
                     .collapsible(false)
                     .resizable(false)
                     .show(ctx, |ui| {
