@@ -145,25 +145,25 @@ impl SplitEditor {
                         }
 
                         let mut changed = false;
-                        ui.label("h");
                         changed |= ui
                             .add(egui::DragValue::new(&mut hours).range(0..=99))
                             .changed();
+                        ui.label("h");
 
-                        ui.label("m");
                         changed |= ui
                             .add(egui::DragValue::new(&mut minutes).range(0..=59))
                             .changed();
+                        ui.label("m");
 
-                        ui.label("s");
                         changed |= ui
                             .add(egui::DragValue::new(&mut seconds).range(0..=59))
                             .changed();
+                        ui.label("s");
 
-                        ui.label("ms");
                         changed |= ui
                             .add(egui::DragValue::new(&mut micros).range(0..=999_999))
                             .changed();
+                        ui.label("ms");
 
                         if changed {
                             let total_micros = (hours as i64) * 3_600_000_000
