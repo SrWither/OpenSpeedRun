@@ -11,11 +11,21 @@ path = "src/main.rs"
 name = "openspeedrun-cli"
 path = "src/cli/main.rs"
 
+[[bin]]
+name = "openspeedrun-cfg"
+path = "src/cfg/main.rs"
+
+[lib]
+name = "openspeedrun"
+path = "src/lib.rs"
+
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
+dirs = "6"
 eframe = "0.31"
 egui = "0.31"
 image = "0.25"
+rfd = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }

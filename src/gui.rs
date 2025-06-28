@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use crate::config::load::{AppConfig, config_base_dir};
 use crate::core::split::Run;
 use crate::core::timer::Timer;
 use crate::{config::layout::LayoutConfig, core::timer::TimerState};
@@ -15,20 +16,29 @@ pub struct AppState {
     pub layout: LayoutConfig,
     pub current_split: usize,
     pub textures: HashMap<String, TextureHandle>,
+    pub split_base_path: std::path::PathBuf,
 }
 
 impl Default for AppState {
     fn default() -> Self {
-        let run = Run::load_from_file("splits/example.json").unwrap_or_else(|_| {
+        let app_config = AppConfig::load();
+        let split_base_path = config_base_dir().join(&app_config.last_split_path);
+        let run_path = split_base_path.join("split.json");
+
+        let run = Run::load_from_file(run_path.to_str().unwrap()).unwrap_or_else(|_| {
             Run::new("Untitled", "Any%", &["Split 1", "Split 2", "Final Split"])
         });
-        let layout = LayoutConfig::load_or_default("themes/default.json");
+
+        let layout_path = config_base_dir().join(&app_config.theme);
+        let layout = LayoutConfig::load_or_default(layout_path.to_str().unwrap());
+
         Self {
             timer: Timer::new(),
             run,
             layout,
             current_split: 0,
             textures: HashMap::new(),
+            split_base_path,
         }
     }
 }
@@ -65,17 +75,21 @@ impl AppState {
     }
 
     fn get_or_load_texture(&mut self, ctx: &egui::Context, path: &str) -> Option<TextureHandle> {
-        if let Some(tex) = self.textures.get(path) {
+        let full_path = self.split_base_path.join(path);
+
+        let cache_key = full_path.to_string_lossy().to_string();
+
+        if let Some(tex) = self.textures.get(&cache_key) {
             return Some(tex.clone());
         }
 
-        if let Ok(img) = image::open(path) {
+        if let Ok(img) = image::open(&full_path) {
             let size = img.dimensions();
             let rgba = img.to_rgba8().into_raw();
             let color_image =
                 ColorImage::from_rgba_unmultiplied([size.0 as usize, size.1 as usize], &rgba);
-            let texture = ctx.load_texture(path.to_owned(), color_image, Default::default());
-            self.textures.insert(path.to_owned(), texture.clone());
+            let texture = ctx.load_texture(cache_key.clone(), color_image, Default::default());
+            self.textures.insert(cache_key, texture.clone());
             Some(texture)
         } else {
             None
@@ -97,7 +111,7 @@ impl eframe::App for AppState {
             show_title,
             show_category,
             show_splits,
-            show_total_time,
+            show_total_time: _,
         } = self.layout.clone();
 
         egui::CentralPanel::default()
