@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::split::Run;
@@ -5,13 +6,15 @@ use crate::core::timer::Timer;
 use crate::{config::layout::LayoutConfig, core::timer::TimerState};
 use chrono::Duration;
 use eframe::egui;
-use egui::{Color32, RichText};
+use egui::{Color32, ColorImage, RichText, TextureHandle};
+use image::GenericImageView;
 
 pub struct AppState {
     pub timer: Timer,
     pub run: Run,
     pub layout: LayoutConfig,
     pub current_split: usize,
+    pub textures: HashMap<String, TextureHandle>,
 }
 
 impl Default for AppState {
@@ -25,6 +28,7 @@ impl Default for AppState {
             run,
             layout,
             current_split: 0,
+            textures: HashMap::new(),
         }
     }
 }
@@ -58,6 +62,24 @@ impl AppState {
         }
         self.current_split = 0;
         self.timer.reset();
+    }
+
+    fn get_or_load_texture(&mut self, ctx: &egui::Context, path: &str) -> Option<TextureHandle> {
+        if let Some(tex) = self.textures.get(path) {
+            return Some(tex.clone());
+        }
+
+        if let Ok(img) = image::open(path) {
+            let size = img.dimensions();
+            let rgba = img.to_rgba8().into_raw();
+            let color_image =
+                ColorImage::from_rgba_unmultiplied([size.0 as usize, size.1 as usize], &rgba);
+            let texture = ctx.load_texture(path.to_owned(), color_image, Default::default());
+            self.textures.insert(path.to_owned(), texture.clone());
+            Some(texture)
+        } else {
+            None
+        }
     }
 }
 
@@ -125,59 +147,101 @@ impl eframe::App for AppState {
                     // Tabla de splits
                     if show_splits {
                         ui.add_space(10.0);
-                        egui::Grid::new("splits_grid").striped(true).show(ui, |ui| {
-                            ui.label(
-                                RichText::new("Split")
-                                    .color(Color32::from_hex(&text_color).unwrap_or(Color32::WHITE))
-                                    .strong()
-                                    .size(font_size),
-                            );
-                            ui.label(
-                                RichText::new("Time")
-                                    .color(Color32::from_hex(&text_color).unwrap_or(Color32::WHITE))
-                                    .strong()
-                                    .size(font_size),
-                            );
-                            ui.end_row();
 
-                            for (i, split) in self.run.splits.iter().enumerate() {
-                                let is_current = i == self.current_split;
+                        let splits = self.run.splits.clone();
+                        let current_split = self.current_split;
+
+                        for (i, split) in splits.iter().enumerate() {
+                            let is_current = i == current_split;
+
+                            ui.add(egui::Separator::default().spacing(6.0));
+
+                            let texture = split
+                                .icon_path
+                                .as_ref()
+                                .and_then(|path| self.get_or_load_texture(ctx, path));
+
+                            ui.horizontal(|ui| {
+                                if let Some(tex) = texture {
+                                    ui.add(egui::Image::new(&tex).max_width(20.0));
+                                }
 
                                 let name_text = if is_current {
                                     RichText::new(format!("> {}", split.name))
                                         .color(Color32::YELLOW)
                                         .strong()
-                                        .size(font_size + 2.0)
+                                        .size(font_size - 6.0)
                                 } else {
                                     RichText::new(&split.name)
                                         .color(
                                             Color32::from_hex(&text_color)
                                                 .unwrap_or(Color32::WHITE),
                                         )
-                                        .strong()
-                                        .size(font_size - 1.0)
+                                        .size(font_size - 8.0)
                                 };
-
-                                let time_text = if let Some(dur) = &split.last_time {
-                                    RichText::new(format!(
-                                        "{:02}:{:02}.{:03}",
-                                        dur.num_minutes(),
-                                        dur.num_seconds() % 60,
-                                        dur.num_milliseconds() % 1000
-                                    ))
-                                    .color(Color32::from_rgb(200, 230, 200))
-                                    .size(font_size - 1.0)
-                                } else {
-                                    RichText::new("--:--.---")
-                                        .color(Color32::from_rgb(120, 120, 120))
-                                        .size(font_size - 1.0)
-                                };
-
                                 ui.label(name_text);
-                                ui.label(time_text);
-                                ui.end_row();
-                            }
-                        });
+
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        if let Some(last) = &split.last_time {
+                                            let time_text = format!(
+                                                "{:02}:{:02}.{:03}",
+                                                last.num_minutes(),
+                                                last.num_seconds() % 60,
+                                                last.num_milliseconds() % 1000
+                                            );
+
+                                            // Mostrar diferencia si hay PB
+                                            if let Some(pb) = &split.pb_time {
+                                                let diff = *last - *pb;
+                                                let sign = if diff < chrono::Duration::zero() {
+                                                    "-"
+                                                } else {
+                                                    "+"
+                                                };
+                                                let diff_abs = diff.num_milliseconds().abs();
+                                                let diff_secs = diff_abs / 1000;
+                                                let diff_millis = diff_abs % 1000;
+
+                                                let diff_text = format!(
+                                                    "{}{:02}.{:03}",
+                                                    sign, diff_secs, diff_millis
+                                                );
+
+                                                let diff_color = if diff < chrono::Duration::zero()
+                                                {
+                                                    Color32::GREEN
+                                                } else {
+                                                    Color32::RED
+                                                };
+
+                                                ui.label(
+                                                    RichText::new(diff_text)
+                                                        .size(font_size - 10.0)
+                                                        .color(diff_color),
+                                                );
+                                            }
+
+                                            // Mostrar el tiempo del split
+                                            ui.label(
+                                                RichText::new(time_text)
+                                                    .size(font_size - 2.0)
+                                                    .color(Color32::from_rgb(200, 230, 200)),
+                                            );
+                                        } else {
+                                            ui.label(
+                                                RichText::new("--:--.---")
+                                                    .size(font_size - 2.0)
+                                                    .color(Color32::GRAY),
+                                            );
+                                        }
+                                    },
+                                );
+                            });
+
+                            ui.add_space(6.0);
+                        }
                     }
 
                     ui.add_space(10.0);

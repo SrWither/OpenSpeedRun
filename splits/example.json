@@ -1,67 +1,37 @@
 {
-    "title": "Super Mario Bros 3",
-    "category": "Any% No Wrong Warp",
-    "splits": [
-      {
-        "name": "Level 1-1",
-        "pb_time": null,
-        "last_time": null
-      },
-      {
-        "name": "Level 1-2",
-        "pb_time": null,
-        "last_time": null
-      },
-      {
-        "name": "Level 1-3",
-        "pb_time": null,
-        "last_time": null
-      },
-      {
-        "name": "Level 1-Castle",
-        "pb_time": null,
-        "last_time": null
-      },
-      {
-        "name": "Level 8-Tank",
-        "pb_time": null,
-        "last_time": null
-      },
-      {
-        "name": "Level 8-Airship",
-        "pb_time": null,
-        "last_time": null
-      },
-      {
-        "name": "Level 8-Airship",
-        "pb_time": null,
-        "last_time": null
-      },
-      {
-        "name": "Level 8-1",
-        "pb_time": null,
-        "last_time": null
-      },
-      {
-        "name": "Level 8-2",
-        "pb_time": null,
-        "last_time": null
-      },
-      {
-        "name": "Level 8-Castle",
-        "pb_time": null,
-        "last_time": null
-      },
-      {
-        "name": "Level 8-Tank",
-        "pb_time": null,
-        "last_time": null
-      },
-      {
-        "name": "Final Bowser",
-        "pb_time": null,
-        "last_time": null
-      }
-    ]
-  }
-  
+  "title": "Super Mario Bros 3",
+  "category": "Any%",
+  "start_offset": -5000,
+  "splits": [
+    {
+      "name": "Level 1-1",
+      "pb_time": 15000,
+      "last_time": null,
+      "icon_path": "icons/icon1-1.png"
+    },
+    {
+      "name": "Level 1-2",
+      "pb_time": 30000,
+      "last_time": null,
+      "icon_path": "icons/icon1-2.png"
+    },
+    {
+      "name": "Level 1-3",
+      "pb_time": 45000,
+      "last_time": null,
+      "icon_path": "icons/icon1-3.png"
+    },
+    {
+      "name": "Level 1-Castle",
+      "pb_time": null,
+      "last_time": null,
+      "icon_path": "icons/icon1-castle.png"
+    },
+    {
+      "name": "Level 7-1",
+      "pb_time": 60000,
+      "last_time": null,
+      "icon_path": "icons/icon7-1.png"
+    }
+  ]
+}
