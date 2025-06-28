@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Duration, Utc};
 
 #[derive(Debug, PartialEq)]
 pub enum TimerState {
@@ -24,9 +24,15 @@ impl Timer {
     }
 
     pub fn start_with_offset(&mut self, offset_millis: i64) {
-        self.start_time = Some(Utc::now() - Duration::milliseconds(offset_millis));
-        self.elapsed = Duration::zero();
-        self.state = TimerState::Running;
+        if self.state == TimerState::NotStarted {
+            self.start_time = Some(Utc::now() - Duration::milliseconds(offset_millis));
+            self.elapsed = Duration::zero();
+            self.state = TimerState::Running;
+        } else if self.state == TimerState::Paused {
+            self.start()
+        } else {
+            eprintln!("Timer is already running or ended, cannot start with offset.");
+        }
     }
 
     pub fn start(&mut self) {
