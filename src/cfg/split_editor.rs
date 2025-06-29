@@ -71,7 +71,7 @@ impl SplitEditor {
         });
 
         ui.horizontal(|ui| {
-            ui.label("Start offset (+-ms):");
+            ui.label("Start offset (±ms):");
         
             let mut offset_secs = self.run.start_offset.unwrap_or(0);
             let mut changed = false;
