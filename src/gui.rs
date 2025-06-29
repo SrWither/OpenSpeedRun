@@ -17,6 +17,8 @@ pub struct AppState {
     pub current_split: usize,
     pub textures: HashMap<String, TextureHandle>,
     pub split_base_path: std::path::PathBuf,
+    pub current_page: usize,
+    pub splits_per_page: usize,
 }
 
 impl Default for AppState {
@@ -29,6 +31,8 @@ impl Default for AppState {
             Run::new("Untitled", "Any%", &["Split 1", "Split 2", "Final Split"])
         });
 
+        let splits_per_page = run.splits_per_page.unwrap_or(5);
+
         let layout_path = config_base_dir().join(&app_config.theme);
         let layout = LayoutConfig::load_or_default(layout_path.to_str().unwrap());
 
@@ -39,6 +43,8 @@ impl Default for AppState {
             current_split: 0,
             textures: HashMap::new(),
             split_base_path,
+            current_page: 0,
+            splits_per_page,
         }
     }
 }
@@ -60,9 +66,14 @@ impl AppState {
                 split.last_time = Some(now);
             }
             self.current_split += 1;
+
             if self.current_split >= self.run.splits.len() {
                 self.timer.pause();
             }
+
+            let next_page = self.current_split / self.splits_per_page;
+            let max_page = (self.run.splits.len().saturating_sub(1)) / self.splits_per_page;
+            self.current_page = next_page.min(max_page);
         }
     }
 
@@ -99,7 +110,6 @@ impl AppState {
 
 impl eframe::App for AppState {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Teclado
         if ctx.input(|i| i.key_pressed(egui::Key::Space)) {
             self.split();
         }
@@ -114,14 +124,70 @@ impl eframe::App for AppState {
             show_total_time: _,
         } = self.layout.clone();
 
-        egui::CentralPanel::default()
-            .frame(
-                egui::Frame::default()
-                    .fill(Color32::from_hex(&background_color).unwrap_or(Color32::BLACK)),
-            )
+        let bg_color = Color32::from_hex(&background_color).unwrap_or(Color32::BLACK);
+
+        egui::TopBottomPanel::bottom("footer")
+            .resizable(false)
+            .min_height(60.0)
+            .frame(egui::Frame {
+                fill: bg_color,
+                stroke: egui::Stroke::NONE,
+                ..Default::default()
+            })
             .show(ctx, |ui| {
+                let rect = ui.max_rect();
+                let top = rect.top();
+                let left = rect.left();
+                let right = rect.right();
+                let stroke = egui::Stroke::new(1.0, Color32::from_gray(100));
+
+                ui.painter()
+                    .line_segment([egui::pos2(left, top), egui::pos2(right, top)], stroke);
+
+                ui.add_space(6.0);
                 ui.vertical_centered(|ui| {
-                    // Título y categoría
+                    if show_splits {
+                        let total_splits = self.run.splits.len();
+                        let total_pages =
+                            (total_splits + self.splits_per_page - 1) / self.splits_per_page;
+
+                        ui.horizontal(|ui| {
+                            if ui.button("⬅").clicked() && self.current_page > 0 {
+                                self.current_page -= 1;
+                            }
+
+                            ui.label(format!("Page {}/{}", self.current_page + 1, total_pages));
+
+                            if ui.button("➡").clicked() && self.current_page + 1 < total_pages {
+                                self.current_page += 1;
+                            }
+                        });
+                    }
+
+                    ui.add_space(4.0);
+
+                    ui.horizontal(|ui| {
+                        if ui.button("Start").clicked() {
+                            let offset = self.run.start_offset.unwrap_or(0);
+                            self.timer.start_with_offset(offset);
+                        }
+                        if ui.button("Pause").clicked() {
+                            self.timer.pause();
+                        }
+                        if ui.button("Reset").clicked() {
+                            self.timer.reset();
+                            self.reset_splits();
+                        }
+                    });
+                });
+            });
+
+        egui::CentralPanel::default()
+            .frame(egui::Frame::default().fill(bg_color))
+            .show(ctx, |ui| {
+                ui.add_space(12.0);
+
+                ui.vertical_centered(|ui| {
                     if show_title {
                         ui.label(
                             RichText::new(&self.run.title)
@@ -133,11 +199,10 @@ impl eframe::App for AppState {
                         ui.label(
                             RichText::new(&self.run.category)
                                 .color(Color32::from_hex(&text_color).unwrap_or(Color32::WHITE))
-                                .size(font_size.into()),
+                                .size(font_size),
                         );
                     }
 
-                    // Cronómetro grande
                     let elapsed = self.timer.current_time();
                     let sign = if elapsed < Duration::zero() { "-" } else { "" };
                     let elapsed_abs = elapsed.abs();
@@ -153,29 +218,50 @@ impl eframe::App for AppState {
                     ui.add_space(10.0);
                     ui.label(
                         RichText::new(time_str)
-                            .size(font_size as f32 * 2.0)
+                            .size(font_size * 2.0)
                             .color(Color32::from_rgb(250, 200, 100))
                             .strong(),
                     );
 
-                    // Tabla de splits
                     if show_splits {
-                        ui.add_space(10.0);
+                        ui.add_space(12.0);
+
+                        let total_splits = self.run.splits.len();
+                        let page_start = self.current_page * self.splits_per_page;
+                        let page_end = (page_start + self.splits_per_page).min(total_splits);
 
                         let splits = self.run.splits.clone();
                         let current_split = self.current_split;
 
-                        for (i, split) in splits.iter().enumerate() {
+                        for (i, split) in splits.iter().enumerate().take(page_end).skip(page_start)
+                        {
                             let is_current = i == current_split;
+                            let is_first = i == page_start;
 
-                            ui.add(egui::Separator::default().spacing(6.0));
+                            if is_first {
+                                let (rect, _) = ui.allocate_exact_size(
+                                    egui::vec2(ui.available_width(), 1.0),
+                                    egui::Sense::hover(),
+                                );
+                                ui.painter().line_segment(
+                                    [rect.left_top(), rect.right_top()],
+                                    egui::Stroke::new(1.0, Color32::from_gray(100)),
+                                );
+                            }
 
-                            let texture = split
-                                .icon_path
-                                .as_ref()
-                                .and_then(|path| self.get_or_load_texture(ctx, path));
+                            ui.add_space(6.0);
 
                             ui.horizontal(|ui| {
+                                ui.set_min_height(32.0);
+                                ui.set_min_width(ui.available_width());
+
+                                ui.add_space(10.0);
+
+                                let texture = split
+                                    .icon_path
+                                    .as_ref()
+                                    .and_then(|path| self.get_or_load_texture(ctx, path));
+
                                 if let Some(tex) = texture {
                                     ui.add(egui::Image::new(&tex).max_width(20.0));
                                 }
@@ -206,14 +292,10 @@ impl eframe::App for AppState {
                                                 last.num_milliseconds() % 1000
                                             );
 
-                                            // Mostrar diferencia si hay PB
                                             if let Some(pb) = &split.pb_time {
                                                 let diff = *last - *pb;
-                                                let sign = if diff < chrono::Duration::zero() {
-                                                    "-"
-                                                } else {
-                                                    "+"
-                                                };
+                                                let sign =
+                                                    if diff < Duration::zero() { "-" } else { "+" };
                                                 let diff_abs = diff.num_milliseconds().abs();
                                                 let diff_secs = diff_abs / 1000;
                                                 let diff_millis = diff_abs % 1000;
@@ -223,8 +305,7 @@ impl eframe::App for AppState {
                                                     sign, diff_secs, diff_millis
                                                 );
 
-                                                let diff_color = if diff < chrono::Duration::zero()
-                                                {
+                                                let diff_color = if diff < Duration::zero() {
                                                     Color32::GREEN
                                                 } else {
                                                     Color32::RED
@@ -237,7 +318,6 @@ impl eframe::App for AppState {
                                                 );
                                             }
 
-                                            // Mostrar el tiempo del split
                                             ui.label(
                                                 RichText::new(time_text)
                                                     .size(font_size - 2.0)
@@ -255,27 +335,21 @@ impl eframe::App for AppState {
                             });
 
                             ui.add_space(6.0);
+
+                            let (rect, _) = ui.allocate_exact_size(
+                                egui::vec2(ui.available_width(), 1.0),
+                                egui::Sense::hover(),
+                            );
+                            ui.painter().line_segment(
+                                [rect.left_bottom(), rect.right_bottom()],
+                                egui::Stroke::new(1.0, Color32::from_gray(100)),
+                            );
                         }
                     }
-
-                    ui.add_space(10.0);
-                    ui.horizontal(|ui| {
-                        if ui.button("Start").clicked() {
-                            let offset = self.run.start_offset.unwrap_or(0);
-                            self.timer.start_with_offset(offset);
-                        }
-                        if ui.button("Pause").clicked() {
-                            self.timer.pause();
-                        }
-                        if ui.button("Reset").clicked() {
-                            self.timer.reset();
-                            self.reset_splits();
-                        }
-                    });
                 });
             });
 
-        ctx.request_repaint(); // para animación
+        ctx.request_repaint();
     }
 }
 

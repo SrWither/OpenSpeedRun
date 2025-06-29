@@ -17,9 +17,12 @@ fn main() -> eframe::Result<()> {
         rt.block_on(listen_for_commands(app_clone));
     });
 
+    let options = NativeOptions::default();
+    
     eframe::run_native(
         "OpenSpeedRun",
-        NativeOptions::default(),
+        options,
         Box::new(move |_| Ok(Box::new(AppWrapper { app_state }))),
     )
 }
+

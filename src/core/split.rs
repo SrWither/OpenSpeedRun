@@ -18,6 +18,7 @@ pub struct Run {
     pub splits: Vec<Split>,
     #[serde(default)]
     pub start_offset: Option<i64>,
+    pub splits_per_page: Option<usize>,
 }
 
 impl Run {
@@ -43,6 +44,7 @@ impl Run {
             category: category.to_string(),
             splits,
             start_offset: None,
+            splits_per_page: Some(5), 
         }
     }
 

@@ -72,7 +72,6 @@ impl ConfigApp {
                 .to_string(),
         );
 
-
         let theme_editor = selected_theme
             .as_ref()
             .map(|t| ThemeEditor::new(base.join("themes").join(format!("{}.json", t))));

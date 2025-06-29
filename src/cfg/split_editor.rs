@@ -77,10 +77,12 @@ impl SplitEditor {
             let mut changed = false;
 
             changed |= ui
-                .add(egui::DragValue::new(&mut offset_secs)
-                    .range(0..=600)
-                    .speed(1)
-                    .prefix("⏱ "))
+                .add(
+                    egui::DragValue::new(&mut offset_secs)
+                        .range(0..=600)
+                        .speed(1)
+                        .prefix("⏱ "),
+                )
                 .changed();
 
             if changed {
@@ -88,6 +90,34 @@ impl SplitEditor {
             }
         });
 
+        ui.horizontal(|ui| {
+            ui.label("Splits per page:");
+            let mut value = self.run.splits_per_page.unwrap_or(5);
+            if ui
+                .add(egui::DragValue::new(&mut value).range(1..=50))
+                .changed()
+            {
+                self.run.splits_per_page = Some(value);
+            }
+        });
+
+        ui.separator();
+        ui.horizontal(|ui| {
+            if ui.button("Add split").clicked() {
+                self.run.splits.push(Split {
+                    name: "New split".to_string(),
+                    pb_time: None,
+                    last_time: None,
+                    icon_path: None,
+                });
+            }
+
+            if ui.button("Save splits").clicked() {
+                if let Err(e) = self.run.save_to_file(self.run_path.to_str().unwrap()) {
+                    eprintln!("Error saving splits: {}", e);
+                }
+            }
+        });
         ui.separator();
 
         self.load_textures(ctx);
@@ -234,22 +264,5 @@ impl SplitEditor {
                 self.run.splits.remove(index);
             }
         });
-
-        if ui.button("Add split").clicked() {
-            self.run.splits.push(Split {
-                name: "New split".to_string(),
-                pb_time: None,
-                last_time: None,
-                icon_path: None,
-            });
-        }
-
-        ui.separator();
-
-        if ui.button("Save splits").clicked() {
-            if let Err(e) = self.run.save_to_file(self.run_path.to_str().unwrap()) {
-                eprintln!("Error saving splits: {}", e);
-            }
-        }
     }
 }
