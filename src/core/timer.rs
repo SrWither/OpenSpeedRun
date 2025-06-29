@@ -23,9 +23,9 @@ impl Timer {
         }
     }
 
-    pub fn start_with_offset(&mut self, offset_millis: i64) {
+    pub fn start_with_offset(&mut self, offset_seconds: i64) {
         if self.state == TimerState::NotStarted {
-            self.start_time = Some(Utc::now() - Duration::milliseconds(offset_millis));
+            self.start_time = Some(Utc::now() + Duration::seconds(offset_seconds));
             self.elapsed = Duration::zero();
             self.state = TimerState::Running;
         } else if self.state == TimerState::Paused {

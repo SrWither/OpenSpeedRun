@@ -71,23 +71,23 @@ impl SplitEditor {
         });
 
         ui.horizontal(|ui| {
-            ui.label("Start offset (±ms):");
-        
+            ui.label("Start offset (seconds):");
+
             let mut offset_secs = self.run.start_offset.unwrap_or(0);
             let mut changed = false;
-        
+
             changed |= ui
                 .add(egui::DragValue::new(&mut offset_secs)
-                    .range(-3600..=3600)
+                    .range(0..=600)
                     .speed(1)
                     .prefix("⏱ "))
                 .changed();
-        
+
             if changed {
                 self.run.start_offset = Some(offset_secs);
             }
         });
-        
+
 
         ui.separator();
 

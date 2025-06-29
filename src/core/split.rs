@@ -1,4 +1,4 @@
-use chrono::{Duration};
+use chrono::Duration;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
