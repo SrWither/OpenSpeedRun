@@ -51,12 +51,18 @@ To configure splits and themes:
 openspeedrun-cfg
 ```
 
-To control the timer externally:
+## External Control via CLI
+
+`openspeedrun` includes a companion binary: `openspeedrun-cli`, designed for both **Wayland** and **X11** environments.
+
+Since many Wayland compositors do not support global hotkeys, and even on X11 you may prefer custom shortcuts, `openspeedrun-cli` allows you to control the timer externally.
+
+You can bind system-wide keyboard shortcuts in your window manager or compositor to commands like:
 
 ```bash
 openspeedrun-cli split
-openspeedrun-cli reset
 ```
+This enables full control (start, pause, reset, split) without relying on the GUI, ensuring compatibility and flexibility in any environment.
 
 ## Screenshot
 
