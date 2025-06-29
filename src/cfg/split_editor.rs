@@ -88,7 +88,6 @@ impl SplitEditor {
             }
         });
 
-
         ui.separator();
 
         self.load_textures(ctx);
@@ -148,18 +147,18 @@ impl SplitEditor {
                     ui.horizontal(|ui| {
                         ui.label("PB Time");
 
-                        let (mut hours, mut minutes, mut seconds, mut micros) =
+                        let (mut hours, mut minutes, mut seconds, mut millis) =
                             (0u32, 0u32, 0u32, 0u32);
                         if let Some(dur) = split.pb_time {
-                            let total_micros = dur.num_microseconds().unwrap_or(0);
-                            if total_micros >= 0 {
-                                let total_micros = total_micros as u32;
-                                hours = total_micros / 3_600_000_000;
-                                let rem = total_micros % 3_600_000_000;
-                                minutes = rem / 60_000_000;
-                                let rem = rem % 60_000_000;
-                                seconds = rem / 1_000_000;
-                                micros = rem % 1_000_000;
+                            let total_millis = dur.num_milliseconds();
+                            if total_millis >= 0 {
+                                let total_millis = total_millis as u32;
+                                hours = total_millis / 3_600_000;
+                                let rem = total_millis % 3_600_000;
+                                minutes = rem / 60_000;
+                                let rem = rem % 60_000;
+                                seconds = rem / 1_000;
+                                millis = rem % 1_000;
                             }
                         }
 
@@ -180,16 +179,22 @@ impl SplitEditor {
                         ui.label("s");
 
                         changed |= ui
-                            .add(egui::DragValue::new(&mut micros).range(0..=999_999))
+                            .add(egui::DragValue::new(&mut millis).range(0..=999))
                             .changed();
                         ui.label("ms");
 
                         if changed {
-                            let total_micros = (hours as i64) * 3_600_000_000
-                                + (minutes as i64) * 60_000_000
-                                + (seconds as i64) * 1_000_000
-                                + (micros as i64);
-                            split.pb_time = Some(Duration::microseconds(total_micros));
+                            let total_millis = (hours as i64) * 3_600_000
+                                + (minutes as i64) * 60_000
+                                + (seconds as i64) * 1_000
+                                + (millis as i64);
+
+                            split.pb_time = if total_millis == 0 {
+                                None
+                            } else {
+                                Some(Duration::milliseconds(total_millis))
+                            };
+
                             split_changed = true;
                         }
                     });
