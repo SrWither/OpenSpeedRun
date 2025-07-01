@@ -2,6 +2,7 @@ mod split_editor;
 mod theme_editor;
 
 use eframe::egui;
+use egui::{Color32, RichText, ViewportBuilder};
 use openspeedrun::{
     LayoutConfig, Run,
     config::load::{AppConfig, config_base_dir},
@@ -251,7 +252,7 @@ impl eframe::App for ConfigApp {
             }
         }
 
-        // Main UI
+        // Top Tabs
         egui::TopBottomPanel::top("tabs").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 if ui.selectable_label(self.tab == 0, "Selector").clicked() {
@@ -266,105 +267,181 @@ impl eframe::App for ConfigApp {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| match self.tab {
-            0 => self.ui_selector(ui),
-            1 => {
-                if let Some(editor) = &mut self.theme_editor {
-                    editor.ui(ui);
-                } else {
-                    ui.label("Select a theme to edit.");
-                }
-            }
-            2 => {
-                if let Some(editor) = &mut self.split_editor {
-                    editor.ui(ctx, ui);
-                } else {
-                    ui.label("Select a split to edit.");
-                }
-            }
-            _ => {}
+        // Central content with scroll
+        egui::CentralPanel::default().show(ctx, |ui| {
+            egui::ScrollArea::vertical()
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
+                    match self.tab {
+                        0 => self.ui_selector(ui),
+                        1 => {
+                            if let Some(editor) = &mut self.theme_editor {
+                                editor.ui(ui);
+                            } else {
+                                ui.label("Select a theme to edit.");
+                            }
+                        }
+                        2 => {
+                            if let Some(editor) = &mut self.split_editor {
+                                editor.ui(ctx, ui);
+                            } else {
+                                ui.label("Select a split to edit.");
+                            }
+                        }
+                        _ => {}
+                    }
+                });
         });
     }
 }
 
+
 impl ConfigApp {
     fn ui_selector(&mut self, ui: &mut egui::Ui) {
-        ui.label("Current Theme:");
-        for theme in &self.available_themes {
-            if ui
-                .selectable_label(Some(theme) == self.selected_theme.as_ref(), theme)
-                .clicked()
-            {
-                self.selected_theme = Some(theme.clone());
-                self.app_config.theme = format!("themes/{}.json", theme);
-                let base = config_base_dir();
-                self.theme_editor = Some(ThemeEditor::new(
-                    base.join("themes").join(format!("{}.json", theme)),
-                ));
-            }
-        }
+        ui.vertical_centered(|ui| {
+            ui.heading("Configuration Selector");
+        });
 
-        ui.separator();
+        ui.add_space(12.0);
 
-        ui.label("Current Split:");
-        for split in &self.available_splits {
-            if ui
-                .selectable_label(Some(split) == self.selected_split.as_ref(), split)
-                .clicked()
-            {
-                self.selected_split = Some(split.clone());
-                self.app_config.last_split_path = format!("splits/{}", split);
-                let base = config_base_dir();
-                self.split_editor = Some(SplitEditor::new(
-                    base.join("splits").join(split).join("split.json"),
-                ));
-            }
-        }
+        // === THEMES ===
+        ui.group(|ui| {
+            ui.label(RichText::new("📁 Themes").strong().size(16.0));
+            ui.add_space(6.0);
 
-        ui.separator();
+            egui::ScrollArea::vertical()
+                .id_salt("themes_scroll") // ID único para scroll independiente
+                .max_height(160.0)
+                .show(ui, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        for theme in &self.available_themes {
+                            let selected = Some(theme) == self.selected_theme.as_ref();
+                            let button = egui::Button::new(theme.clone())
+                                .fill(if selected {
+                                    Color32::from_rgb(50, 50, 0)
+                                } else {
+                                    Color32::from_rgb(30, 30, 30)
+                                })
+                                .stroke(egui::Stroke::new(
+                                    1.0,
+                                    if selected {
+                                        Color32::YELLOW
+                                    } else {
+                                        Color32::DARK_GRAY
+                                    },
+                                ))
+                                .min_size(egui::vec2(100.0, 28.0));
+
+                            if ui.add(button).clicked() {
+                                self.selected_theme = Some(theme.clone());
+                                self.app_config.theme = format!("themes/{}.json", theme);
+                                let base = config_base_dir();
+                                self.theme_editor = Some(ThemeEditor::new(
+                                    base.join("themes").join(format!("{}.json", theme)),
+                                ));
+                            }
+                        }
+                    });
+                });
+
+            ui.add_space(8.0);
+
+            ui.horizontal(|ui| {
+                if ui.button("➕ New Theme").clicked() {
+                    self.show_name_input_popup(true);
+                }
+                if ui.button("🗑 Delete Theme").clicked() {
+                    if let Some(theme) = &self.selected_theme {
+                        self.show_delete_confirmation(theme.clone(), true);
+                    }
+                }
+            });
+        });
+
+        ui.add_space(16.0);
+
+        // === SPLITS ===
+        ui.group(|ui| {
+            ui.label(RichText::new("🏁 Splits").strong().size(16.0));
+            ui.add_space(6.0);
+
+            egui::ScrollArea::vertical()
+                .id_salt("splits_scroll") // ID único para scroll independiente
+                .max_height(160.0)
+                .show(ui, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        for split in &self.available_splits {
+                            let selected = Some(split) == self.selected_split.as_ref();
+                            let button = egui::Button::new(split.clone())
+                                .fill(if selected {
+                                    Color32::from_rgb(0, 40, 60)
+                                } else {
+                                    Color32::from_rgb(20, 20, 20)
+                                })
+                                .stroke(egui::Stroke::new(
+                                    1.0,
+                                    if selected {
+                                        Color32::from_rgb(100, 200, 255)
+                                    } else {
+                                        Color32::GRAY
+                                    },
+                                ))
+                                .min_size(egui::vec2(100.0, 28.0));
+
+                            if ui.add(button).clicked() {
+                                self.selected_split = Some(split.clone());
+                                self.app_config.last_split_path = format!("splits/{}", split);
+                                let base = config_base_dir();
+                                self.split_editor = Some(SplitEditor::new(
+                                    base.join("splits").join(split).join("split.json"),
+                                ));
+                            }
+                        }
+                    });
+                });
+
+            ui.add_space(8.0);
+
+            ui.horizontal(|ui| {
+                if ui.button("➕ New Split").clicked() {
+                    self.show_name_input_popup(false);
+                }
+                if ui.button("🗑 Delete Split").clicked() {
+                    if let Some(split) = &self.selected_split {
+                        self.show_delete_confirmation(split.clone(), false);
+                    }
+                }
+            });
+        });
+
+        ui.add_space(16.0);
 
         ui.horizontal(|ui| {
-            if ui.button("New theme").clicked() {
-                self.show_name_input_popup(true);
-            }
-            if ui.button("Delete theme").clicked() {
-                if let Some(theme) = &self.selected_theme {
-                    self.show_delete_confirmation(theme.clone(), true);
+            if ui
+                .add_sized([140.0, 42.0], egui::Button::new("💾 Save Changes"))
+                .clicked()
+            {
+                self.app_config.save();
+
+                if let Some(editor) = &self.theme_editor {
+                    let _ = editor.layout.save(self.app_config.theme.as_str());
+                }
+
+                if let Some(editor) = &self.split_editor {
+                    let _ = editor
+                        .run
+                        .save_to_file(&format!("{}/split.json", self.app_config.last_split_path));
                 }
             }
         });
-
-        ui.separator();
-
-        ui.horizontal(|ui| {
-            if ui.button("New split").clicked() {
-                self.show_name_input_popup(false);
-            }
-            if ui.button("Delete split").clicked() {
-                if let Some(split) = &self.selected_split {
-                    self.show_delete_confirmation(split.clone(), false);
-                }
-            }
-        });
-
-        ui.separator();
-
-        if ui.button("Save Changes").clicked() {
-            self.app_config.save();
-            if let Some(editor) = &self.theme_editor {
-                let _ = editor.layout.save(self.app_config.theme.as_str());
-            }
-            if let Some(editor) = &self.split_editor {
-                let _ = editor
-                    .run
-                    .save_to_file(&format!("{}/split.json", self.app_config.last_split_path));
-            }
-        }
     }
 }
 
 fn main() -> eframe::Result<()> {
-    let options = eframe::NativeOptions::default();
+    let mut options = eframe::NativeOptions::default();
+    options.viewport = ViewportBuilder::default()
+        .with_inner_size(egui::vec2(850.0, 650.0));
+    
     eframe::run_native(
         "OpenSpeedRun Config",
         options,
