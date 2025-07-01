@@ -223,7 +223,52 @@ impl eframe::App for AppState {
         } = self.layout.clone();
 
         let bg_color = Color32::from_hex(&background_color).unwrap_or(Color32::BLACK);
+        let text_color_parsed = Color32::from_hex(&text_color).unwrap_or(Color32::WHITE);
 
+        // === HEADER ===
+        egui::TopBottomPanel::top("header")
+            .frame(egui::Frame::default().fill(bg_color))
+            .show(ctx, |ui| {
+                ui.add_space(10.0);
+                ui.vertical_centered(|ui| {
+                    if show_title {
+                        ui.label(
+                            RichText::new(&self.run.title)
+                                .color(text_color_parsed)
+                                .size(font_size + 4.0),
+                        );
+                    }
+                    if show_category {
+                        ui.label(
+                            RichText::new(&self.run.category)
+                                .color(text_color_parsed)
+                                .size(font_size),
+                        );
+                    }
+
+                    let elapsed = self.timer.current_time();
+                    let sign = if elapsed < Duration::zero() { "-" } else { "" };
+                    let elapsed_abs = elapsed.abs();
+                    let time_str = format!(
+                        "{}{:02}:{:02}.{:03}",
+                        sign,
+                        elapsed_abs.num_minutes(),
+                        elapsed_abs.num_seconds() % 60,
+                        elapsed_abs.num_milliseconds() % 1000
+                    );
+
+                    ui.add_space(10.0);
+                    ui.label(
+                        RichText::new(time_str)
+                            .size(font_size * 2.0)
+                            .color(Color32::from_rgb(250, 200, 100))
+                            .strong(),
+                    );
+                    ui.add_space(10.0);
+                });
+            });
+
+        // === FOOTER ===
         egui::TopBottomPanel::bottom("footer")
             .resizable(false)
             .min_height(60.0)
@@ -238,7 +283,6 @@ impl eframe::App for AppState {
                 let left = rect.left();
                 let right = rect.right();
                 let stroke = egui::Stroke::new(1.0, Color32::from_gray(100));
-
                 ui.painter()
                     .line_segment([egui::pos2(left, top), egui::pos2(right, top)], stroke);
 
@@ -284,7 +328,6 @@ impl eframe::App for AppState {
                                 eprintln!("Error saving PB: {}", e);
                             }
                         }
-
                         if ui.button("Undo PB").clicked() {
                             self.undo_pb();
                         }
@@ -292,59 +335,19 @@ impl eframe::App for AppState {
                 });
             });
 
+        // === CENTRAL PANEL CON SCROLL ===
         egui::CentralPanel::default()
             .frame(egui::Frame::default().fill(bg_color))
             .show(ctx, |ui| {
-                ui.add_space(12.0);
-
-                ui.vertical_centered(|ui| {
-                    if show_title {
-                        ui.label(
-                            RichText::new(&self.run.title)
-                                .color(Color32::from_hex(&text_color).unwrap_or(Color32::WHITE))
-                                .size(font_size + 4.0),
-                        );
-                    }
-                    if show_category {
-                        ui.label(
-                            RichText::new(&self.run.category)
-                                .color(Color32::from_hex(&text_color).unwrap_or(Color32::WHITE))
-                                .size(font_size),
-                        );
-                    }
-
-                    let elapsed = self.timer.current_time();
-                    let sign = if elapsed < Duration::zero() { "-" } else { "" };
-                    let elapsed_abs = elapsed.abs();
-
-                    let time_str = format!(
-                        "{}{:02}:{:02}.{:03}",
-                        sign,
-                        elapsed_abs.num_minutes(),
-                        elapsed_abs.num_seconds() % 60,
-                        elapsed_abs.num_milliseconds() % 1000
-                    );
-
-                    ui.add_space(10.0);
-                    ui.label(
-                        RichText::new(time_str)
-                            .size(font_size * 2.0)
-                            .color(Color32::from_rgb(250, 200, 100))
-                            .strong(),
-                    );
-
-                    if show_splits {
-                        ui.add_space(12.0);
-
+                if show_splits {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
                         let total_splits = self.run.splits.len();
                         let page_start = self.current_page * self.splits_per_page;
                         let page_end = (page_start + self.splits_per_page).min(total_splits);
-
                         let splits = self.splits_display.clone();
                         let current_split = self.current_split;
 
-                        for (i, split) in splits.iter().enumerate().take(page_end).skip(page_start)
-                        {
+                        for (i, split) in splits.iter().enumerate().take(page_end).skip(page_start) {
                             let is_current = i == current_split;
                             let is_first = i == page_start;
 
@@ -364,7 +367,6 @@ impl eframe::App for AppState {
                             ui.horizontal(|ui| {
                                 ui.set_min_height(32.0);
                                 ui.set_min_width(ui.available_width());
-
                                 ui.add_space(10.0);
 
                                 let texture = split
@@ -383,12 +385,10 @@ impl eframe::App for AppState {
                                         .size(font_size - 6.0)
                                 } else {
                                     RichText::new(&split.name)
-                                        .color(
-                                            Color32::from_hex(&text_color)
-                                                .unwrap_or(Color32::WHITE),
-                                        )
+                                        .color(text_color_parsed)
                                         .size(font_size - 8.0)
                                 };
+
                                 ui.label(name_text);
 
                                 ui.with_layout(
@@ -460,8 +460,8 @@ impl eframe::App for AppState {
                                 egui::Stroke::new(1.0, Color32::from_gray(100)),
                             );
                         }
-                    }
-                });
+                    });
+                }
             });
 
         ctx.request_repaint();
