@@ -19,7 +19,8 @@ pub struct AppState {
     pub split_base_path: std::path::PathBuf,
     pub current_page: usize,
     pub splits_per_page: usize,
-    pub splits_snapshots: Vec<Split>,
+    pub splits_display: Vec<Split>,
+    pub splits_backup: Vec<Split>,
 }
 
 impl Default for AppState {
@@ -48,7 +49,8 @@ impl Default for AppState {
             split_base_path,
             current_page: 0,
             splits_per_page,
-            splits_snapshots: splits,
+            splits_display: splits.clone(),
+            splits_backup: splits,
         }
     }
 }
@@ -63,6 +65,7 @@ impl AppState {
     }
 
     fn start_run(&mut self) {
+        self.splits_backup = self.run.splits.clone();
         let offset = self.run.start_offset.unwrap_or(0);
         self.timer.start_with_offset(offset);
         self.current_split = 0;
@@ -74,13 +77,13 @@ impl AppState {
             return;
         }
 
-        if let Some(split) = self.splits_snapshots.get_mut(self.current_split) {
+        if let Some(split) = self.splits_display.get_mut(self.current_split) {
             split.last_time = Some(now);
         }
 
         self.current_split += 1;
 
-        if self.current_split >= self.splits_snapshots.len() {
+        if self.current_split >= self.splits_display.len() {
             self.timer.pause();
         }
 
@@ -90,7 +93,7 @@ impl AppState {
 
     fn update_page(&mut self) {
         let next_page = self.current_split / self.splits_per_page;
-        let max_page = (self.splits_snapshots.len().saturating_sub(1)) / self.splits_per_page;
+        let max_page = (self.splits_display.len().saturating_sub(1)) / self.splits_per_page;
         self.current_page = next_page.min(max_page);
     }
 
@@ -99,7 +102,7 @@ impl AppState {
             return;
         }
 
-        self.run.splits = self.splits_snapshots.clone();
+        self.run.splits = self.splits_display.clone();
 
         if self.run.gold_split {
             for split in self.run.splits.iter_mut() {
@@ -150,12 +153,12 @@ impl AppState {
 
     pub fn reset_splits(&mut self) {
         if self.current_split == self.run.splits.len() {
-            for (snapshot, real) in self.splits_snapshots.iter_mut().zip(&self.run.splits) {
+            for (snapshot, real) in self.splits_display.iter_mut().zip(&self.run.splits) {
                 snapshot.pb_time = real.pb_time;
                 snapshot.last_time = None;
             }
         } else {
-            for snapshot in &mut self.splits_snapshots {
+            for snapshot in &mut self.splits_display {
                 snapshot.last_time = None;
             }
         }
@@ -187,11 +190,20 @@ impl AppState {
     }
 
     fn save_pb(&mut self) -> std::io::Result<()> {
-        let path = self.split_base_path.join("split.json");
-        self.run.save_to_file(path.to_str().unwrap())
+        if self.current_split == self.run.splits.len() {
+            let path = self.split_base_path.join("split.json");
+            return self.run.save_to_file(path.to_str().unwrap());
+        }
+        Ok(())
     }
 
-    
+    fn undo_pb(&mut self) {
+        self.run.splits = self.splits_backup.clone();
+        self.save_pb().unwrap_or_else(|e| {
+            eprintln!("Error saving PB after undo: {}", e);
+        });
+        self.reset_splits();
+    }
 }
 
 impl eframe::App for AppState {
@@ -272,6 +284,10 @@ impl eframe::App for AppState {
                                 eprintln!("Error saving PB: {}", e);
                             }
                         }
+
+                        if ui.button("Undo PB").clicked() {
+                            self.undo_pb();
+                        }
                     });
                 });
             });
@@ -324,7 +340,7 @@ impl eframe::App for AppState {
                         let page_start = self.current_page * self.splits_per_page;
                         let page_end = (page_start + self.splits_per_page).min(total_splits);
 
-                        let splits = self.splits_snapshots.clone();
+                        let splits = self.splits_display.clone();
                         let current_split = self.current_split;
 
                         for (i, split) in splits.iter().enumerate().take(page_end).skip(page_start)
@@ -389,22 +405,26 @@ impl eframe::App for AppState {
                                             if let Some(pb) = &split.pb_time {
                                                 if pb.num_milliseconds() > 0 {
                                                     let diff = *last - *pb;
-                                                    let sign = if diff < Duration::zero() { "-" } else { "+" };
+                                                    let sign = if diff < Duration::zero() {
+                                                        "-"
+                                                    } else {
+                                                        "+"
+                                                    };
                                                     let diff_abs = diff.num_milliseconds().abs();
                                                     let diff_secs = diff_abs / 1000;
                                                     let diff_millis = diff_abs % 1000;
-                                            
+
                                                     let diff_text = format!(
                                                         "{}{:02}.{:03}",
                                                         sign, diff_secs, diff_millis
                                                     );
-                                            
+
                                                     let diff_color = if diff < Duration::zero() {
                                                         Color32::GREEN
                                                     } else {
                                                         Color32::RED
                                                     };
-                                            
+
                                                     ui.label(
                                                         RichText::new(diff_text)
                                                             .size(font_size - 10.0)
@@ -412,7 +432,6 @@ impl eframe::App for AppState {
                                                     );
                                                 }
                                             }
-                                            
 
                                             ui.label(
                                                 RichText::new(time_text)

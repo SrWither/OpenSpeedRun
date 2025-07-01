@@ -188,6 +188,8 @@ impl SplitEditor {
                         }
                     });
 
+                    ui.add_space(10.0);
+
                     ui.horizontal(|ui| {
                         ui.label("PB Time");
 
@@ -241,6 +243,11 @@ impl SplitEditor {
 
                             split_changed = true;
                         }
+
+                        ui.button("Reset PB").clicked().then(|| {
+                            split.pb_time = None;
+                            split_changed = true;
+                        });
                     });
 
                     ui.separator();
