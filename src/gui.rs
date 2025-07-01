@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::config::load::{AppConfig, config_base_dir};
-use crate::core::split::Run;
+use crate::core::split::{Run, Split};
 use crate::core::timer::Timer;
 use crate::{config::layout::LayoutConfig, core::timer::TimerState};
 use chrono::Duration;
@@ -19,6 +19,7 @@ pub struct AppState {
     pub split_base_path: std::path::PathBuf,
     pub current_page: usize,
     pub splits_per_page: usize,
+    pub splits_snapshots: Vec<Split>,
 }
 
 impl Default for AppState {
@@ -36,6 +37,8 @@ impl Default for AppState {
         let layout_path = config_base_dir().join(&app_config.theme);
         let layout = LayoutConfig::load_or_default(layout_path.to_str().unwrap());
 
+        let splits = run.splits.clone();
+
         Self {
             timer: Timer::new(),
             run,
@@ -45,42 +48,118 @@ impl Default for AppState {
             split_base_path,
             current_page: 0,
             splits_per_page,
+            splits_snapshots: splits,
         }
     }
 }
 
 impl AppState {
     pub fn split(&mut self) {
-        if self.timer.state == TimerState::NotStarted {
-            let offset = self.run.start_offset.unwrap_or(0);
-            self.timer.start_with_offset(offset);
-            self.current_split = 0;
-        } else if self.timer.state == TimerState::Running {
-            let now = self.timer.current_time();
+        match self.timer.state {
+            TimerState::NotStarted => self.start_run(),
+            TimerState::Running => self.record_split(),
+            _ => {}
+        }
+    }
 
-            if now < Duration::zero() {
-                return;
+    fn start_run(&mut self) {
+        let offset = self.run.start_offset.unwrap_or(0);
+        self.timer.start_with_offset(offset);
+        self.current_split = 0;
+    }
+
+    fn record_split(&mut self) {
+        let now = self.timer.current_time();
+        if now < Duration::zero() {
+            return;
+        }
+
+        if let Some(split) = self.splits_snapshots.get_mut(self.current_split) {
+            split.last_time = Some(now);
+        }
+
+        self.current_split += 1;
+
+        if self.current_split >= self.splits_snapshots.len() {
+            self.timer.pause();
+        }
+
+        self.update_page();
+        self.check_auto_update_pb();
+    }
+
+    fn update_page(&mut self) {
+        let next_page = self.current_split / self.splits_per_page;
+        let max_page = (self.splits_snapshots.len().saturating_sub(1)) / self.splits_per_page;
+        self.current_page = next_page.min(max_page);
+    }
+
+    fn check_auto_update_pb(&mut self) {
+        if !(self.current_split == self.run.splits.len()) {
+            return;
+        }
+
+        self.run.splits = self.splits_snapshots.clone();
+
+        if self.run.gold_split {
+            for split in self.run.splits.iter_mut() {
+                if let Some(last) = split.last_time {
+                    match split.pb_time {
+                        Some(pb) if last < pb => {
+                            split.pb_time = Some(last);
+                        }
+                        None => {
+                            split.pb_time = Some(last);
+                        }
+                        _ => {}
+                    }
+                }
+                split.last_time = None;
+            }
+        } else {
+            let mut is_better = true;
+
+            for split in &self.run.splits {
+                match (split.last_time, split.pb_time) {
+                    (Some(last), Some(pb)) if last > pb => {
+                        is_better = false;
+                        break;
+                    }
+                    (None, _) => {
+                        is_better = false;
+                        break;
+                    }
+                    _ => {}
+                }
             }
 
-            if let Some(split) = self.run.splits.get_mut(self.current_split) {
-                split.last_time = Some(now);
+            if is_better {
+                for split in self.run.splits.iter_mut() {
+                    split.pb_time = split.last_time;
+                    split.last_time = None;
+                }
             }
-            self.current_split += 1;
+        }
 
-            if self.current_split >= self.run.splits.len() {
-                self.timer.pause();
+        if self.run.auto_update_pb {
+            if let Err(e) = self.save_pb() {
+                eprintln!("Error saving PB: {}", e);
             }
-
-            let next_page = self.current_split / self.splits_per_page;
-            let max_page = (self.run.splits.len().saturating_sub(1)) / self.splits_per_page;
-            self.current_page = next_page.min(max_page);
         }
     }
 
     pub fn reset_splits(&mut self) {
-        for split in &mut self.run.splits {
-            split.last_time = None;
+        if self.current_split == self.run.splits.len() {
+            for (snapshot, real) in self.splits_snapshots.iter_mut().zip(&self.run.splits) {
+                snapshot.pb_time = real.pb_time;
+                snapshot.last_time = None;
+            }
+        } else {
+            for snapshot in &mut self.splits_snapshots {
+                snapshot.last_time = None;
+            }
         }
+
         self.current_split = 0;
         self.timer.reset();
     }
@@ -106,6 +185,13 @@ impl AppState {
             None
         }
     }
+
+    fn save_pb(&mut self) -> std::io::Result<()> {
+        let path = self.split_base_path.join("split.json");
+        self.run.save_to_file(path.to_str().unwrap())
+    }
+
+    
 }
 
 impl eframe::App for AppState {
@@ -178,6 +264,14 @@ impl eframe::App for AppState {
                             self.timer.reset();
                             self.reset_splits();
                         }
+                        if ui.button("Split").clicked() {
+                            self.split();
+                        }
+                        if ui.button("Save PB").clicked() {
+                            if let Err(e) = self.save_pb() {
+                                eprintln!("Error saving PB: {}", e);
+                            }
+                        }
                     });
                 });
             });
@@ -230,7 +324,7 @@ impl eframe::App for AppState {
                         let page_start = self.current_page * self.splits_per_page;
                         let page_end = (page_start + self.splits_per_page).min(total_splits);
 
-                        let splits = self.run.splits.clone();
+                        let splits = self.splits_snapshots.clone();
                         let current_split = self.current_split;
 
                         for (i, split) in splits.iter().enumerate().take(page_end).skip(page_start)
@@ -293,30 +387,32 @@ impl eframe::App for AppState {
                                             );
 
                                             if let Some(pb) = &split.pb_time {
-                                                let diff = *last - *pb;
-                                                let sign =
-                                                    if diff < Duration::zero() { "-" } else { "+" };
-                                                let diff_abs = diff.num_milliseconds().abs();
-                                                let diff_secs = diff_abs / 1000;
-                                                let diff_millis = diff_abs % 1000;
-
-                                                let diff_text = format!(
-                                                    "{}{:02}.{:03}",
-                                                    sign, diff_secs, diff_millis
-                                                );
-
-                                                let diff_color = if diff < Duration::zero() {
-                                                    Color32::GREEN
-                                                } else {
-                                                    Color32::RED
-                                                };
-
-                                                ui.label(
-                                                    RichText::new(diff_text)
-                                                        .size(font_size - 10.0)
-                                                        .color(diff_color),
-                                                );
+                                                if pb.num_milliseconds() > 0 {
+                                                    let diff = *last - *pb;
+                                                    let sign = if diff < Duration::zero() { "-" } else { "+" };
+                                                    let diff_abs = diff.num_milliseconds().abs();
+                                                    let diff_secs = diff_abs / 1000;
+                                                    let diff_millis = diff_abs % 1000;
+                                            
+                                                    let diff_text = format!(
+                                                        "{}{:02}.{:03}",
+                                                        sign, diff_secs, diff_millis
+                                                    );
+                                            
+                                                    let diff_color = if diff < Duration::zero() {
+                                                        Color32::GREEN
+                                                    } else {
+                                                        Color32::RED
+                                                    };
+                                            
+                                                    ui.label(
+                                                        RichText::new(diff_text)
+                                                            .size(font_size - 10.0)
+                                                            .color(diff_color),
+                                                    );
+                                                }
                                             }
+                                            
 
                                             ui.label(
                                                 RichText::new(time_text)

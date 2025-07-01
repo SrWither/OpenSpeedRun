@@ -101,6 +101,20 @@ impl SplitEditor {
             }
         });
 
+        ui.horizontal(|ui| {
+            ui.label("Auto-update PB:");
+            if ui.checkbox(&mut self.run.auto_update_pb, "").changed() {
+                
+            }
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Gold split:");
+            if ui.checkbox(&mut self.run.gold_split, "").changed() {
+                
+            }
+        });
+
         ui.separator();
         ui.horizontal(|ui| {
             if ui.button("Add split").clicked() {
@@ -112,9 +126,9 @@ impl SplitEditor {
                 });
             }
 
-            if ui.button("Save splits").clicked() {
+            if ui.button("Save all").clicked() {
                 if let Err(e) = self.run.save_to_file(self.run_path.to_str().unwrap()) {
-                    eprintln!("Error saving splits: {}", e);
+                    eprintln!("Error saving all: {}", e);
                 }
             }
         });

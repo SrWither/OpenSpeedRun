@@ -19,6 +19,9 @@ pub struct Run {
     #[serde(default)]
     pub start_offset: Option<i64>,
     pub splits_per_page: Option<usize>,
+    pub auto_update_pb: bool,
+    #[serde(default)]
+    pub gold_split: bool,
 }
 
 impl Run {
@@ -44,7 +47,9 @@ impl Run {
             category: category.to_string(),
             splits,
             start_offset: None,
-            splits_per_page: Some(5), 
+            splits_per_page: Some(5),
+            auto_update_pb: true,
+            gold_split: false,
         }
     }
 
