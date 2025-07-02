@@ -4,6 +4,7 @@ pub mod gui;
 
 use crate::core::server::listen_for_commands;
 use eframe::NativeOptions;
+use egui::ViewportBuilder;
 use gui::AppState;
 use gui::AppWrapper;
 use std::sync::{Arc, Mutex};
@@ -17,7 +18,18 @@ fn main() -> eframe::Result<()> {
         rt.block_on(listen_for_commands(app_clone));
     });
 
-    let options = NativeOptions::default();
+    let layout = app_state.lock().unwrap().layout.clone();
+    let titlebar = layout.titlebar;
+    let window_size = layout.window_size;
+
+    let mut options = NativeOptions::default();
+    options.viewport = ViewportBuilder::default()
+        .with_decorations(titlebar)
+        .with_inner_size(egui::vec2(
+            window_size.0 as f32,
+            window_size.1 as f32,
+        ));
+    
 
     eframe::run_native(
         "OpenSpeedRun",

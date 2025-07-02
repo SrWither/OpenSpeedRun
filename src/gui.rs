@@ -219,7 +219,8 @@ impl eframe::App for AppState {
             show_title,
             show_category,
             show_splits,
-            show_total_time: _,
+            titlebar: _,
+            window_size: _
         } = self.layout.clone();
 
         let bg_color = Color32::from_hex(&background_color).unwrap_or(Color32::BLACK);

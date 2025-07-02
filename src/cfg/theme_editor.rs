@@ -30,7 +30,13 @@ impl ThemeEditor {
         ui.checkbox(&mut self.layout.show_title, "Show title");
         ui.checkbox(&mut self.layout.show_category, "Show category");
         ui.checkbox(&mut self.layout.show_splits, "Show splits");
-        ui.checkbox(&mut self.layout.show_total_time, "Show total time");
+        ui.checkbox(&mut self.layout.titlebar, "Titlebar");
+        ui.label("Default Window Size:");
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut self.layout.window_size.0).speed(1.0));
+            ui.label("x");
+            ui.add(egui::DragValue::new(&mut self.layout.window_size.1).speed(1.0));
+        });
 
         if ui.button("Save Changes").clicked() {
             if let Err(e) = self.layout.save(self.current_theme_path.to_str().unwrap()) {

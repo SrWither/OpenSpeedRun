@@ -9,7 +9,8 @@ pub struct LayoutConfig {
     pub show_title: bool,
     pub show_category: bool,
     pub show_splits: bool,
-    pub show_total_time: bool,
+    pub titlebar: bool,
+    pub window_size: (u32, u32),
 }
 
 impl Default for LayoutConfig {
@@ -21,7 +22,8 @@ impl Default for LayoutConfig {
             show_title: true,
             show_category: true,
             show_splits: true,
-            show_total_time: true,
+            titlebar: true,
+            window_size: (720, 1280),
         }
     }
 }
