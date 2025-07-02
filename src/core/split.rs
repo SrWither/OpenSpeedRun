@@ -8,6 +8,8 @@ pub struct Split {
     pub pb_time: Option<Duration>,
     #[serde(with = "crate::core::split::duration_millis")]
     pub last_time: Option<Duration>,
+    #[serde(with = "crate::core::split::duration_millis")]
+    pub gold_time: Option<Duration>,
     pub icon_path: Option<String>,
 }
 
@@ -33,6 +35,7 @@ impl Run {
                 pb_time: None,
                 last_time: None,
                 icon_path: None,
+                gold_time: None,
             })
             .collect();
 
@@ -49,7 +52,7 @@ impl Run {
             start_offset: None,
             splits_per_page: Some(5),
             auto_update_pb: true,
-            gold_split: false,
+            gold_split: true,
         }
     }
 

@@ -1,12 +1,11 @@
 pub mod config;
 pub mod core;
-pub mod gui;
+pub mod app;
 
 use crate::core::server::listen_for_commands;
 use eframe::NativeOptions;
 use egui::ViewportBuilder;
-use gui::AppState;
-use gui::AppWrapper;
+use app::state::{AppState, AppWrapper};
 use std::sync::{Arc, Mutex};
 
 fn main() -> eframe::Result<()> {

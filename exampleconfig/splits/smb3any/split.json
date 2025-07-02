@@ -4,32 +4,37 @@
   "splits": [
     {
       "name": "1-1",
-      "pb_time": null,
+      "pb_time": 0,
       "last_time": null,
+      "gold_time": 0,
       "icon_path": "icons/mushrom.png"
     },
     {
       "name": "1-2",
-      "pb_time": null,
+      "pb_time": 0,
       "last_time": null,
+      "gold_time": 0,
       "icon_path": "icons/hojas.png"
     },
     {
       "name": "1-3",
-      "pb_time": null,
+      "pb_time": 0,
       "last_time": null,
+      "gold_time": 0,
       "icon_path": "icons/flauta.png"
     },
     {
       "name": "1-C",
-      "pb_time": null,
+      "pb_time": 0,
       "last_time": null,
+      "gold_time": 0,
       "icon_path": "icons/flauta.png"
     },
     {
       "name": "Final",
-      "pb_time": null,
+      "pb_time": 0,
       "last_time": null,
+      "gold_time": 0,
       "icon_path": "icons/peach.png"
     }
   ],

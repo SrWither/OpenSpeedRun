@@ -119,6 +119,7 @@ impl SplitEditor {
                     pb_time: None,
                     last_time: None,
                     icon_path: None,
+                    gold_time: None,
                 });
             }
 
@@ -244,6 +245,65 @@ impl SplitEditor {
                             split.pb_time = None;
                             split_changed = true;
                         });
+                    });
+
+                    ui.add_space(10.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label("Gold Time");
+
+                        let (mut hours, mut minutes, mut seconds, mut millis) =
+                            (0u32, 0u32, 0u32, 0u32);
+                        if let Some(dur) = split.gold_time {
+                            let total_millis = dur.num_milliseconds();
+                            if total_millis >= 0 {
+                                let total_millis = total_millis as u32;
+                                hours = total_millis / 3_600_000;
+                                let rem = total_millis % 3_600_000;
+                                minutes = rem / 60_000;
+                                let rem = rem % 60_000;
+                                seconds = rem / 1_000;
+                                millis = rem % 1_000;
+                            }
+                        }
+
+                        let mut changed = false;
+                        changed |= ui
+                            .add(egui::DragValue::new(&mut hours).range(0..=99))
+                            .changed();
+                        ui.label("h");
+
+                        changed |= ui
+                            .add(egui::DragValue::new(&mut minutes).range(0..=59))
+                            .changed();
+                        ui.label("m");
+
+                        changed |= ui
+                            .add(egui::DragValue::new(&mut seconds).range(0..=59))
+                            .changed();
+                        ui.label("s");
+
+                        changed |= ui
+                            .add(egui::DragValue::new(&mut millis).range(0..=999))
+                            .changed();
+                        ui.label("ms");
+
+                        if changed {
+                            let total_millis = (hours as i64) * 3_600_000
+                                + (minutes as i64) * 60_000
+                                + (seconds as i64) * 1_000
+                                + (millis as i64);
+
+                            split.gold_time = if total_millis == 0 {
+                                None
+                            } else {
+                                Some(Duration::milliseconds(total_millis))
+                            };
+                        }
+
+                        if ui.button("Reset Gold").clicked() {
+                            split.gold_time = None;
+                        }
                     });
 
                     ui.separator();

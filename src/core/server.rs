@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::UnixListener;
 
-use crate::gui::AppState;
+use crate::app::AppState;
 
 pub async fn listen_for_commands(app: Arc<Mutex<AppState>>) {
     let socket_path = "/tmp/openspeedrun.sock";
