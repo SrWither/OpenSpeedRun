@@ -18,8 +18,7 @@ impl AppState {
         let bg_color = Color32::from_hex(&background_color).unwrap_or(Color32::BLACK);
 
         let sum_of_bests = self
-            .run
-            .splits
+            .splits_backup
             .iter()
             .filter_map(|s| s.gold_time)
             .fold(Duration::zero(), |acc, d| acc + d);
