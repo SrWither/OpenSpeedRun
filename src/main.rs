@@ -18,11 +18,10 @@ fn main() -> eframe::Result<()> {
     });
 
     let options = NativeOptions::default();
-    
+
     eframe::run_native(
         "OpenSpeedRun",
         options,
         Box::new(move |_| Ok(Box::new(AppWrapper { app_state }))),
     )
 }
-

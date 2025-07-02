@@ -1,7 +1,7 @@
-use std::path::{PathBuf};
 use dirs::config_dir;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::PathBuf;
 
 pub fn config_base_dir() -> PathBuf {
     config_dir()

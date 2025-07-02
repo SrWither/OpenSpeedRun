@@ -22,12 +22,10 @@ impl ThemeEditor {
         ui.add(egui::Slider::new(&mut self.layout.font_size, 10.0..=64.0).text("Font Size"));
 
         ui.label("Background Color:");
-        if color_edit(ui, &mut self.layout.background_color) {
-        }
+        if color_edit(ui, &mut self.layout.background_color) {}
 
         ui.label("Text Color:");
-        if color_edit(ui, &mut self.layout.text_color) {
-        }
+        if color_edit(ui, &mut self.layout.text_color) {}
 
         ui.checkbox(&mut self.layout.show_title, "Show title");
         ui.checkbox(&mut self.layout.show_category, "Show category");

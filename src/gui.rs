@@ -347,7 +347,8 @@ impl eframe::App for AppState {
                         let splits = self.splits_display.clone();
                         let current_split = self.current_split;
 
-                        for (i, split) in splits.iter().enumerate().take(page_end).skip(page_start) {
+                        for (i, split) in splits.iter().enumerate().take(page_end).skip(page_start)
+                        {
                             let is_current = i == current_split;
                             let is_first = i == page_start;
 

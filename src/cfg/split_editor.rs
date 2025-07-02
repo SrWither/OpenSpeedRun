@@ -103,16 +103,12 @@ impl SplitEditor {
 
         ui.horizontal(|ui| {
             ui.label("Auto-update PB:");
-            if ui.checkbox(&mut self.run.auto_update_pb, "").changed() {
-                
-            }
+            if ui.checkbox(&mut self.run.auto_update_pb, "").changed() {}
         });
 
         ui.horizontal(|ui| {
             ui.label("Gold split:");
-            if ui.checkbox(&mut self.run.gold_split, "").changed() {
-                
-            }
+            if ui.checkbox(&mut self.run.gold_split, "").changed() {}
         });
 
         ui.separator();

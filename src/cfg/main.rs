@@ -271,30 +271,27 @@ impl eframe::App for ConfigApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical()
                 .auto_shrink([false; 2])
-                .show(ui, |ui| {
-                    match self.tab {
-                        0 => self.ui_selector(ui),
-                        1 => {
-                            if let Some(editor) = &mut self.theme_editor {
-                                editor.ui(ui);
-                            } else {
-                                ui.label("Select a theme to edit.");
-                            }
+                .show(ui, |ui| match self.tab {
+                    0 => self.ui_selector(ui),
+                    1 => {
+                        if let Some(editor) = &mut self.theme_editor {
+                            editor.ui(ui);
+                        } else {
+                            ui.label("Select a theme to edit.");
                         }
-                        2 => {
-                            if let Some(editor) = &mut self.split_editor {
-                                editor.ui(ctx, ui);
-                            } else {
-                                ui.label("Select a split to edit.");
-                            }
-                        }
-                        _ => {}
                     }
+                    2 => {
+                        if let Some(editor) = &mut self.split_editor {
+                            editor.ui(ctx, ui);
+                        } else {
+                            ui.label("Select a split to edit.");
+                        }
+                    }
+                    _ => {}
                 });
         });
     }
 }
-
 
 impl ConfigApp {
     fn ui_selector(&mut self, ui: &mut egui::Ui) {
@@ -439,9 +436,8 @@ impl ConfigApp {
 
 fn main() -> eframe::Result<()> {
     let mut options = eframe::NativeOptions::default();
-    options.viewport = ViewportBuilder::default()
-        .with_inner_size(egui::vec2(850.0, 650.0));
-    
+    options.viewport = ViewportBuilder::default().with_inner_size(egui::vec2(850.0, 650.0));
+
     eframe::run_native(
         "OpenSpeedRun Config",
         options,

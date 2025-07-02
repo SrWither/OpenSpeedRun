@@ -1,6 +1,6 @@
-use std::os::unix::net::UnixStream;
-use std::io::Write;
 use std::env;
+use std::io::Write;
+use std::os::unix::net::UnixStream;
 use std::process;
 
 fn main() {
@@ -21,10 +21,15 @@ fn main() {
         process::exit(1);
     }
 
-    let mut stream = UnixStream::connect(socket_path).expect("Could not connect to the OpenSpeedRun socket");
+    let mut stream =
+        UnixStream::connect(socket_path).expect("Could not connect to the OpenSpeedRun socket");
 
-    stream.write_all(cmd.as_bytes()).expect("Failed to write command");
+    stream
+        .write_all(cmd.as_bytes())
+        .expect("Failed to write command");
     stream.write_all(b"\n").expect("Failed to write newline");
 
-    stream.shutdown(std::net::Shutdown::Write).expect("Failed to shutdown write half");
+    stream
+        .shutdown(std::net::Shutdown::Write)
+        .expect("Failed to shutdown write half");
 }
