@@ -1,37 +1,40 @@
 {
   "title": "Super Mario Bros 3",
   "category": "Any%",
-  "start_offset": -5000,
   "splits": [
     {
       "name": "1-1",
-      "pb_time": 15000,
+      "pb_time": null,
       "last_time": null,
-      "icon_path": "icons/icon1-1.png"
+      "icon_path": "icons/mushrom.png"
     },
     {
       "name": "1-2",
-      "pb_time": 30000,
+      "pb_time": null,
       "last_time": null,
-      "icon_path": "icons/icon1-2.png"
+      "icon_path": "icons/hojas.png"
     },
     {
       "name": "1-3",
-      "pb_time": 45000,
+      "pb_time": null,
       "last_time": null,
-      "icon_path": "icons/icon1-3.png"
+      "icon_path": "icons/flauta.png"
     },
     {
       "name": "1-C",
       "pb_time": null,
       "last_time": null,
-      "icon_path": "icons/icon1-castle.png"
+      "icon_path": "icons/flauta.png"
     },
     {
       "name": "Final",
-      "pb_time": 60000,
+      "pb_time": null,
       "last_time": null,
-      "icon_path": "icons/icon7-1.png"
+      "icon_path": "icons/peach.png"
     }
-  ]
+  ],
+  "start_offset": 3,
+  "splits_per_page": 5,
+  "auto_update_pb": true,
+  "gold_split": true
 }

@@ -1,13 +1,13 @@
 {
   "font_size": 28.0,
-  "background_color": "#1e1e2e",
-  "text_color": "#cdd6f4",
+  "background_color": "#1e0f00",
+  "text_color": "#ffe6a3",
   "show_title": true,
   "show_category": true,
   "show_splits": true,
-  "titlebar": true,
+  "titlebar": false,
   "window_size": [
-    720,
+    400,
     1280
   ]
 }
