@@ -1,6 +1,6 @@
 use chrono::Duration;
 use eframe::egui;
-use egui::{Context, TextureHandle};
+use egui::{Context, RichText, Sense, TextureHandle};
 use image::GenericImageView;
 use openspeedrun::core::split::{Run, Split};
 use rfd::FileDialog;
@@ -13,6 +13,21 @@ pub struct SplitEditor {
     pub run: Run,
     icon_selection_index: Option<usize>,
     icon_cache: HashMap<String, TextureHandle>,
+    dragging_split_index: Option<usize>,
+}
+
+fn format_duration(duration: chrono::Duration) -> String {
+    let total_millis = duration.num_milliseconds();
+    let hours = total_millis / 3_600_000;
+    let minutes = (total_millis % 3_600_000) / 60_000;
+    let seconds = (total_millis % 60_000) / 1_000;
+    let millis = total_millis % 1_000;
+
+    if hours > 0 {
+        format!("{:02}:{:02}:{:02}.{:03}", hours, minutes, seconds, millis)
+    } else {
+        format!("{:02}:{:02}.{:03}", minutes, seconds, millis)
+    }
 }
 
 impl SplitEditor {
@@ -24,6 +39,7 @@ impl SplitEditor {
             run,
             icon_selection_index: None,
             icon_cache: HashMap::new(),
+            dragging_split_index: None,
         }
     }
 
@@ -58,6 +74,11 @@ impl SplitEditor {
     }
 
     pub fn ui(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+        let mut fonts = egui::FontDefinitions::default();
+        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+
+        ctx.set_fonts(fonts);
+
         ui.label("Edit Run");
 
         ui.horizontal(|ui| {
@@ -72,10 +93,8 @@ impl SplitEditor {
 
         ui.horizontal(|ui| {
             ui.label("Start offset (seconds):");
-
             let mut offset_secs = self.run.start_offset.unwrap_or(0);
             let mut changed = false;
-
             changed |= ui
                 .add(
                     egui::DragValue::new(&mut offset_secs)
@@ -84,7 +103,6 @@ impl SplitEditor {
                         .prefix("⏱ "),
                 )
                 .changed();
-
             if changed {
                 self.run.start_offset = Some(offset_secs);
             }
@@ -103,12 +121,12 @@ impl SplitEditor {
 
         ui.horizontal(|ui| {
             ui.label("Auto-update PB:");
-            if ui.checkbox(&mut self.run.auto_update_pb, "").changed() {}
+            ui.checkbox(&mut self.run.auto_update_pb, "");
         });
 
         ui.horizontal(|ui| {
             ui.label("Gold split:");
-            if ui.checkbox(&mut self.run.gold_split, "").changed() {}
+            ui.checkbox(&mut self.run.gold_split, "");
         });
 
         ui.separator();
@@ -135,8 +153,32 @@ impl SplitEditor {
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             let mut to_remove = None;
+            let mut swap_request: Option<(usize, usize)> = None;
+            let splits_len = self.run.splits.len();
 
-            for i in 0..self.run.splits.len() {
+            for i in 0..splits_len {
+                let id = ui.make_persistent_id(format!("split_drag_{}", i));
+                let mut rect = ui.available_rect_before_wrap();
+
+                let visual_height = 60.0;
+                if rect.height() < visual_height * 0.75 {
+                    rect.max.y = rect.min.y + visual_height;
+                }
+
+                let response = ui.interact(rect, id, egui::Sense::click_and_drag());
+
+                if response.drag_started() {
+                    self.dragging_split_index = Some(i);
+                }
+
+                if response.hovered() && ctx.input(|i| i.pointer.any_released()) {
+                    if let Some(from_index) = self.dragging_split_index {
+                        if from_index != i {
+                            swap_request = Some((from_index, i));
+                        }
+                    }
+                }
+
                 let split = &mut self.run.splits[i];
                 let texture = split
                     .icon_path
@@ -147,6 +189,39 @@ impl SplitEditor {
                 let mut new_icon_path = None;
 
                 ui.group(|ui| {
+                    ui.horizontal(|ui| {
+                        if ui
+                            .button(RichText::new(egui_phosphor::regular::ARROW_UP))
+                            .clicked()
+                        {
+                            if i > 0 {
+                                swap_request = Some((i, i - 1));
+                            }
+                        }
+
+                        if ui
+                            .button(RichText::new(egui_phosphor::regular::ARROW_DOWN))
+                            .clicked()
+                        {
+                            if i < splits_len - 1 {
+                                swap_request = Some((i, i + 1));
+                            }
+                        }
+
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.style_mut().interaction.selectable_labels = false;
+                            ui.add_space(8.0);
+                            ui.add(egui::Label::new(
+                                RichText::new(egui_phosphor::regular::DOTS_SIX_VERTICAL)
+                                    .italics()
+                                    .size(14.0)
+                                    .color(egui::Color32::GRAY),
+                            ).sense(Sense::empty()));
+                        });
+                    });
+
+                    ui.add_space(5.0);
+
                     ui.horizontal(|ui| {
                         ui.label(format!("Split {}", i + 1));
                         if ui.text_edit_singleline(&mut split.name).changed() {
@@ -180,13 +255,17 @@ impl SplitEditor {
                             self.icon_selection_index = Some(i);
                         }
 
-                        if ui.button("Delete").clicked() {
+                        if ui
+                            .button(RichText::new(egui_phosphor::regular::TRASH))
+                            .clicked()
+                        {
                             to_remove = Some(i);
                         }
                     });
 
                     ui.add_space(10.0);
 
+                    // PB Time
                     ui.horizontal(|ui| {
                         ui.label("PB Time");
 
@@ -241,14 +320,15 @@ impl SplitEditor {
                             split_changed = true;
                         }
 
-                        ui.button("Reset PB").clicked().then(|| {
+                        if ui.button("Reset PB").clicked() {
                             split.pb_time = None;
                             split_changed = true;
-                        });
+                        }
                     });
 
                     ui.add_space(10.0);
 
+                    // Gold Time
                     ui.horizontal(|ui| {
                         ui.label("Gold Time");
 
@@ -340,6 +420,82 @@ impl SplitEditor {
             if let Some(index) = to_remove {
                 self.run.splits.remove(index);
             }
+
+            if let Some((from, to)) = swap_request {
+                self.run.splits.swap(from, to);
+            }
         });
+
+        if let Some(index) = self.dragging_split_index {
+            if let Some(split) = self.run.splits.get(index) {
+                if let Some(cursor_pos) = ctx.input(|i| i.pointer.hover_pos()) {
+                    let painter = ctx.layer_painter(egui::LayerId::new(
+                        egui::Order::Tooltip,
+                        egui::Id::new("dragging_split_preview"),
+                    ));
+
+                    let size = egui::vec2(240.0, 56.0);
+                    let offset = egui::vec2(-size.x - 12.0, -size.y / 2.0);
+                    let rect = egui::Rect::from_min_size(cursor_pos + offset, size);
+
+                    let bg_color = egui::Color32::from_rgba_unmultiplied(30, 30, 30, 220);
+                    painter.rect_filled(rect, egui::CornerRadius::same(10), bg_color);
+
+                    let mut x = rect.left() + 10.0;
+                    let y = rect.top() + 8.0;
+
+                    if let Some(icon_path) = &split.icon_path {
+                        if let Some(tex) = self.icon_cache.get(icon_path) {
+                            let icon_size = 40.0;
+                            let icon_rect = egui::Rect::from_min_size(
+                                egui::pos2(x, y),
+                                egui::vec2(icon_size, icon_size),
+                            );
+                            painter.add(egui::Shape::image(
+                                tex.id(),
+                                icon_rect,
+                                egui::Rect::from_min_max(
+                                    egui::pos2(0.0, 0.0),
+                                    egui::pos2(1.0, 1.0),
+                                ),
+                                egui::Color32::WHITE,
+                            ));
+                            x += icon_size + 10.0;
+                        }
+                    }
+
+                    let title_font = egui::TextStyle::Heading.resolve(&ctx.style());
+                    let subtitle_font = egui::TextStyle::Body.resolve(&ctx.style());
+
+                    painter.text(
+                        egui::pos2(x, y + 4.0),
+                        egui::Align2::LEFT_TOP,
+                        &split.name,
+                        title_font.clone(),
+                        egui::Color32::WHITE,
+                    );
+
+                    let secondary_text = if let Some(pb) = split.pb_time {
+                        format!("PB: {}", format_duration(pb))
+                    } else if let Some(gold) = split.gold_time {
+                        format!("Gold: {}", format_duration(gold))
+                    } else {
+                        "No time set".to_string()
+                    };
+
+                    painter.text(
+                        egui::pos2(x, y + 28.0),
+                        egui::Align2::LEFT_TOP,
+                        secondary_text,
+                        subtitle_font,
+                        egui::Color32::GRAY,
+                    );
+                }
+            }
+        }
+
+        if ctx.input(|i| i.pointer.any_released()) {
+            self.dragging_split_index = None;
+        }
     }
 }

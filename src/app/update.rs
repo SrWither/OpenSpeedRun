@@ -57,6 +57,11 @@ impl AppState {
 
 impl eframe::App for AppWrapper {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let mut fonts = egui::FontDefinitions::default();
+        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+
+        ctx.set_fonts(fonts);
+
         let mut app = self.app_state.lock().unwrap();
         app.handle_input(ctx);
         app.draw_ui(ctx);
