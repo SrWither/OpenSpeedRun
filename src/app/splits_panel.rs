@@ -5,9 +5,8 @@ use eframe::egui::{self, Color32, RichText};
 impl AppState {
     pub fn draw_splits_panel(&mut self, ctx: &egui::Context) {
         let LayoutConfig {
-            background_color,
-            text_color,
-            font_size,
+            colors,
+            font_sizes,
             show_title: _,
             show_category: _,
             show_splits,
@@ -15,8 +14,12 @@ impl AppState {
             window_size: _,
         } = self.layout.clone();
 
-        let bg_color = Color32::from_hex(&background_color).unwrap_or(Color32::BLACK);
-        let text_color_parsed = Color32::from_hex(&text_color).unwrap_or(Color32::WHITE);
+        let bg_color = Color32::from_hex(&colors.background).unwrap_or(Color32::BLACK);
+        let split_color = Color32::from_hex(&colors.split).unwrap_or(Color32::WHITE);
+        let gold_positive_color = Color32::from_hex(&colors.gold_positive).unwrap_or(Color32::GOLD);
+        let gold_negative_color = Color32::from_hex(&colors.gold_negative).unwrap_or(Color32::RED);
+        let pb_positive_color = Color32::from_hex(&colors.pb_positive).unwrap_or(Color32::GREEN);
+        let pb_negative_color = Color32::from_hex(&colors.pb_negative).unwrap_or(Color32::RED);
 
         egui::CentralPanel::default()
             .frame(egui::Frame::default().fill(bg_color))
@@ -45,7 +48,7 @@ impl AppState {
                                 );
                             }
 
-                            ui.add_space(6.0);
+                            ui.add_space(8.0);
 
                             ui.horizontal(|ui| {
                                 ui.set_min_height(32.0);
@@ -65,11 +68,11 @@ impl AppState {
                                     RichText::new(format!("> {}", split.name))
                                         .color(Color32::YELLOW)
                                         .strong()
-                                        .size(font_size - 6.0)
+                                        .size(font_sizes.split + 2.0)
                                 } else {
                                     RichText::new(&split.name)
-                                        .color(text_color_parsed)
-                                        .size(font_size - 8.0)
+                                        .color(split_color)
+                                        .size(font_sizes.split)
                                 };
 
                                 ui.label(name_text);
@@ -88,7 +91,7 @@ impl AppState {
 
                                             ui.label(
                                                 RichText::new(time_text)
-                                                    .size(font_size - 2.0)
+                                                    .size(font_sizes.split)
                                                     .color(Color32::from_rgb(200, 230, 200)),
                                             );
 
@@ -127,14 +130,14 @@ impl AppState {
 
                                                             let diff_color =
                                                                 if diff < Duration::zero() {
-                                                                    Color32::GOLD
+                                                                    gold_positive_color
                                                                 } else {
-                                                                    Color32::RED
+                                                                    gold_negative_color
                                                                 };
 
                                                             ui.label(
                                                                 RichText::new(diff_text)
-                                                                    .size(font_size - 10.0)
+                                                                    .size(font_sizes.split - 5.0)
                                                                     .color(diff_color),
                                                             );
                                                         }
@@ -161,14 +164,14 @@ impl AppState {
 
                                                         let diff_color = if diff < Duration::zero()
                                                         {
-                                                            Color32::GREEN
+                                                            pb_positive_color
                                                         } else {
-                                                            Color32::RED
+                                                            pb_negative_color
                                                         };
 
                                                         ui.label(
                                                             RichText::new(diff_text)
-                                                                .size(font_size - 10.0)
+                                                                .size(font_sizes.split - 5.0)
                                                                 .color(diff_color),
                                                         );
                                                     }
@@ -177,7 +180,7 @@ impl AppState {
                                         } else {
                                             ui.label(
                                                 RichText::new("--:--.---")
-                                                    .size(font_size - 2.0)
+                                                    .size(font_sizes.split)
                                                     .color(Color32::GRAY),
                                             );
                                         }
@@ -185,7 +188,7 @@ impl AppState {
                                 );
                             });
 
-                            ui.add_space(6.0);
+                            ui.add_space(8.0);
 
                             let (rect, _) = ui.allocate_exact_size(
                                 egui::vec2(ui.available_width(), 1.0),

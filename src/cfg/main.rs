@@ -1,13 +1,14 @@
 mod split_editor;
 mod theme_editor;
 
+use std::{fs, os::unix::net::UnixStream};
+
 use eframe::egui;
 use egui::{Color32, RichText, ViewportBuilder};
 use openspeedrun::{
     LayoutConfig, Run,
     config::load::{AppConfig, config_base_dir},
 };
-use std::fs;
 
 use split_editor::SplitEditor;
 use theme_editor::ThemeEditor;
@@ -429,10 +430,30 @@ impl ConfigApp {
                         .run
                         .save_to_file(&format!("{}/split.json", self.app_config.last_split_path));
                 }
+
+                send_message("reloadall");
             }
         });
     }
 }
+
+pub fn send_message(msg: &str) {
+    println!("Sending message: {}", msg);
+    if let Ok(mut stream) = UnixStream::connect("/tmp/openspeedrun.sock") {
+        use std::io::Write;
+        let msg = format!("{msg}\n");
+        if let Err(e) = stream.write_all(msg.as_bytes()) {
+            eprintln!("⚠️ Failed to write: {}", e);
+        } else if let Err(e) = stream.flush() {
+            eprintln!("⚠️ Failed to flush: {}", e);
+        } else {
+            println!("✅ Message sent: {}", msg.trim());
+        }
+    } else {
+        eprintln!("⚠️ Failed to connect to socket");
+    }
+}
+
 
 fn main() -> eframe::Result<()> {
     let mut options = eframe::NativeOptions::default();

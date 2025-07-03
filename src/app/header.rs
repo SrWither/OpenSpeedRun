@@ -5,9 +5,8 @@ use eframe::egui::{self, Color32, RichText};
 impl AppState {
     pub fn draw_header(&self, ctx: &egui::Context) {
         let LayoutConfig {
-            background_color,
-            text_color,
-            font_size,
+            font_sizes,
+            colors,
             show_title,
             show_category,
             show_splits: _,
@@ -15,8 +14,10 @@ impl AppState {
             window_size: _,
         } = self.layout.clone();
 
-        let bg_color = Color32::from_hex(&background_color).unwrap_or(Color32::BLACK);
-        let text_color_parsed = Color32::from_hex(&text_color).unwrap_or(Color32::WHITE);
+        let bg_color = Color32::from_hex(&colors.background).unwrap_or(Color32::BLACK);
+        let title_color = Color32::from_hex(&colors.title).unwrap_or(Color32::WHITE);
+        let category_color = Color32::from_hex(&colors.category).unwrap_or(Color32::WHITE);
+        let timer_color = Color32::from_hex(&colors.timer).unwrap_or(Color32::RED);
 
         egui::TopBottomPanel::top("header")
             .frame(egui::Frame::default().fill(bg_color))
@@ -26,15 +27,15 @@ impl AppState {
                     if show_title {
                         ui.label(
                             RichText::new(&self.run.title)
-                                .color(text_color_parsed)
-                                .size(font_size + 4.0),
+                                .color(title_color)
+                                .size(font_sizes.title),
                         );
                     }
                     if show_category {
                         ui.label(
                             RichText::new(&self.run.category)
-                                .color(text_color_parsed)
-                                .size(font_size),
+                                .color(category_color)
+                                .size(font_sizes.category),
                         );
                     }
 
@@ -52,8 +53,8 @@ impl AppState {
                     ui.add_space(10.0);
                     ui.label(
                         RichText::new(time_str)
-                            .size(font_size * 2.0)
-                            .color(Color32::from_rgb(250, 200, 100))
+                            .size(font_sizes.timer)
+                            .color(timer_color)
                             .strong(),
                     );
                     ui.add_space(10.0);

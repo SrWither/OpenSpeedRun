@@ -5,9 +5,8 @@ use eframe::egui::{self, Color32, RichText};
 impl AppState {
     pub fn draw_footer(&self, ctx: &egui::Context) {
         let LayoutConfig {
-            background_color,
-            text_color: _,
-            font_size: _,
+            font_sizes,
+            colors,
             show_title: _,
             show_category: _,
             show_splits: _,
@@ -15,7 +14,9 @@ impl AppState {
             window_size: _,
         } = self.layout.clone();
 
-        let bg_color = Color32::from_hex(&background_color).unwrap_or(Color32::BLACK);
+        let bg_color = Color32::from_hex(&colors.background).unwrap_or(Color32::BLACK);
+
+        let info_color = Color32::from_hex(&colors.info).unwrap_or(Color32::WHITE);
 
         let sum_of_bests = self
             .splits_backup
@@ -83,7 +84,8 @@ impl AppState {
                             egui_phosphor::regular::FLAG_CHECKERED,
                             format_dur(sum_of_bests)
                         ))
-                        .color(Color32::LIGHT_GREEN),
+                        .color(info_color)
+                        .size(font_sizes.info),
                     );
 
                     ui.label(
@@ -92,7 +94,8 @@ impl AppState {
                             egui_phosphor::regular::GAUGE,
                             format_dur(best_possible_time)
                         ))
-                        .color(Color32::GOLD),
+                        .color(info_color)
+                        .size(font_sizes.info),
                     );
 
                     if let Some(pb) = pb_time {
@@ -102,7 +105,8 @@ impl AppState {
                                 egui_phosphor::regular::CHART_POLAR,
                                 format_dur(pb)
                             ))
-                            .color(Color32::from_rgb(180, 180, 255)),
+                            .color(info_color)
+                            .size(font_sizes.info),
                         );
                     }
                 });

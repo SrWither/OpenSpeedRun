@@ -273,6 +273,41 @@ impl AppState {
         });
         self.reset_splits();
     }
+
+    pub fn reload_theme(&mut self) {
+        if self.timer.state == TimerState::NotStarted {
+            let app_config = AppConfig::load();
+            let layout_path = config_base_dir().join(&app_config.theme);
+            self.layout = LayoutConfig::load_or_default(layout_path.to_str().unwrap());
+        }
+    }
+
+    pub fn reload_run(&mut self) {
+        if self.timer.state == TimerState::NotStarted {
+            let app_config = AppConfig::load();
+            let split_base_path = config_base_dir().join(&app_config.last_split_path);
+            self.split_base_path = split_base_path.clone();
+
+            let run_path = split_base_path.join("split.json");
+            self.run = Run::load_from_file(run_path.to_str().unwrap()).unwrap_or_else(|_| {
+                Run::new("Untitled", "Any%", &["Split 1", "Split 2", "Final Split"])
+            });
+
+            self.splits_display = self.run.splits.clone();
+            self.splits_backup = self.run.splits.clone();
+            self.current_split = 0;
+            self.current_page = 0;
+            self.update_page();
+        }
+    }
+
+    pub fn reload_all(&mut self) {
+        if self.timer.state == TimerState::NotStarted {
+            self.reload_theme();
+            self.reload_run();
+            self.sync_splits();
+        }
+    }
 }
 
 pub struct AppWrapper {

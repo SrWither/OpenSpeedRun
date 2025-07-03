@@ -63,6 +63,9 @@ pub async fn listen_for_commands(app: Arc<Mutex<AppState>>) {
                                 }
                             }
                             "togglehelp" => app.show_help = !app.show_help,
+                            "reloadall" => app.reload_all(),
+                            "reloadrun" => app.reload_run(),
+                            "reloadtheme" => app.reload_theme(),
                             other => eprintln!("Unknown command: '{}'", other),
                         }
                     }

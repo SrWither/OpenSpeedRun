@@ -8,6 +8,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::send_message;
+
 pub struct SplitEditor {
     pub run_path: PathBuf,
     pub run: Run,
@@ -145,6 +147,7 @@ impl SplitEditor {
                 if let Err(e) = self.run.save_to_file(self.run_path.to_str().unwrap()) {
                     eprintln!("Error saving all: {}", e);
                 }
+                send_message("reloadrun");
             }
         });
         ui.separator();
