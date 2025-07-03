@@ -211,12 +211,15 @@ impl SplitEditor {
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             ui.style_mut().interaction.selectable_labels = false;
                             ui.add_space(8.0);
-                            ui.add(egui::Label::new(
-                                RichText::new(egui_phosphor::regular::DOTS_SIX_VERTICAL)
-                                    .italics()
-                                    .size(14.0)
-                                    .color(egui::Color32::GRAY),
-                            ).sense(Sense::empty()));
+                            ui.add(
+                                egui::Label::new(
+                                    RichText::new(egui_phosphor::regular::DOTS_SIX_VERTICAL)
+                                        .italics()
+                                        .size(14.0)
+                                        .color(egui::Color32::GRAY),
+                                )
+                                .sense(Sense::empty()),
+                            );
                         });
                     });
 

@@ -1,6 +1,6 @@
-use eframe::egui::{self, RichText, Color32};
-use chrono::Duration;
 use crate::{app::state::AppState, config::layout::LayoutConfig};
+use chrono::Duration;
+use eframe::egui::{self, Color32, RichText};
 
 impl AppState {
     pub fn draw_header(&self, ctx: &egui::Context) {

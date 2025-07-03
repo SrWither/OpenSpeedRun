@@ -1,6 +1,6 @@
-use eframe::egui;
-use crate::app::state::AppState;
 use crate::app::AppWrapper;
+use crate::app::state::AppState;
+use eframe::egui;
 
 impl AppState {
     pub fn handle_input(&mut self, ctx: &egui::Context) {

@@ -1,11 +1,11 @@
+pub mod app;
 pub mod config;
 pub mod core;
-pub mod app;
 
 use crate::core::server::listen_for_commands;
+use app::state::{AppState, AppWrapper};
 use eframe::NativeOptions;
 use egui::ViewportBuilder;
-use app::state::{AppState, AppWrapper};
 use std::sync::{Arc, Mutex};
 
 fn main() -> eframe::Result<()> {
@@ -24,11 +24,7 @@ fn main() -> eframe::Result<()> {
     let mut options = NativeOptions::default();
     options.viewport = ViewportBuilder::default()
         .with_decorations(titlebar)
-        .with_inner_size(egui::vec2(
-            window_size.0 as f32,
-            window_size.1 as f32,
-        ));
-    
+        .with_inner_size(egui::vec2(window_size.0 as f32, window_size.1 as f32));
 
     eframe::run_native(
         "OpenSpeedRun",

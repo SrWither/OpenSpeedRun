@@ -15,7 +15,8 @@ impl AppState {
         if let Ok(img) = image::open(&full_path) {
             let size = img.dimensions();
             let rgba = img.to_rgba8().into_raw();
-            let color_image = ColorImage::from_rgba_unmultiplied([size.0 as usize, size.1 as usize], &rgba);
+            let color_image =
+                ColorImage::from_rgba_unmultiplied([size.0 as usize, size.1 as usize], &rgba);
             let texture = ctx.load_texture(cache_key.clone(), color_image, Default::default());
             self.textures.insert(cache_key, texture.clone());
             Some(texture)

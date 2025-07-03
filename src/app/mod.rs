@@ -1,9 +1,9 @@
-pub mod state;
-pub mod update;
 pub mod footer;
 pub mod header;
-pub mod splits_panel;
 pub mod help_window;
+pub mod splits_panel;
+pub mod state;
 pub mod texture;
+pub mod update;
 
 pub use state::{AppState, AppWrapper};
