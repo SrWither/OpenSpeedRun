@@ -78,13 +78,18 @@ impl AppState {
                 ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
                     ui.label(
-                        RichText::new(format!("🏁 Sum of Best: {}", format_dur(sum_of_bests)))
-                            .color(Color32::LIGHT_GREEN),
+                        RichText::new(format!(
+                            "{} Sum of Best: {}",
+                            egui_phosphor::regular::FLAG_CHECKERED,
+                            format_dur(sum_of_bests)
+                        ))
+                        .color(Color32::LIGHT_GREEN),
                     );
 
                     ui.label(
                         RichText::new(format!(
-                            "🟡 Best Possible: {}",
+                            "{} Best Possible: {}",
+                            egui_phosphor::regular::GAUGE,
                             format_dur(best_possible_time)
                         ))
                         .color(Color32::GOLD),
@@ -92,8 +97,12 @@ impl AppState {
 
                     if let Some(pb) = pb_time {
                         ui.label(
-                            RichText::new(format!("💠 PB: {}", format_dur(pb)))
-                                .color(Color32::from_rgb(180, 180, 255)),
+                            RichText::new(format!(
+                                "{} PB: {}",
+                                egui_phosphor::regular::CHART_POLAR,
+                                format_dur(pb)
+                            ))
+                            .color(Color32::from_rgb(180, 180, 255)),
                         );
                     }
                 });
