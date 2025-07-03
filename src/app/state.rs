@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-
-use crate::config::load::{AppConfig, config_base_dir};
-use crate::core::split::{Run, Split};
-use crate::core::timer::Timer;
-use crate::{config::layout::LayoutConfig, core::timer::TimerState};
 use chrono::Duration;
 use eframe::egui;
 use egui::TextureHandle;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+use crate::config::layout::LayoutConfig;
+use crate::config::load::{AppConfig, config_base_dir};
+use crate::core::split::{Run, Split};
+use crate::core::timer::{Timer, TimerState};
 
 pub struct AppState {
     pub timer: Timer,
@@ -34,7 +34,6 @@ impl Default for AppState {
         });
 
         let splits_per_page = run.splits_per_page.unwrap_or(5);
-
         let layout_path = config_base_dir().join(&app_config.theme);
         let layout = LayoutConfig::load_or_default(layout_path.to_str().unwrap());
 
@@ -202,12 +201,57 @@ impl AppState {
         self.sync_splits();
     }
 
+    pub fn undo_split(&mut self) {
+        if self.current_split > 0 {
+            self.current_split -= 1;
+
+            if let Some(backup) = self.splits_backup.get(self.current_split) {
+                if let Some(display_split) = self.splits_display.get_mut(self.current_split) {
+                    display_split.last_time = None;
+                    display_split.pb_time = backup.pb_time;
+                    display_split.gold_time = backup.gold_time;
+                }
+
+                if let Some(run_split) = self.run.splits.get_mut(self.current_split) {
+                    run_split.last_time = None;
+                    run_split.pb_time = backup.pb_time;
+                    run_split.gold_time = backup.gold_time;
+                }
+            }
+
+            self.update_page();
+
+            let path = self.split_base_path.join("split.json");
+            let mut saved_run = self.run.clone();
+
+            for split in saved_run.splits.iter_mut() {
+                split.last_time = None;
+            }
+
+            if let Err(e) = saved_run.save_to_file(path.to_str().unwrap()) {
+                eprintln!("Error saving after undo split: {}", e);
+            }
+        }
+    }
+
+    fn sync_splits(&mut self) {
+        let run =
+            Run::load_from_file(self.split_base_path.join("split.json").to_str().unwrap()).unwrap();
+        self.run = run.clone();
+        self.splits_display = run.splits.clone();
+    }
+
     pub fn save_pb(&mut self) -> std::io::Result<()> {
         if self.current_split == self.run.splits.len() {
             let path = self.split_base_path.join("split.json");
             return self.run.save_to_file(path.to_str().unwrap());
         }
         Ok(())
+    }
+
+    pub fn save(&mut self) -> std::io::Result<()> {
+        let path = self.split_base_path.join("split.json");
+        return self.run.save_to_file(path.to_str().unwrap());
     }
 
     fn save_gold_only(&mut self) -> std::io::Result<()> {
@@ -224,17 +268,10 @@ impl AppState {
 
     pub fn undo_pb(&mut self) {
         self.run.splits = self.splits_backup.clone();
-        self.save_pb().unwrap_or_else(|e| {
+        self.save().unwrap_or_else(|e| {
             eprintln!("Error saving PB after undo: {}", e);
         });
         self.reset_splits();
-    }
-
-    fn sync_splits(&mut self) {
-        let run =
-            Run::load_from_file(self.split_base_path.join("split.json").to_str().unwrap()).unwrap();
-        self.run = run.clone();
-        self.splits_display = run.splits.clone();
     }
 }
 
