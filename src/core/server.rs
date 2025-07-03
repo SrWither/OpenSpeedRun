@@ -42,6 +42,27 @@ pub async fn listen_for_commands(app: Arc<Mutex<AppState>>) {
                             }
                             "pause" => app.timer.pause(),
                             "reset" => app.reset_splits(),
+                            "savepb" => {
+                                if let Err(e) = app.save_pb() {
+                                    eprintln!("Error saving PB: {}", e);
+                                }
+                            }
+                            "undolastsplit" => app.undo_split(),
+                            "loadbackup" => app.undo_pb(),
+                            "nextpage" => {
+                                let total_splits = app.run.splits.len();
+                                let total_pages =
+                                    (total_splits + app.splits_per_page - 1) / app.splits_per_page;
+                                if app.current_page + 1 < total_pages {
+                                    app.current_page += 1;
+                                }
+                            }
+                            "prevpage" => {
+                                if app.current_page > 0 {
+                                    app.current_page -= 1;
+                                }
+                            }
+                            "togglehelp" => app.show_help = !app.show_help,
                             other => eprintln!("Unknown command: '{}'", other),
                         }
                     }

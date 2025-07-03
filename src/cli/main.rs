@@ -9,13 +9,13 @@ fn main() {
 
     if args.len() < 2 {
         eprintln!("Usage: {} <command>", args[0]);
-        eprintln!("Commands: split, start, pause, reset");
+        eprintln!("Commands: split, start, pause, reset, savepb, undolastsplit, loadbackup, nextpage, prevpage, togglehelp");
         process::exit(1);
     }
 
     let cmd = args[1].trim();
 
-    let valid_cmds = ["split", "start", "pause", "reset"];
+    let valid_cmds = ["split", "start", "pause", "reset", "savepb", "undolastsplit", "loadbackup", "nextpage", "prevpage", "togglehelp"];
     if !valid_cmds.contains(&cmd) {
         eprintln!("Invalid command '{}'", cmd);
         process::exit(1);

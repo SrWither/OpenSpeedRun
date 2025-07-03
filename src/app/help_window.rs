@@ -21,6 +21,7 @@ impl AppState {
                         ui.label("[Enter] Split");
                         ui.label("[Ctrl + S] Save PB");
                         ui.label("[Ctrl + Z] Undo last split");
+                        ui.label("[Ctrl + D] Load Backup");
                         ui.label(format!(
                             "[{}] Previous page",
                             egui_phosphor::regular::ARROW_LEFT

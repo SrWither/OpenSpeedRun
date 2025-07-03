@@ -26,8 +26,12 @@ impl AppState {
                 eprintln!("Error saving PB: {}", e);
             }
         }
-        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Z)) {
+        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::D)) {
             self.undo_pb();
+        }
+
+        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Z)) {
+            self.undo_split();
         }
 
         if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
