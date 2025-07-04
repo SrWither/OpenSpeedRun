@@ -21,7 +21,7 @@ impl AppState {
         let pb_negative_color = Color32::from_hex(&colors.pb_negative).unwrap_or(Color32::RED);
 
         let sum_of_bests = self
-            .splits_backup
+            .run.splits
             .iter()
             .filter_map(|s| s.gold_time)
             .fold(Duration::zero(), |acc, d| acc + d);
