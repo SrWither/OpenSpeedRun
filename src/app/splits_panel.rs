@@ -13,6 +13,8 @@ impl AppState {
 
         let bg_color = Color32::from_hex(&colors.background).unwrap_or(Color32::BLACK);
         let split_color = Color32::from_hex(&colors.split).unwrap_or(Color32::WHITE);
+        let split_selected_color =
+            Color32::from_hex(&colors.split_selected).unwrap_or(Color32::YELLOW);
         let split_timer_color =
             Color32::from_hex(&colors.split_timer).unwrap_or(Color32::from_rgb(0, 0, 255));
         let gold_positive_color = Color32::from_hex(&colors.gold_positive).unwrap_or(Color32::GOLD);
@@ -65,7 +67,7 @@ impl AppState {
 
                                 let name_text = if is_current {
                                     RichText::new(format!("> {}", split.name))
-                                        .color(Color32::YELLOW)
+                                        .color(split_selected_color)
                                         .strong()
                                         .size(font_sizes.split + 2.0)
                                 } else {

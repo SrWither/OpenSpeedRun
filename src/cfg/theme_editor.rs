@@ -80,6 +80,7 @@ impl ThemeEditor {
                     color_edit(ui, "Category", &mut self.layout.colors.category);
                     color_edit(ui, "Timer", &mut self.layout.colors.timer);
                     color_edit(ui, "Split", &mut self.layout.colors.split);
+                    color_edit(ui, "Split Selected", &mut self.layout.colors.split_selected);
                     color_edit(ui, "Split Timer", &mut self.layout.colors.split_timer);
                     color_edit(ui, "Gold +", &mut self.layout.colors.gold_positive);
                     color_edit(ui, "Gold -", &mut self.layout.colors.gold_negative);
