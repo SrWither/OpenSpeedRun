@@ -7,11 +7,8 @@ impl AppState {
         let LayoutConfig {
             font_sizes,
             colors,
-            show_title: _,
-            show_category: _,
-            show_splits: _,
-            titlebar: _,
-            window_size: _,
+            spacings: _,
+            options,
         } = self.layout.clone();
 
         let bg_color = Color32::from_hex(&colors.background).unwrap_or(Color32::BLACK);
@@ -68,48 +65,50 @@ impl AppState {
                 ui.painter()
                     .line_segment([egui::pos2(left, top), egui::pos2(right, top)], stroke);
 
-                let format_dur = |dur: Duration| -> String {
-                    format!(
-                        "{:02}:{:02}.{:03}",
-                        dur.num_minutes(),
-                        dur.num_seconds() % 60,
-                        dur.num_milliseconds() % 1000
-                    )
-                };
-                ui.add_space(4.0);
-                ui.vertical_centered(|ui| {
-                    ui.label(
-                        RichText::new(format!(
-                            "{} Sum of Best: {}",
-                            egui_phosphor::regular::FLAG_CHECKERED,
-                            format_dur(sum_of_bests)
-                        ))
-                        .color(info_color)
-                        .size(font_sizes.info),
-                    );
-
-                    ui.label(
-                        RichText::new(format!(
-                            "{} Best Possible: {}",
-                            egui_phosphor::regular::GAUGE,
-                            format_dur(best_possible_time)
-                        ))
-                        .color(info_color)
-                        .size(font_sizes.info),
-                    );
-
-                    if let Some(pb) = pb_time {
+                if options.show_info {
+                    let format_dur = |dur: Duration| -> String {
+                        format!(
+                            "{:02}:{:02}.{:03}",
+                            dur.num_minutes(),
+                            dur.num_seconds() % 60,
+                            dur.num_milliseconds() % 1000
+                        )
+                    };
+                    ui.add_space(4.0);
+                    ui.vertical_centered(|ui| {
                         ui.label(
                             RichText::new(format!(
-                                "{} PB: {}",
-                                egui_phosphor::regular::CHART_POLAR,
-                                format_dur(pb)
+                                "{} Sum of Best: {}",
+                                egui_phosphor::regular::FLAG_CHECKERED,
+                                format_dur(sum_of_bests)
                             ))
                             .color(info_color)
                             .size(font_sizes.info),
                         );
-                    }
-                });
+
+                        ui.label(
+                            RichText::new(format!(
+                                "{} Best Possible: {}",
+                                egui_phosphor::regular::GAUGE,
+                                format_dur(best_possible_time)
+                            ))
+                            .color(info_color)
+                            .size(font_sizes.info),
+                        );
+
+                        if let Some(pb) = pb_time {
+                            ui.label(
+                                RichText::new(format!(
+                                    "{} PB: {}",
+                                    egui_phosphor::regular::CHART_POLAR,
+                                    format_dur(pb)
+                                ))
+                                .color(info_color)
+                                .size(font_sizes.info),
+                            );
+                        }
+                    });
+                }
             });
     }
 }

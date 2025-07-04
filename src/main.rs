@@ -18,8 +18,8 @@ fn main() -> eframe::Result<()> {
     });
 
     let layout = app_state.lock().unwrap().layout.clone();
-    let titlebar = layout.titlebar;
-    let window_size = layout.window_size;
+    let titlebar = layout.options.titlebar;
+    let window_size = layout.options.window_size;
 
     let mut options = NativeOptions::default();
     options.viewport = ViewportBuilder::default()

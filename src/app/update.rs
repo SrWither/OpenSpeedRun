@@ -53,8 +53,12 @@ impl AppState {
 
     pub fn draw_ui(&mut self, ctx: &egui::Context) {
         self.draw_header(ctx);
-        self.draw_footer(ctx);
-        self.draw_splits_panel(ctx);
+        if self.layout.options.show_footer {
+            self.draw_footer(ctx);
+        }
+        if self.layout.options.show_body {
+            self.draw_splits_panel(ctx);
+        }
         self.draw_help_window(ctx);
     }
 }

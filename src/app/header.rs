@@ -7,11 +7,8 @@ impl AppState {
         let LayoutConfig {
             font_sizes,
             colors,
-            show_title,
-            show_category,
-            show_splits: _,
-            titlebar: _,
-            window_size: _,
+            spacings: _,
+            options
         } = self.layout.clone();
 
         let bg_color = Color32::from_hex(&colors.background).unwrap_or(Color32::BLACK);
@@ -24,14 +21,14 @@ impl AppState {
             .show(ctx, |ui| {
                 ui.add_space(10.0);
                 ui.vertical_centered(|ui| {
-                    if show_title {
+                    if options.show_title {
                         ui.label(
                             RichText::new(&self.run.title)
                                 .color(title_color)
                                 .size(font_sizes.title),
                         );
                     }
-                    if show_category {
+                    if options.show_category {
                         ui.label(
                             RichText::new(&self.run.category)
                                 .color(category_color)

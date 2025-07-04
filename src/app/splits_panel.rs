@@ -7,15 +7,14 @@ impl AppState {
         let LayoutConfig {
             colors,
             font_sizes,
-            show_title: _,
-            show_category: _,
-            show_splits,
-            titlebar: _,
-            window_size: _,
+            spacings,
+            options
         } = self.layout.clone();
 
         let bg_color = Color32::from_hex(&colors.background).unwrap_or(Color32::BLACK);
         let split_color = Color32::from_hex(&colors.split).unwrap_or(Color32::WHITE);
+        let split_timer_color =
+            Color32::from_hex(&colors.split_timer).unwrap_or(Color32::from_rgb(0, 0, 255));
         let gold_positive_color = Color32::from_hex(&colors.gold_positive).unwrap_or(Color32::GOLD);
         let gold_negative_color = Color32::from_hex(&colors.gold_negative).unwrap_or(Color32::RED);
         let pb_positive_color = Color32::from_hex(&colors.pb_positive).unwrap_or(Color32::GREEN);
@@ -24,7 +23,7 @@ impl AppState {
         egui::CentralPanel::default()
             .frame(egui::Frame::default().fill(bg_color))
             .show(ctx, |ui| {
-                if show_splits {
+                if options.show_splits {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         let total_splits = self.run.splits.len();
                         let page_start = self.current_page * self.splits_per_page;
@@ -48,7 +47,7 @@ impl AppState {
                                 );
                             }
 
-                            ui.add_space(8.0);
+                            ui.add_space(spacings.split_top);
 
                             ui.horizontal(|ui| {
                                 ui.set_min_height(32.0);
@@ -92,7 +91,7 @@ impl AppState {
                                             ui.label(
                                                 RichText::new(time_text)
                                                     .size(font_sizes.split)
-                                                    .color(Color32::from_rgb(200, 230, 200)),
+                                                    .color(split_timer_color),
                                             );
 
                                             // Calcular tiempo relativo
@@ -137,7 +136,7 @@ impl AppState {
 
                                                             ui.label(
                                                                 RichText::new(diff_text)
-                                                                    .size(font_sizes.split - 5.0)
+                                                                    .size(font_sizes.split_gold)
                                                                     .color(diff_color),
                                                             );
                                                         }
@@ -171,7 +170,7 @@ impl AppState {
 
                                                         ui.label(
                                                             RichText::new(diff_text)
-                                                                .size(font_sizes.split - 5.0)
+                                                                .size(font_sizes.split_pb)
                                                                 .color(diff_color),
                                                         );
                                                     }
@@ -180,15 +179,15 @@ impl AppState {
                                         } else {
                                             ui.label(
                                                 RichText::new("--:--.---")
-                                                    .size(font_sizes.split)
-                                                    .color(Color32::GRAY),
+                                                    .size(font_sizes.split_timer)
+                                                    .color(split_timer_color),
                                             );
                                         }
                                     },
                                 );
                             });
 
-                            ui.add_space(8.0);
+                            ui.add_space(spacings.split_bottom);
 
                             let (rect, _) = ui.allocate_exact_size(
                                 egui::vec2(ui.available_width(), 1.0),
