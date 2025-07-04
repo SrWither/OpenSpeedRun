@@ -1,5 +1,4 @@
 use crate::{app::state::AppState, config::layout::LayoutConfig};
-use chrono::Duration;
 use eframe::egui::{self, Color32, RichText};
 
 impl AppState {
@@ -37,15 +36,7 @@ impl AppState {
                     }
 
                     let elapsed = self.timer.current_time();
-                    let sign = if elapsed < Duration::zero() { "-" } else { "" };
-                    let elapsed_abs = elapsed.abs();
-                    let time_str = format!(
-                        "{}{:02}:{:02}.{:03}",
-                        sign,
-                        elapsed_abs.num_minutes(),
-                        elapsed_abs.num_seconds() % 60,
-                        elapsed_abs.num_milliseconds() % 1000
-                    );
+                    let time_str = self.format_duration(elapsed, 1);
 
                     ui.add_space(10.0);
                     ui.label(

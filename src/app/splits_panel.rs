@@ -83,12 +83,7 @@ impl AppState {
                                     |ui| {
                                         if let Some(last) = &split.last_time {
                                             // Mostrar el tiempo total
-                                            let time_text = format!(
-                                                "{:02}:{:02}.{:03}",
-                                                last.num_minutes(),
-                                                last.num_seconds() % 60,
-                                                last.num_milliseconds() % 1000
-                                            );
+                                            let time_text = self.format_duration(*last, 0);
 
                                             ui.label(
                                                 RichText::new(time_text)
@@ -96,7 +91,6 @@ impl AppState {
                                                     .color(split_timer_color),
                                             );
 
-                                            // Calcular tiempo relativo
                                             let prev = if i == 0 {
                                                 Duration::zero()
                                             } else {
@@ -108,26 +102,13 @@ impl AppState {
 
                                             let relative = *last - prev;
 
-                                            // Mostrar delta relativo contra PB o GOLD
                                             if self.run.gold_split {
                                                 if let Some(gold) = &split.gold_time {
                                                     if gold.num_milliseconds() > 0 {
                                                         let diff = relative - *gold;
                                                         if diff != Duration::zero() {
-                                                            let sign = if diff < Duration::zero() {
-                                                                "-"
-                                                            } else {
-                                                                "+"
-                                                            };
-                                                            let diff_abs =
-                                                                diff.num_milliseconds().abs();
-                                                            let diff_secs = diff_abs / 1000;
-                                                            let diff_millis = diff_abs % 1000;
-
-                                                            let diff_text = format!(
-                                                                "{}{:02}.{:03}",
-                                                                sign, diff_secs, diff_millis
-                                                            );
+                                                            let diff_text =
+                                                                self.format_duration(diff, 2);
 
                                                             let diff_color =
                                                                 if diff < Duration::zero() {
@@ -148,20 +129,8 @@ impl AppState {
                                                 if let Some(pb) = &split.pb_time {
                                                     if pb.num_milliseconds() > 0 {
                                                         let diff = relative - *pb;
-                                                        let sign = if diff < Duration::zero() {
-                                                            "-"
-                                                        } else {
-                                                            "+"
-                                                        };
-                                                        let diff_abs =
-                                                            diff.num_milliseconds().abs();
-                                                        let diff_secs = diff_abs / 1000;
-                                                        let diff_millis = diff_abs % 1000;
-
-                                                        let diff_text = format!(
-                                                            "{}{:02}.{:03}",
-                                                            sign, diff_secs, diff_millis
-                                                        );
+                                                        let diff_text =
+                                                            self.format_duration(diff, 2);
 
                                                         let diff_color = if diff < Duration::zero()
                                                         {

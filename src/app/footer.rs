@@ -86,12 +86,11 @@ impl AppState {
         let delta_vs_pb = previous_split_relative - previous_segment_pb;
         let delta_vs_gold = previous_split_relative - previous_segment_gold;
 
-        let format_diff = |diff: Duration| -> String {
-            let sign = if diff < Duration::zero() { "-" } else { "+" };
-            let ms = diff.num_milliseconds().abs();
-            let secs = ms / 1000;
-            let rem_ms = ms % 1000;
-            format!("{}{:02}.{:03}", sign, secs, rem_ms)
+        let format_dur = |dur: Duration| -> String {
+            self.format_duration(dur, 0) // no signos
+        };
+        let format_diff = |dur: Duration| -> String {
+            self.format_duration(dur, 2) // signo + y -
         };
 
         egui::TopBottomPanel::bottom("footer")
@@ -112,14 +111,6 @@ impl AppState {
                     .line_segment([egui::pos2(left, top), egui::pos2(right, top)], stroke);
 
                 if options.show_info {
-                    let format_dur = |dur: Duration| -> String {
-                        format!(
-                            "{:02}:{:02}.{:03}",
-                            dur.num_minutes(),
-                            dur.num_seconds() % 60,
-                            dur.num_milliseconds() % 1000
-                        )
-                    };
                     ui.add_space(4.0);
                     ui.vertical(|ui| {
                         ui.horizontal(|ui| {
@@ -187,6 +178,7 @@ impl AppState {
                                     },
                                 )
                             };
+
                         if self.current_split > 0 {
                             ui.horizontal(|ui| {
                                 ui.add_space(8.0);
