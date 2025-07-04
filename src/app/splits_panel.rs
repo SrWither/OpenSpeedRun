@@ -8,7 +8,7 @@ impl AppState {
             colors,
             font_sizes,
             spacings,
-            options
+            options,
         } = self.layout.clone();
 
         let bg_color = Color32::from_hex(&colors.background).unwrap_or(Color32::BLACK);

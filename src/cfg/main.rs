@@ -454,7 +454,6 @@ pub fn send_message(msg: &str) {
     }
 }
 
-
 fn main() -> eframe::Result<()> {
     let mut options = eframe::NativeOptions::default();
     options.viewport = ViewportBuilder::default().with_inner_size(egui::vec2(850.0, 650.0));

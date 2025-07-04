@@ -105,9 +105,13 @@ impl ThemeEditor {
 
                     ui.label("Window size:");
                     ui.horizontal(|ui| {
-                        ui.add(egui::DragValue::new(&mut self.layout.options.window_size.0).speed(1.0));
+                        ui.add(
+                            egui::DragValue::new(&mut self.layout.options.window_size.0).speed(1.0),
+                        );
                         ui.label("x");
-                        ui.add(egui::DragValue::new(&mut self.layout.options.window_size.1).speed(1.0));
+                        ui.add(
+                            egui::DragValue::new(&mut self.layout.options.window_size.1).speed(1.0),
+                        );
                     });
                 });
             });
