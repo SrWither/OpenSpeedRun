@@ -1,13 +1,43 @@
 {
-  "font_size": 28.0,
-  "background_color": "#1e0f00",
-  "text_color": "#ffe6a3",
-  "show_title": true,
-  "show_category": true,
-  "show_splits": true,
-  "titlebar": false,
-  "window_size": [
-    400,
-    1280
-  ]
+  "font_sizes": {
+    "title": 26.0,
+    "category": 24.0,
+    "timer": 55.0,
+    "split": 20.0,
+    "split_timer": 20.0,
+    "split_gold": 14.0,
+    "split_pb": 14.0,
+    "info": 13.0
+  },
+  "colors": {
+    "background": "#1e0f00",
+    "title": "#efbe5f",
+    "category": "#efbe5f",
+    "timer": "#efbe5f",
+    "split": "#efbe5f",
+    "split_selected": "#ffde9a",
+    "split_timer": "#efbe5f",
+    "gold_positive": "#ffda46",
+    "gold_negative": "#c10000",
+    "pb_positive": "#32CD32",
+    "pb_negative": "#FF6347",
+    "info": "#efbe5f"
+  },
+  "spacings": {
+    "split_top": 5.0,
+    "split_bottom": 5.0
+  },
+  "options": {
+    "show_title": true,
+    "show_category": true,
+    "show_splits": true,
+    "show_info": true,
+    "show_body": true,
+    "show_footer": true,
+    "titlebar": false,
+    "window_size": [
+      400,
+      1280
+    ]
+  }
 }

@@ -1,0 +1,94 @@
+{
+  "title": "Super Mario Bros 3",
+  "category": "Any% (No Wrong Warp)",
+  "splits": [
+    {
+      "name": "1-1",
+      "pb_time": null,
+      "last_time": null,
+      "gold_time": null,
+      "icon_path": "icons/mushrom.png"
+    },
+    {
+      "name": "1-2",
+      "pb_time": null,
+      "last_time": null,
+      "gold_time": null,
+      "icon_path": "icons/hojas.png"
+    },
+    {
+      "name": "1-3",
+      "pb_time": null,
+      "last_time": null,
+      "gold_time": null,
+      "icon_path": "icons/flauta.png"
+    },
+    {
+      "name": "1-C",
+      "pb_time": null,
+      "last_time": null,
+      "gold_time": null,
+      "icon_path": "icons/flauta.png"
+    },
+    {
+      "name": "8-T1",
+      "pb_time": null,
+      "last_time": null,
+      "gold_time": null,
+      "icon_path": "icons/star.png"
+    },
+    {
+      "name": "8-A1",
+      "pb_time": null,
+      "last_time": null,
+      "gold_time": null,
+      "icon_path": "icons/hammer.png"
+    },
+    {
+      "name": "8-A2",
+      "pb_time": null,
+      "last_time": null,
+      "gold_time": null,
+      "icon_path": "icons/mushrom.png"
+    },
+    {
+      "name": "8-1",
+      "pb_time": null,
+      "last_time": null,
+      "gold_time": null,
+      "icon_path": "icons/hojas.png"
+    },
+    {
+      "name": "8-2",
+      "pb_time": null,
+      "last_time": null,
+      "gold_time": null,
+      "icon_path": "icons/star.png"
+    },
+    {
+      "name": "8-C",
+      "pb_time": null,
+      "last_time": null,
+      "gold_time": null,
+      "icon_path": "icons/pwing.png"
+    },
+    {
+      "name": "8-T2",
+      "pb_time": null,
+      "last_time": null,
+      "gold_time": null,
+      "icon_path": "icons/fireflower.png"
+    },
+    {
+      "name": "Final",
+      "pb_time": null,
+      "last_time": null,
+      "gold_time": null,
+      "icon_path": "icons/peach.png"
+    }
+  ],
+  "start_offset": 3,
+  "splits_per_page": 6,
+  "auto_update_pb": true,
+  "gold_split": true
+}
