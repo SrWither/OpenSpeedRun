@@ -1,7 +1,9 @@
 mod split_editor;
 mod theme_editor;
 
-use std::{fs, os::unix::net::UnixStream};
+use std::fs;
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
 
 use eframe::egui;
 use egui::{Color32, RichText, ViewportBuilder};
@@ -437,6 +439,7 @@ impl ConfigApp {
     }
 }
 
+#[cfg(unix)]
 pub fn send_message(msg: &str) {
     println!("Sending message: {}", msg);
     if let Ok(mut stream) = UnixStream::connect("/tmp/openspeedrun.sock") {
@@ -453,6 +456,43 @@ pub fn send_message(msg: &str) {
         eprintln!("⚠️ Failed to connect to socket");
     }
 }
+
+#[cfg(windows)]
+pub fn send_message(msg: &str) {
+    use std::fs::OpenOptions;
+    use std::io::{Write, BufWriter};
+    use std::time::Duration;
+    use std::thread::sleep;
+
+    let pipe_path = r"\\.\pipe\openspeedrun";
+
+    for _ in 0..5 {
+        let file = OpenOptions::new()
+            .write(true)
+            .open(pipe_path);
+
+        match file {
+            Ok(file) => {
+                let mut writer = BufWriter::new(file);
+                let full_msg = format!("{msg}\n");
+                if let Err(e) = writer.write_all(full_msg.as_bytes()) {
+                    eprintln!("⚠️ Failed to write to pipe: {}", e);
+                }
+                if let Err(e) = writer.flush() {
+                    eprintln!("⚠️ Failed to flush pipe: {}", e);
+                }
+                println!("✅ Message sent: {}", msg.trim());
+                return;
+            }
+            Err(_) => {
+                sleep(Duration::from_millis(100));
+            }
+        }
+    }
+
+    eprintln!("⚠️ Could not connect to pipe: {}", pipe_path);
+}
+
 
 fn main() -> eframe::Result<()> {
     let mut options = eframe::NativeOptions::default();

@@ -9,6 +9,8 @@ impl AppState {
             colors,
             spacings: _,
             options,
+            #[cfg(windows)]
+                hotkeys: _,
         } = self.layout.clone();
 
         let bg_color = Color32::from_hex(&colors.background).unwrap_or(Color32::BLACK);
@@ -21,7 +23,8 @@ impl AppState {
         let pb_negative_color = Color32::from_hex(&colors.pb_negative).unwrap_or(Color32::RED);
 
         let sum_of_bests = self
-            .run.splits
+            .run
+            .splits
             .iter()
             .filter_map(|s| s.gold_time)
             .fold(Duration::zero(), |acc, d| acc + d);
@@ -53,7 +56,12 @@ impl AppState {
             .collect::<Option<Vec<_>>>()
             .map(|times| times.into_iter().sum());
 
-        let previous_split_relative = if self.current_split > 0 {
+        let previous_split_relative = if self.current_split == 1 {
+            self.splits_display
+                .get(0)
+                .and_then(|s| s.last_time)
+                .unwrap_or(Duration::zero())
+        } else if self.current_split > 1 {
             let current = self
                 .splits_display
                 .get(self.current_split - 1)
@@ -111,7 +119,7 @@ impl AppState {
                     .line_segment([egui::pos2(left, top), egui::pos2(right, top)], stroke);
 
                 if options.show_info {
-                    ui.add_space(4.0);
+                    ui.add_space(4.0); 
                     ui.vertical(|ui| {
                         ui.horizontal(|ui| {
                             ui.add_space(8.0);

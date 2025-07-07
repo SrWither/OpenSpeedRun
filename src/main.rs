@@ -2,7 +2,10 @@ pub mod app;
 pub mod config;
 pub mod core;
 
+#[cfg(unix)]
 use crate::core::server::listen_for_commands;
+#[cfg(windows)]
+use crate::core::winserver::{listen_for_hotkeys, start_ipc_listener};
 use app::state::{AppState, AppWrapper};
 use eframe::NativeOptions;
 use egui::ViewportBuilder;
@@ -12,10 +15,24 @@ fn main() -> eframe::Result<()> {
     let app_state = Arc::new(Mutex::new(AppState::default()));
     let app_clone = app_state.clone();
 
+    #[cfg(unix)]
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(listen_for_commands(app_clone));
     });
+
+    #[cfg(windows)]
+    {
+        let app_clone1 = app_clone.clone();
+        std::thread::spawn(move || {
+            listen_for_hotkeys(app_clone1);
+        });
+
+        let app_clone2 = app_clone.clone();
+        std::thread::spawn(move || {
+            start_ipc_listener(app_clone2);
+        });
+    }
 
     let layout = app_state.lock().unwrap().layout.clone();
     let titlebar = layout.options.titlebar;

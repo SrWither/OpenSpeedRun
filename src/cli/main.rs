@@ -1,8 +1,10 @@
 use std::env;
 use std::io::Write;
+#[cfg(unix)]
 use std::os::unix::net::UnixStream;
 use std::process;
 
+#[cfg(unix)]
 fn main() {
     let socket_path = "/tmp/openspeedrun.sock";
     let args: Vec<String> = env::args().collect();
@@ -45,4 +47,10 @@ fn main() {
     stream
         .shutdown(std::net::Shutdown::Write)
         .expect("Failed to shutdown write half");
+}
+
+#[cfg(windows)]
+fn main() {
+    eprintln!("The CLI is not supported on Windows.");
+    process::exit(1);
 }

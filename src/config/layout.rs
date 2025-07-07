@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
+#[cfg(windows)]
+use crate::config::keys::KeyWrapper;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -8,6 +10,8 @@ pub struct LayoutConfig {
     pub colors: Colors,
     pub spacings: Spacings,
     pub options: Options,
+    #[cfg(windows)]
+    pub hotkeys: Hotkeys,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,6 +62,46 @@ pub struct Options {
     pub show_footer: bool,
     pub titlebar: bool,
     pub window_size: (u32, u32),
+}
+
+#[cfg(windows)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Hotkeys {
+    pub split: KeyWrapper,
+    pub start: KeyWrapper,
+    pub pause: KeyWrapper,
+    pub reset: KeyWrapper,
+    pub save_pb: KeyWrapper,
+    pub undo_split: KeyWrapper,
+    pub undo_pb: KeyWrapper,
+    pub next_page: KeyWrapper,
+    pub prev_page: KeyWrapper,
+    pub toggle_help: KeyWrapper,
+    pub reload_all: KeyWrapper,
+    pub reload_run: KeyWrapper,
+    pub reload_theme: KeyWrapper,
+}
+
+#[cfg(windows)]
+impl Default for Hotkeys {
+    fn default() -> Self {
+        Self {
+            split: KeyWrapper::default(),
+            start: KeyWrapper::default(),
+            pause: KeyWrapper::default(),
+            reset: KeyWrapper::default(),
+            save_pb: KeyWrapper::default(),
+            undo_split: KeyWrapper::default(),
+            undo_pb: KeyWrapper::default(),
+            next_page: KeyWrapper::default(),
+            prev_page: KeyWrapper::default(),
+            toggle_help: KeyWrapper::default(),
+            reload_all: KeyWrapper::default(),
+            reload_run: KeyWrapper::default(),
+            reload_theme: KeyWrapper::default(),
+        }
+    }
 }
 
 impl Default for FontSizes {
@@ -125,6 +169,8 @@ impl Default for LayoutConfig {
             colors: Colors::default(),
             spacings: Spacings::default(),
             options: Options::default(),
+            #[cfg(windows)]
+            hotkeys: Hotkeys::default(),
         }
     }
 }

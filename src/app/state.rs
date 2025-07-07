@@ -26,6 +26,7 @@ pub struct AppState {
 impl Default for AppState {
     fn default() -> Self {
         let app_config = AppConfig::load();
+        println!("Using config: {:?}", app_config);
         let split_base_path = config_base_dir().join(&app_config.last_split_path);
         let run_path = split_base_path.join("split.json");
 
@@ -311,16 +312,28 @@ impl AppState {
 
     pub fn format_duration(&self, dur: Duration, sign_mode: u8) -> String {
         let sign = match sign_mode {
-            1 => if dur < Duration::zero() { "-" } else { "" },
-            2 => if dur < Duration::zero() { "-" } else { "+" },
+            1 => {
+                if dur < Duration::zero() {
+                    "-"
+                } else {
+                    ""
+                }
+            }
+            2 => {
+                if dur < Duration::zero() {
+                    "-"
+                } else {
+                    "+"
+                }
+            }
             _ => "",
         };
-    
+
         let dur_abs = dur.abs();
         let minutes = dur_abs.num_minutes();
         let seconds = dur_abs.num_seconds() % 60;
         let millis = dur_abs.num_milliseconds() % 1000;
-    
+
         if dur_abs.num_hours() > 0 {
             format!(
                 "{}{}:{:02}:{:02}.{:03}",
@@ -336,8 +349,6 @@ impl AppState {
             format!("{}{:02}.{:03}", sign, seconds, millis)
         }
     }
-    
-    
 }
 
 pub struct AppWrapper {

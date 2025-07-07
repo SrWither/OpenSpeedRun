@@ -1,4 +1,6 @@
 use eframe::egui;
+#[cfg(windows)]
+use openspeedrun::config::keys::KeyWrapper;
 use openspeedrun::config::layout::LayoutConfig;
 use std::path::PathBuf;
 
@@ -7,6 +9,8 @@ use crate::send_message;
 pub struct ThemeEditor {
     pub current_theme_path: PathBuf,
     pub layout: LayoutConfig,
+    #[cfg(windows)]
+    pub waiting_for_key: Option<String>,
 }
 
 impl ThemeEditor {
@@ -15,6 +19,8 @@ impl ThemeEditor {
         Self {
             current_theme_path: theme_path,
             layout,
+            #[cfg(windows)]
+            waiting_for_key: None,
         }
     }
 
@@ -132,6 +138,125 @@ impl ThemeEditor {
                 });
             });
         });
+
+        #[cfg(windows)]
+        {
+            ui.group(|ui| {
+                ui.vertical(|ui| {
+                    ui.label("Hotkeys: (Windows only)");
+
+                    let hotkeys = &mut self.layout.hotkeys;
+                    let waiting = &mut self.waiting_for_key;
+
+                    ui.vertical(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.vertical(|ui| {
+                                hotkey_button(ui, "Split", &hotkeys.split, "split", waiting);
+                                hotkey_button(ui, "Start", &hotkeys.start, "start", waiting);
+                                hotkey_button(ui, "Pause", &hotkeys.pause, "pause", waiting);
+                                hotkey_button(ui, "Reset", &hotkeys.reset, "reset", waiting);
+                                hotkey_button(ui, "Save PB", &hotkeys.save_pb, "save_pb", waiting);
+                                hotkey_button(
+                                    ui,
+                                    "Undo Split",
+                                    &hotkeys.undo_split,
+                                    "undo_split",
+                                    waiting,
+                                );
+                                hotkey_button(ui, "Undo PB", &hotkeys.undo_pb, "undo_pb", waiting);
+                            });
+
+                            ui.vertical(|ui| {
+                                hotkey_button(
+                                    ui,
+                                    "Next Page",
+                                    &hotkeys.next_page,
+                                    "next_page",
+                                    waiting,
+                                );
+                                hotkey_button(
+                                    ui,
+                                    "Prev Page",
+                                    &hotkeys.prev_page,
+                                    "prev_page",
+                                    waiting,
+                                );
+                                hotkey_button(
+                                    ui,
+                                    "Toggle Help",
+                                    &hotkeys.toggle_help,
+                                    "toggle_help",
+                                    waiting,
+                                );
+                                hotkey_button(
+                                    ui,
+                                    "Reload All",
+                                    &hotkeys.reload_all,
+                                    "reload_all",
+                                    waiting,
+                                );
+                                hotkey_button(
+                                    ui,
+                                    "Reload Run",
+                                    &hotkeys.reload_run,
+                                    "reload_run",
+                                    waiting,
+                                );
+                                hotkey_button(
+                                    ui,
+                                    "Reload Theme",
+                                    &hotkeys.reload_theme,
+                                    "reload_theme",
+                                    waiting,
+                                );
+                            });
+                        })
+                    })
+                });
+            });
+        }
+
+        #[cfg(windows)]
+        if let Some(action) = self.waiting_for_key.clone() {
+            use egui::Event;
+
+            for event in ui.ctx().input(|i| i.raw.events.clone()) {
+                if let Event::Key {
+                    key, pressed: true, ..
+                } = event
+                {
+                    let key_str = format!("{:?}", key);
+                    let key_wrapper = KeyWrapper(key_str);
+
+                    match action.as_str() {
+                        "split" => self.layout.hotkeys.split = key_wrapper,
+                        "start" => self.layout.hotkeys.start = key_wrapper,
+                        "pause" => self.layout.hotkeys.pause = key_wrapper,
+                        "reset" => self.layout.hotkeys.reset = key_wrapper,
+                        "save_pb" => self.layout.hotkeys.save_pb = key_wrapper,
+                        "undo_split" => self.layout.hotkeys.undo_split = key_wrapper,
+                        "undo_pb" => self.layout.hotkeys.undo_pb = key_wrapper,
+                        "next_page" => self.layout.hotkeys.next_page = key_wrapper,
+                        "prev_page" => self.layout.hotkeys.prev_page = key_wrapper,
+                        "toggle_help" => self.layout.hotkeys.toggle_help = key_wrapper,
+                        "reload_all" => self.layout.hotkeys.reload_all = key_wrapper,
+                        "reload_run" => self.layout.hotkeys.reload_run = key_wrapper,
+                        "reload_theme" => self.layout.hotkeys.reload_theme = key_wrapper,
+                        _ => {}
+                    }
+
+                    self.waiting_for_key = None;
+                }
+            }
+
+            egui::Window::new("Esperando tecla...")
+                .collapsible(false)
+                .resizable(false)
+                .fixed_size((200.0, 60.0))
+                .show(ui.ctx(), |ui| {
+                    ui.label("Presiona una tecla para asignar.");
+                });
+        }
     }
 }
 
@@ -148,4 +273,27 @@ fn color_edit(ui: &mut egui::Ui, label: &str, hex_color: &mut String) {
     if changed {
         *hex_color = format!("#{:02x}{:02x}{:02x}", color.r(), color.g(), color.b());
     }
+}
+
+#[cfg(windows)]
+fn hotkey_button(
+    ui: &mut egui::Ui,
+    label: &str,
+    key: &KeyWrapper,
+    action: &str,
+    waiting: &mut Option<String>,
+) {
+    ui.horizontal(|ui| {
+        ui.label(label);
+
+        let button_label = if waiting.as_ref() == Some(&action.to_string()) {
+            "Presiona una tecla..."
+        } else {
+            &key.0
+        };
+
+        if ui.button(button_label).clicked() {
+            *waiting = Some(action.to_string());
+        }
+    });
 }
