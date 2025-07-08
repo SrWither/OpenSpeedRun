@@ -121,7 +121,12 @@ This enables full control (start, pause, reset, split) without relying on the GU
 ## Hotkeys
 
 On Windows, OpenSpeedRun supports customizable hotkeys.  
-You can assign your own keys for actions like start, split, reset, and more through the configuration window.
+You can assign your own keys for actions like start, split, and reset using the `openspeedrun-cfg` configuration tool.
+
+### Example hotkeys:
+- Start/Stop: `F1`
+- Split: `F2`
+- Reset: `F3`
 
 ## Screenshot
 
