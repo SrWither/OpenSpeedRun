@@ -23,7 +23,61 @@ OpenSpeedRun provides 3 executables:
 - `openspeedrun-cli`: a command-line tool to control the timer externally (e.g., split, reset, pause)
 - `openspeedrun-cfg`: configuration GUI to manage themes and splits
 
-## Installation
+## 📦 Install from Releases
+
+Precompiled binaries are available for **Windows**, **Linux**, and **macOS** in the [Releases](https://github.com/tu_usuario/OpenSpeedRun/releases) section.
+
+### 🪟 Windows
+
+1. Go to the [Releases](https://github.com/tu_usuario/OpenSpeedRun/releases) page.
+2. Download the `.zip` for Windows (e.g. `openspeedrun-windows-x86_64.zip`).
+3. Extract it anywhere (e.g. `C:\Games\OpenSpeedRun\`).
+4. Run `openspeedrun.exe`.
+
+> ✅ You can also run `openspeedrun-cfg.exe` for configuration.
+
+---
+
+### 🐧 Linux
+
+1. Download the `.zip` for Linux (e.g. `openspeedrun-linux-gnu-x86_64.zip`).
+2. Extract it:
+   ```bash
+   unzip openspeedrun-linux-gnu-x86_64.zip
+   ```
+3. Move the binaries to somewhere in your PATH, or run from current directory:
+   ```bash
+   ./openspeedrun
+   ```
+
+> 💡 You may need to make the binaries executable:
+> ```bash
+> chmod +x openspeedrun openspeedrun-cfg openspeedrun-cli
+> ```
+
+---
+
+### 🍎 macOS
+
+> ⚠️ Currently untested on macOS. You can try the following steps:
+
+1. Download the macOS zip file (e.g. `openspeedrun-macos-x86_64.zip`).
+2. Extract it:
+   ```bash
+   unzip openspeedrun-darwin-x86_64.zip
+   ```
+3. Run from terminal:
+   ```bash
+   ./openspeedrun
+   ```
+
+> 🛡️ If you get a “cannot be opened because it is from an unidentified developer” error, try:
+> ```bash
+> chmod +x openspeedrun
+> xattr -d com.apple.quarantine openspeedrun
+> ```
+
+## Build From Source
 
 Build with Cargo:
 
