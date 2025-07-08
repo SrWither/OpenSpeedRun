@@ -1,0 +1,31 @@
+name: Release - Linux-x86_64-gnu
+description: |
+  Build and release the Linux x86_64-gnu binary.
+
+runs:
+    using: "composite"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v1.0.4
+        with:
+          command: build
+          target: x86_64-unknown-linux-gnu
+          args: "--release"
+          strip: true
+
+      - name: Create ZIP (Posix)
+        shell: bash
+        run: |
+          zip -j openspeedrun-linux-gnu-x86_64.zip target/x86_64-unknown-linux-gnu/release/openspeedrun target/x86_64-unknown-linux-gnu/release/openspeedrun-cfg target/x86_64-unknown-linux-gnu/release/openspeedrun-cli
+          mkdir -p builds
+          mv openspeedrun-linux-gnu-x86_64.zip builds/
+
+      - name: "Upload Artifact"
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: release-builds-linux
+          path: builds/openspeedrun-linux-gnu-x86_64.zip
+          retention-days: 1

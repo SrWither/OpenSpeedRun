@@ -1,0 +1,33 @@
+name: Release - FreeBSD-x86_64
+description: |
+  Build and release the FreeBSD x86_64 binary.
+
+runs:
+    using: "composite"
+    steps:
+    - uses: actions/checkout@v4.2.2
+    - name: Build in FreeBSD
+      uses: vmactions/freebsd-vm@v1.2.0
+      with:
+        release: 14.2
+        usesh: true
+        prepare: |
+          pkg install -y rust zip openssl
+
+        run: |
+          cargo build --release
+          mkdir -p builds
+          zip -j openspeedrun-freebsd-x86_64.zip \
+            target/release/openspeedrun \
+            target/release/openspeedrun-cfg \
+            target/release/openspeedrun-cli
+          mkdir -p builds
+          mv openspeedrun-freebsd-x86_64.zip builds/
+          cargo clean
+
+    - name: 'Upload Artifact'
+      uses: actions/upload-artifact@v4.6.2
+      with:
+        name: release-builds-freebsd
+        path: builds/openspeedrun-freebsd-x86_64.zip
+        retention-days: 1

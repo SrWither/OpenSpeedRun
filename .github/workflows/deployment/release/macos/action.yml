@@ -1,0 +1,31 @@
+name: Release - macOS-x86_64
+description: |
+  Build and release the macOS x86_64 binary.
+
+runs:
+    using: "composite"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v1.0.4
+        with:
+          command: both
+          target: x86_64-apple-darwin
+          args: "--release"
+          strip: true
+
+      - name: Create ZIP (macOS)
+        shell: bash
+        run: |
+          zip -j openspeedrun-darwin-x86_64.zip target/x86_64-apple-darwin/release/openspeedrun target/x86_64-apple-darwin/release/openspeedrun-cfg target/x86_64-apple-darwin/release/openspeedrun-cli
+          mkdir -p builds
+          mv openspeedrun-darwin-x86_64.zip builds/
+
+      - name: "Upload Artifact"
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: release-builds-macos
+          path: builds/openspeedrun-darwin-x86_64.zip
+          retention-days: 1

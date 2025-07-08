@@ -1,0 +1,33 @@
+name: Release - Windows-x86_64
+description: |
+  Build and release the Windows x86_64 binary.
+
+runs:
+    using: "composite"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v1.0.4
+        with:
+          command: both
+          target: x86_64-pc-windows-msvc
+          args: "--release"
+          strip: true
+
+      - name: Create ZIP (Windows)
+        shell: pwsh
+        run: |
+          Compress-Archive -Path target/x86_64-pc-windows-msvc/release/openspeedrun.exe target/x86_64-pc-windows-msvc/release/openspeedrun-cfg.exe -Destination openspeedrun-windows-x86_64.zip
+          if (!(Test-Path -Path "builds")) {
+            New-Item -ItemType Directory -Path "builds"
+          }
+          Move-Item -Path openspeedrun-windows-x86_64.zip -Destination "builds/"
+
+      - name: "Upload Artifact"
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: release-builds-windows
+          path: builds/openspeedrun-windows-x86_64.zip
+          retention-days: 1
