@@ -34,7 +34,7 @@
     "show_info": true,
     "show_body": true,
     "show_footer": true,
-    "titlebar": false,
+    "titlebar": true,
     "window_size": [
       400,
       1280
