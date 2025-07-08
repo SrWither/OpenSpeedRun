@@ -20,7 +20,7 @@
 OpenSpeedRun provides 3 executables:
 
 - `openspeedrun`: the main GUI speedrun timer
-- `openspeedrun-cli`: a command-line tool to control the timer externally (e.g., split, reset, pause)
+- `openspeedrun-cli`: a command-line tool to control the timer externally (e.g., split, reset, pause), available only for Unix.
 - `openspeedrun-cfg`: configuration GUI to manage themes and splits
 
 ## 📦 Install from Releases
@@ -117,6 +117,11 @@ You can bind system-wide keyboard shortcuts in your window manager or compositor
 openspeedrun-cli split
 ```
 This enables full control (start, pause, reset, split) without relying on the GUI, ensuring compatibility and flexibility in any environment.
+
+## Hotkeys
+
+On Windows, OpenSpeedRun supports customizable hotkeys.  
+You can assign your own keys for actions like start, split, reset, and more through the configuration window.
 
 ## Screenshot
 
