@@ -8,6 +8,12 @@ runs:
       - name: Checkout
         uses: actions/checkout@v4.2.2
 
+      - name: Install system dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev
+
       - name: Build binary
         uses: houseabsolute/actions-rust-cross@v1.0.4
         with:

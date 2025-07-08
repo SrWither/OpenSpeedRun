@@ -19,11 +19,18 @@ runs:
       - name: Create ZIP (Windows)
         shell: pwsh
         run: |
-          Compress-Archive -Path target/x86_64-pc-windows-msvc/release/openspeedrun.exe target/x86_64-pc-windows-msvc/release/openspeedrun-cfg.exe -Destination openspeedrun-windows-x86_64.zip
+          $files = @(
+            "target/x86_64-pc-windows-msvc/release/openspeedrun.exe",
+            "target/x86_64-pc-windows-msvc/release/openspeedrun-cfg.exe",
+            "target/x86_64-pc-windows-msvc/release/openspeedrun-cli.exe"
+          )
+          Compress-Archive -Path $files -DestinationPath "openspeedrun-windows-x86_64.zip"
+
           if (!(Test-Path -Path "builds")) {
             New-Item -ItemType Directory -Path "builds"
           }
-          Move-Item -Path openspeedrun-windows-x86_64.zip -Destination "builds/"
+          Move-Item -Path "openspeedrun-windows-x86_64.zip" -Destination "builds/"
+
 
       - name: "Upload Artifact"
         uses: actions/upload-artifact@v4.6.2
