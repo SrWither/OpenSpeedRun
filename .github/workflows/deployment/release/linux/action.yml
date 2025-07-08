@@ -12,7 +12,7 @@ runs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libx11-dev libxi-dev pkg-config
+          sudo apt-get install -y libx11-dev libxi-dev libxtst-dev pkg-config
 
       - name: Build binary
         uses: houseabsolute/actions-rust-cross@v1.0.4
