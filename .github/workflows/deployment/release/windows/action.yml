@@ -21,8 +21,7 @@ runs:
         run: |
           $files = @(
             "target/x86_64-pc-windows-msvc/release/openspeedrun.exe",
-            "target/x86_64-pc-windows-msvc/release/openspeedrun-cfg.exe",
-            "target/x86_64-pc-windows-msvc/release/openspeedrun-cli.exe"
+            "target/x86_64-pc-windows-msvc/release/openspeedrun-cfg.exe"
           )
           Compress-Archive -Path $files -DestinationPath "openspeedrun-windows-x86_64.zip"
 
