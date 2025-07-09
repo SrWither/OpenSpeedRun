@@ -131,6 +131,7 @@ You can assign your own keys for actions like start, split, and reset using the 
 # Shaders
 
 For shaders used as backgrounds in this app, follow these conventions to ensure compatibility and expected behavior.
+
 Supported versions are: `1.10, 1.20, 1.30, 1.40, 1.50, 3.30, 4.00, 4.10, 4.20, 4.30, 4.40, 4.50, 4.60, 1.00 ES, 3.00 ES, 3.10 ES, and 3.20 ES`
 
 ## ✅ Vertex Shader Requirements
