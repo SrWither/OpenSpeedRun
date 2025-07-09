@@ -3,7 +3,10 @@ use crate::app::resize::draw_resize_borders;
 use crate::app::state::AppState;
 use crate::config::shaders::ShaderBackground;
 use crate::config::load::config_base_dir;
+#[cfg(unix)]
 use crate::core::server::UICommand;
+#[cfg(windows)]
+use crate::core::winserver::UICommand;
 use eframe::egui;
 use egui::Color32;
 
@@ -87,7 +90,7 @@ impl eframe::App for AppWrapper {
                             .to_string_lossy()
                             .to_string();
 
-                        state.shader = Some(ShaderBackground::new(gl.clone(), shader_path, vertex_shader_path));
+                        state.shader = ShaderBackground::new(gl.clone(), shader_path, vertex_shader_path);
                     } else {
                         eprintln!("No OpenGL context available to reload shader");
                     }

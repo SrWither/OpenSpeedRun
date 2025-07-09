@@ -2,11 +2,16 @@ pub mod app;
 pub mod config;
 pub mod core;
 
+#[cfg(unix)]
 use crate::core::server::UICommand;
+#[cfg(windows)]
+use crate::core::winserver::UICommand;
+
 #[cfg(unix)]
 use crate::core::server::listen_for_commands;
 #[cfg(windows)]
 use crate::core::winserver::{listen_for_hotkeys, start_ipc_listener};
+
 use app::state::{AppState, AppWrapper};
 use eframe::NativeOptions;
 use egui::ViewportBuilder;
@@ -35,7 +40,7 @@ fn main() -> eframe::Result<()> {
 
         let app_clone2 = app_clone.clone();
         std::thread::spawn(move || {
-            start_ipc_listener(app_clone2);
+            start_ipc_listener(app_clone2, tx_clone);
         });
     }
 

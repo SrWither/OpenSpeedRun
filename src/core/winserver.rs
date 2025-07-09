@@ -2,8 +2,14 @@ use std::sync::{Arc, Mutex};
 use crate::app::AppState;
 use rdev::{listen, Event, EventType};
 use std::io::{BufReader, BufRead};
+use std::sync::mpsc::Sender;
 use std::thread;
 use named_pipe::PipeOptions;
+
+#[derive(Debug)]
+pub enum UICommand {
+    ReloadShader,
+}
 
 pub fn listen_for_hotkeys(app: Arc<Mutex<AppState>>) {
     std::thread::spawn(move || {
@@ -94,7 +100,7 @@ fn handle_event(event: Event, app: &Arc<Mutex<AppState>>) {
     }
 }
 
-pub fn start_ipc_listener(app: Arc<Mutex<AppState>>) {
+pub fn start_ipc_listener(app: Arc<Mutex<AppState>>, tx: Sender<UICommand>) {
     let pipe_name = r"\\.\pipe\openspeedrun";
 
     thread::spawn(move || {
@@ -119,11 +125,12 @@ pub fn start_ipc_listener(app: Arc<Mutex<AppState>>) {
 
             let reader = BufReader::new(&mut server);
             let app = Arc::clone(&app);
+            let tx = tx.clone();
 
             for line in reader.lines() {
                 match line {
                     Ok(cmd) => {
-                        handle_ipc_command(&app, cmd.trim());
+                        handle_ipc_command(&app, &tx, cmd.trim());
                     }
                     Err(e) => {
                         eprintln!("⚠️ Error reading from pipe: {}", e);
@@ -135,19 +142,25 @@ pub fn start_ipc_listener(app: Arc<Mutex<AppState>>) {
     });
 }
 
-fn handle_ipc_command(app: &Arc<Mutex<AppState>>, cmd: &str) {
-    let mut app = app.lock().unwrap();
+fn handle_ipc_command(app: &Arc<Mutex<AppState>>, tx: &Sender<UICommand>, cmd: &str) {
     match cmd.to_lowercase().as_str() {
+        "reloadshader" => {
+            println!("Command: reloadshader");
+            let _ = tx.send(UICommand::ReloadShader);
+        }
         "reloadtheme" => {
             println!("Command: reloadtheme");
+            let mut app = app.lock().unwrap();
             app.reload_theme();
         }
         "reloadall" => {
             println!("Command: reloadall");
+            let mut app = app.lock().unwrap();
             app.reload_all();
         }
         "reloadrun" => {
             println!("Command: reloadrun");
+            let mut app = app.lock().unwrap();
             app.reload_run();
         }
         other => {

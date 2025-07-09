@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::Path;
 use std::sync::Arc;
 use eframe::glow;
 use glow::HasContext;
@@ -12,15 +13,30 @@ pub struct ShaderBackground {
 }
 
 impl ShaderBackground {
-    pub fn new(gl: Arc<glow::Context>, shader_path: String, vertex_shader_path: String) -> Self {
-        let fragment_shader_src = fs::read_to_string(&shader_path)
-            .expect("Failed to read fragment shader file");
+    pub fn new(gl: Arc<glow::Context>, shader_path: String, vertex_shader_path: String) -> Option<Self> {
+        let shader_exists = Path::new(&shader_path).exists();
+        let vertex_exists = Path::new(&vertex_shader_path).exists();
 
-        let vertex_shader_src = fs::read_to_string(&vertex_shader_path)
-            .expect("Failed to read vertex shader file");
+        if !shader_exists || !vertex_exists {
+            eprintln!(
+                "⚠ Shader files not found:\n  Fragment: {}\n  Vertex: {}\nSkipping shader init.",
+                shader_path, vertex_shader_path
+            );
+            return None;
+        }
+
+        let fragment_shader_src = fs::read_to_string(&shader_path).ok()?;
+        let vertex_shader_src = fs::read_to_string(&vertex_shader_path).ok()?;
 
         let (program, vao) = Self::init_gl(&gl, &fragment_shader_src, &vertex_shader_src);
-        Self { gl, program, vao, shader_path, vertex_shader_path }
+
+        Some(Self {
+            gl,
+            program,
+            vao,
+            shader_path,
+            vertex_shader_path,
+        })
     }
 
     fn init_gl(gl: &glow::Context, fragment_shader_src: &str, vertex_shader_src: &str) -> (glow::NativeProgram, glow::NativeVertexArray) {
