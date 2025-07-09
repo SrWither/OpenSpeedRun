@@ -110,7 +110,11 @@ impl eframe::App for AppWrapper {
         if app.layout.options.enable_shader {
             if let Some(shader) = &mut app.shader {
                 let screen = ctx.screen_rect();
-                let (w, h) = (screen.width(), screen.height());
+                let native_pixels_per_point = ctx.native_pixels_per_point().unwrap_or(1.0);
+                let (w, h) = (
+                    screen.width() * native_pixels_per_point,
+                    screen.height() * native_pixels_per_point,
+                );
 
                 let mut style = (*ctx.style()).clone();
                 style.visuals.window_fill = Color32::TRANSPARENT;
