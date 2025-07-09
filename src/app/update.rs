@@ -1,3 +1,4 @@
+use crate::app::resize::draw_resize_borders;
 use crate::app::AppWrapper;
 use crate::app::state::AppState;
 use eframe::egui;
@@ -73,6 +74,9 @@ impl eframe::App for AppWrapper {
         let mut app = self.app_state.lock().unwrap();
         app.handle_input(ctx);
         app.draw_ui(ctx);
+        if !app.layout.options.titlebar {
+            draw_resize_borders(ctx);
+        }
         ctx.request_repaint();
     }
 }

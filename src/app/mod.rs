@@ -1,6 +1,7 @@
 pub mod footer;
 pub mod header;
 pub mod help_window;
+pub mod resize;
 pub mod splits_panel;
 pub mod state;
 pub mod texture;
