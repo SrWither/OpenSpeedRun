@@ -128,6 +128,100 @@ You can assign your own keys for actions like start, split, and reset using the 
 - Split: `F2`
 - Reset: `F3`
 
+# Shaders
+
+For shaders used as backgrounds in this app, follow these conventions to ensure compatibility and expected behavior.
+
+## ✅ Vertex Shader Requirements
+
+* Use **GLSL ES 1.00 or higher** — e.g., `#version 100` (minimum supported version).
+* Define an attribute named `a_pos` of type `vec2`.
+* Compute `gl_Position` from `a_pos`.
+* No additional outputs are required unless your fragment shader needs them.
+
+> 💡 You may use higher versions like `#version 330 core` when running in desktop OpenGL contexts. This allows for more modern syntax (`in`, `out`, `layout`, etc.) and features.
+
+### Example — Vertex Shader (`#version 100`)
+```glsl
+#version 100
+attribute vec2 a_pos;
+
+void main() {
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+```
+
+### Example — Vertex Shader (`#version 330 core`)
+```glsl
+#version 330 core
+
+in vec2 a_pos;
+out vec2 v_uv;
+
+void main() {
+    v_uv = (a_pos + 1.0) * 0.5;
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+```
+
+## ✅ Fragment Shader Requirements
+
+* Use **GLSL ES 1.00 or higher**, e.g. `#version 100` (minimum).
+* Declare the following uniforms (injected by the app):
+  - `uniform float u_time;` — elapsed time in seconds.
+  - `uniform vec2 u_resolution;` — viewport size in pixels.
+* Use `gl_FragCoord` or interpolated UVs to compute per-pixel output.
+
+> 🖍️ In GLSL 1.00, write to `gl_FragColor`.  
+> 🎨 In modern GLSL (`#version 330 core`), define an `out vec4` like `FragColor`.
+
+### Example — Fragment Shader (`#version 100`)
+```glsl
+#version 100
+precision mediump float;
+
+uniform float u_time;
+uniform vec2 u_resolution;
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution;
+    gl_FragColor = vec4(uv, abs(sin(u_time)), 1.0);
+}
+```
+
+### Example — Fragment Shader (`#version 330 core`)
+```glsl
+#version 330 core
+
+in vec2 v_uv;
+out vec4 FragColor;
+
+uniform float u_time;
+uniform vec2 u_resolution;
+
+float wave(vec2 uv, float speed, float freq, float amp) {
+    return sin((uv.x + u_time * speed) * freq) * amp +
+           cos((uv.y + u_time * speed * 0.8) * freq * 0.7) * amp * 0.5;
+}
+
+void main() {
+    vec2 uv = v_uv;
+
+    float distortion = wave(uv, 0.4, 8.0, 0.02);
+    vec2 distorted_uv = uv + vec2(distortion);
+
+    float depth = 0.5 + 0.5 * sin(10.0 * distorted_uv.x + u_time)
+                        * cos(10.0 * distorted_uv.y + u_time);
+
+    vec3 water_color = mix(vec3(0.0, 0.2, 0.4), vec3(0.0, 0.6, 1.0), depth);
+
+    float specular = pow(max(0.0, depth), 3.0);
+    water_color += specular;
+
+    FragColor = vec4(water_color, 1.0);
+}
+```
+
 ## Screenshot
 
 <p align="center">
