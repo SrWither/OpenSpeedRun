@@ -21,7 +21,8 @@
     "gold_negative": "#c10000",
     "pb_positive": "#32CD32",
     "pb_negative": "#FF6347",
-    "info": "#efbe5f"
+    "info": "#efbe5f",
+    "shader_path": "rainbow.glsl"
   },
   "spacings": {
     "split_top": 5.0,
@@ -35,6 +36,7 @@
     "show_body": true,
     "show_footer": true,
     "titlebar": true,
+    "enable_shader": false,
     "window_size": [
       400,
       1280

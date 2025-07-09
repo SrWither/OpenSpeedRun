@@ -222,13 +222,10 @@ void main() {
 }
 ```
 
-## Screenshot
+### Showcase
 
-<p align="center">
-  <img src="assets/screenshot3.png" width="30%" />
-  <img src="assets/screenshot4.png" width="30%" />
-  <img src="assets/screenshot5.png" width="30%" />
-</p>
+| ![Screenshot 1](assets/screenshot6.png) | ![Screenshot 2](assets/screenshot7.png) | ![Screenshot 2](assets/screenshot8.png) | 
+|----------------------------------------|-----------------------------------------|-----------------------------------------|
 
 ## Status and Licensing
 
