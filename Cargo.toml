@@ -20,6 +20,7 @@ name = "openspeedrun"
 path = "src/lib.rs"
 
 [dependencies]
+bytemuck = "1.14"
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
 eframe = "0.31"

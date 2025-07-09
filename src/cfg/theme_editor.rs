@@ -1,7 +1,7 @@
 use eframe::egui;
 #[cfg(windows)]
 use openspeedrun::config::keys::KeyWrapper;
-use openspeedrun::config::layout::LayoutConfig;
+use openspeedrun::{config::layout::LayoutConfig, config_base_dir};
 use std::path::PathBuf;
 
 use crate::send_message;
@@ -16,6 +16,9 @@ pub struct ThemeEditor {
 impl ThemeEditor {
     pub fn new(theme_path: PathBuf) -> Self {
         let layout = LayoutConfig::load_or_default(theme_path.to_str().unwrap_or_default());
+        let shader_dir = config_base_dir().join("shaders");
+        std::fs::create_dir_all(&shader_dir).ok();
+
         Self {
             current_theme_path: theme_path,
             layout,
@@ -32,6 +35,9 @@ impl ThemeEditor {
                 eprintln!("Error saving theme: {}", e);
             }
             send_message("reloadtheme");
+            if self.layout.options.enable_shader {
+                send_message("reloadshader");
+            }
         }
 
         ui.add_space(12.0);
@@ -108,6 +114,7 @@ impl ThemeEditor {
                     ui.checkbox(&mut self.layout.options.show_body, "Show body");
                     ui.checkbox(&mut self.layout.options.show_footer, "Show footer");
                     ui.checkbox(&mut self.layout.options.titlebar, "Titlebar");
+                    ui.checkbox(&mut self.layout.options.enable_shader, "Enable shader");
 
                     ui.label("Window size:");
                     ui.horizontal(|ui| {
@@ -119,6 +126,27 @@ impl ThemeEditor {
                             egui::DragValue::new(&mut self.layout.options.window_size.1).speed(1.0),
                         );
                     });
+                    ui.label("Shader file:");
+                    let available_shaders = list_available_shaders();
+
+                    let mut current_shader = self
+                        .layout
+                        .colors
+                        .shader_path.clone();
+
+                    egui::ComboBox::from_id_salt("shader_select")
+                        .selected_text(&current_shader)
+                        .show_ui(ui, |ui| {
+                            for shader in available_shaders {
+                                if ui
+                                    .selectable_label(current_shader == shader, &shader)
+                                    .clicked()
+                                {
+                                    current_shader = shader.clone();
+                                    self.layout.colors.shader_path = shader;
+                                }
+                            }
+                        });
                 });
             });
 
@@ -296,4 +324,25 @@ fn hotkey_button(
             *waiting = Some(action.to_string());
         }
     });
+}
+
+fn list_available_shaders() -> Vec<String> {
+    let shader_dir = config_base_dir().join("shaders");
+    if let Ok(entries) = std::fs::read_dir(shader_dir) {
+        entries
+            .filter_map(Result::ok)
+            .filter_map(|entry| {
+                let path = entry.path();
+                if path.extension().map(|e| e == "glsl").unwrap_or(false) {
+                    path.file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|s| s.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    } else {
+        vec![]
+    }
 }

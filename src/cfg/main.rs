@@ -1,3 +1,4 @@
+mod shader_editor;
 mod split_editor;
 mod theme_editor;
 
@@ -12,6 +13,7 @@ use openspeedrun::{
     config::load::{AppConfig, config_base_dir},
 };
 
+use shader_editor::ShaderEditor;
 use split_editor::SplitEditor;
 use theme_editor::ThemeEditor;
 
@@ -24,6 +26,7 @@ pub struct ConfigApp {
     tab: usize,
     theme_editor: Option<ThemeEditor>,
     split_editor: Option<SplitEditor>,
+    shader_editor: Option<ShaderEditor>,
     new_name_input: String,
     show_name_input: bool,
     is_creating_theme: bool,
@@ -84,6 +87,12 @@ impl ConfigApp {
             .as_ref()
             .map(|s| SplitEditor::new(base.join("splits").join(s).join("split.json")));
 
+        let shader_editor = selected_theme.as_ref().map(|t| {
+            let path = config_base_dir().join("themes").join(format!("{t}.json"));
+            let layout = LayoutConfig::load_or_default(path.to_str().unwrap());
+            ShaderEditor::new(base.join("shaders").join(&layout.colors.shader_path))
+        });
+
         Self {
             app_config,
             available_splits,
@@ -93,6 +102,7 @@ impl ConfigApp {
             tab: 0,
             theme_editor,
             split_editor,
+            shader_editor,
             new_name_input: String::new(),
             show_name_input: false,
             is_creating_theme: false,
@@ -267,6 +277,9 @@ impl eframe::App for ConfigApp {
                 if ui.selectable_label(self.tab == 2, "Splits").clicked() {
                     self.tab = 2;
                 }
+                if ui.selectable_label(self.tab == 3, "Shader").clicked() {
+                    self.tab = 3;
+                }
             });
         });
 
@@ -290,6 +303,29 @@ impl eframe::App for ConfigApp {
                             ui.label("Select a split to edit.");
                         }
                     }
+                    3 => {
+                        if let Some(theme_editor) = &self.theme_editor {
+                            let new_path = config_base_dir()
+                                .join("shaders")
+                                .join(&theme_editor.layout.colors.shader_path);
+
+                            let needs_reload = self
+                                .shader_editor
+                                .as_ref()
+                                .map_or(true, |e| e.path != new_path);
+
+                            if needs_reload {
+                                self.shader_editor = Some(ShaderEditor::new(new_path));
+                            }
+                        }
+
+                        if let Some(editor) = &mut self.shader_editor {
+                            editor.ui(ui);
+                        } else {
+                            ui.label("Select a theme to edit its shader.");
+                        }
+                    }
+
                     _ => {}
                 });
         });
@@ -460,16 +496,14 @@ pub fn send_message(msg: &str) {
 #[cfg(windows)]
 pub fn send_message(msg: &str) {
     use std::fs::OpenOptions;
-    use std::io::{Write, BufWriter};
-    use std::time::Duration;
+    use std::io::{BufWriter, Write};
     use std::thread::sleep;
+    use std::time::Duration;
 
     let pipe_path = r"\\.\pipe\openspeedrun";
 
     for _ in 0..5 {
-        let file = OpenOptions::new()
-            .write(true)
-            .open(pipe_path);
+        let file = OpenOptions::new().write(true).open(pipe_path);
 
         match file {
             Ok(file) => {
@@ -492,7 +526,6 @@ pub fn send_message(msg: &str) {
 
     eprintln!("⚠️ Could not connect to pipe: {}", pipe_path);
 }
-
 
 fn main() -> eframe::Result<()> {
     let mut options = eframe::NativeOptions::default();

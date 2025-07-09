@@ -1,11 +1,15 @@
 use chrono::Duration;
 use eframe::egui;
+use eframe::glow::Context;
 use egui::TextureHandle;
 use std::collections::HashMap;
+use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 
 use crate::config::layout::LayoutConfig;
 use crate::config::load::{AppConfig, config_base_dir};
+use crate::config::shaders::ShaderBackground;
+use crate::core::server::UICommand;
 use crate::core::split::{Run, Split};
 use crate::core::timer::{Timer, TimerState};
 
@@ -21,6 +25,9 @@ pub struct AppState {
     pub splits_display: Vec<Split>,
     pub splits_backup: Vec<Split>,
     pub show_help: bool,
+    pub start_time: std::time::Instant,
+    pub shader: Option<ShaderBackground>,
+    pub gl: Option<Arc<Context>>,
 }
 
 impl Default for AppState {
@@ -52,6 +59,9 @@ impl Default for AppState {
             splits_display: splits.clone(),
             splits_backup: splits,
             show_help: false,
+            start_time: std::time::Instant::now(),
+            shader: None,
+            gl: None,
         }
     }
 }
@@ -353,4 +363,44 @@ impl AppState {
 
 pub struct AppWrapper {
     pub app_state: Arc<Mutex<AppState>>,
+    pub command_rx: Receiver<UICommand>,
+}
+
+impl AppWrapper {
+    pub fn new(
+        app_state: Arc<Mutex<AppState>>,
+        command_rx: Receiver<UICommand>,
+        cc: &eframe::CreationContext<'_>,
+    ) -> Self {
+        // Asignar shader
+        let gl = cc.gl.as_ref().unwrap().clone();
+        let shader_path = config_base_dir()
+            .join("shaders")
+            .join(&app_state.lock().unwrap().layout.colors.shader_path)
+            .to_string_lossy()
+            .to_string();
+        let vertex_shader_path = config_base_dir()
+            .join("shaders")
+            .join(format!(
+                "{}.vert",
+                app_state.lock().unwrap().layout.colors.shader_path
+            ))
+            .to_string_lossy()
+            .to_string();
+
+        {
+            let mut state = app_state.lock().unwrap();
+            state.gl = Some(gl.clone());
+            state.shader = Some(ShaderBackground::new(
+                gl.clone(),
+                shader_path,
+                vertex_shader_path,
+            ));
+        }
+
+        Self {
+            app_state,
+            command_rx,
+        }
+    }
 }

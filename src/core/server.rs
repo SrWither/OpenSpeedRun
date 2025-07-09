@@ -4,9 +4,16 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 #[cfg(unix)]
 use tokio::net::UnixListener;
 
+use std::sync::mpsc::Sender;
+
 use crate::app::AppState;
 
-pub async fn listen_for_commands(app: Arc<Mutex<AppState>>) {
+#[derive(Debug)]
+pub enum UICommand {
+    ReloadShader,
+}
+
+pub async fn listen_for_commands(app: Arc<Mutex<AppState>>, tx: Sender<UICommand>) {
     let socket_path = "/tmp/openspeedrun.sock";
 
     if Path::new(socket_path).exists() {
@@ -21,6 +28,7 @@ pub async fn listen_for_commands(app: Arc<Mutex<AppState>>) {
         match listener.accept().await {
             Ok((stream, _)) => {
                 let app = app.clone();
+                let tx = tx.clone();
 
                 tokio::spawn(async move {
                     let reader = BufReader::new(stream);
@@ -31,6 +39,11 @@ pub async fn listen_for_commands(app: Arc<Mutex<AppState>>) {
                         println!("Received command: '{}'", cmd);
                         if cmd.is_empty() {
                             eprintln!("Empty command received.");
+                            return;
+                        }
+
+                        if cmd == "reloadshader" {
+                            let _ = tx.send(UICommand::ReloadShader);
                             return;
                         }
 

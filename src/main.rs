@@ -2,6 +2,7 @@ pub mod app;
 pub mod config;
 pub mod core;
 
+use crate::core::server::UICommand;
 #[cfg(unix)]
 use crate::core::server::listen_for_commands;
 #[cfg(windows)]
@@ -9,16 +10,20 @@ use crate::core::winserver::{listen_for_hotkeys, start_ipc_listener};
 use app::state::{AppState, AppWrapper};
 use eframe::NativeOptions;
 use egui::ViewportBuilder;
+use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
 fn main() -> eframe::Result<()> {
     let app_state = Arc::new(Mutex::new(AppState::default()));
     let app_clone = app_state.clone();
 
+    let (tx, rx) = mpsc::channel::<UICommand>();
+    let tx_clone = tx.clone();
+
     #[cfg(unix)]
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(listen_for_commands(app_clone));
+        rt.block_on(listen_for_commands(app_clone, tx_clone));
     });
 
     #[cfg(windows)]
@@ -46,6 +51,6 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "OpenSpeedRun",
         options,
-        Box::new(move |_| Ok(Box::new(AppWrapper { app_state }))),
+        Box::new(move |cc| Ok(Box::new(AppWrapper::new(app_state, rx, cc)))),
     )
 }

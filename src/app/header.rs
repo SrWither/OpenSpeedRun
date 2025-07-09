@@ -13,7 +13,11 @@ impl AppState {
                 hotkeys: _,
         } = self.layout.clone();
 
-        let bg_color = Color32::from_hex(&colors.background).unwrap_or(Color32::BLACK);
+        let bg_color = if options.enable_shader {
+            Color32::TRANSPARENT
+        } else {
+            Color32::from_hex(&colors.background).unwrap_or(Color32::BLACK)
+        };
         let title_color = Color32::from_hex(&colors.title).unwrap_or(Color32::WHITE);
         let category_color = Color32::from_hex(&colors.category).unwrap_or(Color32::WHITE);
         let timer_color = Color32::from_hex(&colors.timer).unwrap_or(Color32::RED);

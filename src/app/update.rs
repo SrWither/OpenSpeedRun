@@ -1,7 +1,11 @@
-use crate::app::resize::draw_resize_borders;
 use crate::app::AppWrapper;
+use crate::app::resize::draw_resize_borders;
 use crate::app::state::AppState;
+use crate::config::shaders::ShaderBackground;
+use crate::config::load::config_base_dir;
+use crate::core::server::UICommand;
 use eframe::egui;
+use egui::Color32;
 
 impl AppState {
     pub fn handle_input(&mut self, ctx: &egui::Context) {
@@ -66,12 +70,64 @@ impl AppState {
 
 impl eframe::App for AppWrapper {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        while let Ok(cmd) = self.command_rx.try_recv() {
+            match cmd {
+                UICommand::ReloadShader => {
+                    let mut state = self.app_state.lock().unwrap();
+
+                    if let Some(gl) = &state.gl {
+                        let shader_path = config_base_dir()
+                            .join("shaders")
+                            .join(&state.layout.colors.shader_path)
+                            .to_string_lossy()
+                            .to_string();
+                        let vertex_shader_path = config_base_dir()
+                            .join("shaders")
+                            .join(format!("{}.vert", state.layout.colors.shader_path))
+                            .to_string_lossy()
+                            .to_string();
+
+                        state.shader = Some(ShaderBackground::new(gl.clone(), shader_path, vertex_shader_path));
+                    } else {
+                        eprintln!("No OpenGL context available to reload shader");
+                    }
+                }
+            }
+        }
+
         let mut fonts = egui::FontDefinitions::default();
         egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
 
         ctx.set_fonts(fonts);
 
+        let elapsed = {
+            let app = self.app_state.lock().unwrap();
+            app.start_time.elapsed().as_secs_f32()
+        };
+
         let mut app = self.app_state.lock().unwrap();
+
+        if app.layout.options.enable_shader {
+            if let Some(shader) = &mut app.shader {
+                let screen = ctx.screen_rect();
+                let (w, h) = (screen.width(), screen.height());
+
+                let mut style = (*ctx.style()).clone();
+                style.visuals.window_fill = Color32::TRANSPARENT;
+                style.visuals.extreme_bg_color = Color32::TRANSPARENT;
+                style.visuals.panel_fill = Color32::TRANSPARENT;
+                style.visuals.widgets.noninteractive.bg_fill = Color32::TRANSPARENT;
+                style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+                style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
+                style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
+                style.visuals.window_stroke = egui::Stroke::NONE;
+                style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::NONE;
+                ctx.set_style(style);
+
+                shader.render(elapsed, w, h);
+            }
+        }
+
         app.handle_input(ctx);
         app.draw_ui(ctx);
         if !app.layout.options.titlebar {
