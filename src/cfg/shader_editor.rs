@@ -31,26 +31,38 @@ pub struct ShaderEditor {
     code_vert: String,
     error: Option<String>,
 
+    readonly: bool,
+
     show_new_popup: bool,
     new_shader_name: String,
 }
 
 impl ShaderEditor {
     pub fn new(path: PathBuf) -> Self {
-        let code_frag = fs::read_to_string(&path).unwrap_or_else(|_| DEFAULT_SHADER.to_string());
         let path_vert = path.with_extension(format!(
             "{}{}",
             path.extension().unwrap_or_default().to_string_lossy(),
             ".vert"
         ));
-        let code_vert =
-            fs::read_to_string(&path_vert).unwrap_or_else(|_| DEFAULT_VERTEX_SHADER.to_string());
+
+        let frag_exists = path.exists();
+        let vert_exists = path_vert.exists();
+        let readonly = !(frag_exists && vert_exists);
+
+        let (code_frag, code_vert) = if frag_exists && vert_exists {
+            let code_frag = fs::read_to_string(&path).unwrap_or_default();
+            let code_vert = fs::read_to_string(&path_vert).unwrap_or_default();
+            (code_frag, code_vert)
+        } else {
+            (String::new(), String::new())
+        };
 
         Self {
             path,
             code_frag,
             code_vert,
             error: None,
+            readonly,
             show_new_popup: false,
             new_shader_name: String::new(),
         }
@@ -84,44 +96,46 @@ impl ShaderEditor {
         });
 
         ui.separator();
-        ui.label(
-            RichText::new(format!(
-                "Editing: {}",
-                self.path.file_name().unwrap_or_default().to_string_lossy()
-            ))
-            .size(18.0)
-            .strong(),
-        );
+        if !self.readonly {
+            ui.label(
+                RichText::new(format!(
+                    "Editing: {}",
+                    self.path.file_name().unwrap_or_default().to_string_lossy()
+                ))
+                .size(18.0)
+                .strong(),
+            );
+        }
 
         ui.horizontal(|ui| {
             ui.vertical(|ui| {
                 ui.label("Fragment Shader (.glsl)");
-                let changed_frag = ui
-                    .add_sized(
+                let edit = ui.add_enabled_ui(!self.readonly, |ui| {
+                    ui.add_sized(
                         egui::vec2(ui.available_width() / 2.0, 400.0),
                         egui::TextEdit::multiline(&mut self.code_frag)
                             .font(egui::TextStyle::Monospace)
                             .code_editor()
                             .desired_rows(20),
                     )
-                    .changed();
-                if changed_frag {
+                });
+                if edit.response.changed() {
                     ui.label("Unsaved changes");
                 }
             });
 
             ui.vertical(|ui| {
                 ui.label("Vertex Shader (.glsl.vert)");
-                let changed_vert = ui
-                    .add_sized(
+                let edit = ui.add_enabled_ui(!self.readonly, |ui| {
+                    ui.add_sized(
                         egui::vec2(ui.available_width(), 400.0),
                         egui::TextEdit::multiline(&mut self.code_vert)
                             .font(egui::TextStyle::Monospace)
                             .code_editor()
                             .desired_rows(20),
                     )
-                    .changed();
-                if changed_vert {
+                });
+                if edit.response.changed() {
                     ui.label("Unsaved changes");
                 }
             });
