@@ -96,7 +96,27 @@ impl ShaderBackground {
         }
     }
 
-    pub fn render(&self, time: f32, width: f32, height: f32) {
+    fn get_uniform_location_any<'a>(
+        gl: &glow::Context,
+        program: glow::NativeProgram,
+        names: &[&'a str],
+    ) -> Option<glow::UniformLocation> {
+        for name in names {
+            if let Some(loc) = unsafe { gl.get_uniform_location(program, name) } {
+                return Some(loc);
+            }
+        }
+        None
+    }
+
+    pub fn render(
+        &self,
+        time: f32,
+        width: f32,
+        height: f32,
+        date: (i32, i32, i32, f32),
+        delta_time: f32,
+    ) {
         unsafe {
             let gl = &*self.gl;
 
@@ -104,11 +124,39 @@ impl ShaderBackground {
             gl.use_program(Some(self.program));
             gl.bind_vertex_array(Some(self.vao));
 
-            if let Some(loc) = gl.get_uniform_location(self.program, "u_time") {
+            if let Some(loc) =
+                Self::get_uniform_location_any(gl, self.program, &["u_time", "time", "iTime"])
+            {
                 gl.uniform_1_f32(Some(&loc), time);
             }
-            if let Some(loc) = gl.get_uniform_location(self.program, "u_resolution") {
+
+            if let Some(loc) = Self::get_uniform_location_any(
+                gl,
+                self.program,
+                &["u_resolution", "resolution", "iResolution"],
+            ) {
                 gl.uniform_2_f32(Some(&loc), width, height);
+            }
+
+            if let Some(loc) =
+                Self::get_uniform_location_any(gl, self.program, &["u_mouse", "mouse", "iMouse"])
+            {
+                gl.uniform_2_f32(Some(&loc), 0.0, 0.0);
+            }
+
+            if let Some(loc) =
+                Self::get_uniform_location_any(gl, self.program, &["u_date", "date", "iDate"])
+            {
+                let (year, month, day, seconds) = date;
+                gl.uniform_4_f32(Some(&loc), year as f32, month as f32, day as f32, seconds);
+            }
+
+            if let Some(loc) = Self::get_uniform_location_any(
+                gl,
+                self.program,
+                &["deltaTime", "u_deltaTime", "iTimeDelta"],
+            ) {
+                gl.uniform_1_f32(Some(&loc), delta_time);
             }
 
             gl.draw_arrays(glow::TRIANGLES, 0, 6);

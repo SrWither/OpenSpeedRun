@@ -7,6 +7,7 @@ use crate::config::shaders::ShaderBackground;
 use crate::core::server::UICommand;
 #[cfg(windows)]
 use crate::core::winserver::UICommand;
+use chrono::{Datelike, Timelike};
 use eframe::egui;
 use egui::Color32;
 
@@ -111,6 +112,9 @@ impl eframe::App for AppWrapper {
 
         let mut app = self.app_state.lock().unwrap();
 
+        let delta_time = elapsed - app.last_elapsed;
+        app.last_elapsed = elapsed;
+
         if app.layout.options.enable_shader {
             if let Some(shader) = &mut app.shader {
                 let screen = ctx.screen_rect();
@@ -118,6 +122,14 @@ impl eframe::App for AppWrapper {
                 let (w, h) = (
                     screen.width() * native_pixels_per_point,
                     screen.height() * native_pixels_per_point,
+                );
+
+                let now = chrono::Local::now();
+                let date = (
+                    now.year(),
+                    now.month() as i32,
+                    now.day() as i32,
+                    (now.hour() * 3600 + now.minute() * 60 + now.second()) as f32,
                 );
 
                 let mut style = (*ctx.style()).clone();
@@ -132,7 +144,7 @@ impl eframe::App for AppWrapper {
                 style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::NONE;
                 ctx.set_style(style);
 
-                shader.render(elapsed, w, h);
+                shader.render(elapsed, w, h, date, delta_time);
             }
         }
 

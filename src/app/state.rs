@@ -29,6 +29,7 @@ pub struct AppState {
     pub splits_backup: Vec<Split>,
     pub show_help: bool,
     pub start_time: std::time::Instant,
+    pub last_elapsed: f32,
     pub shader: Option<ShaderBackground>,
     pub gl: Option<Arc<Context>>,
 }
@@ -63,6 +64,7 @@ impl Default for AppState {
             splits_backup: splits,
             show_help: false,
             start_time: std::time::Instant::now(),
+            last_elapsed: 0.0,
             shader: None,
             gl: None,
         }
