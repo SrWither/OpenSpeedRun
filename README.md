@@ -226,6 +226,8 @@ void main() {
 }
 ```
 
+for examples of shaders, see the [shaders](docs/SHADERS.md) directory.
+
 ### Showcase
 
 | ![Screenshot 1](assets/screenshot6.png) | ![Screenshot 2](assets/screenshot7.png) | ![Screenshot 2](assets/screenshot8.png) | 
