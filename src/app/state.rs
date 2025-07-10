@@ -32,6 +32,8 @@ pub struct AppState {
     pub last_elapsed: f32,
     pub shader: Option<ShaderBackground>,
     pub gl: Option<Arc<Context>>,
+    pub fonts_loaded: bool,
+    pub transparent_set: bool,
 }
 
 impl Default for AppState {
@@ -67,6 +69,8 @@ impl Default for AppState {
             last_elapsed: 0.0,
             shader: None,
             gl: None,
+            fonts_loaded: false,
+            transparent_set: false,
         }
     }
 }

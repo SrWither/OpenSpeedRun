@@ -77,22 +77,31 @@ impl eframe::App for AppWrapper {
         while let Ok(cmd) = self.command_rx.try_recv() {
             match cmd {
                 UICommand::ReloadShader => {
-                    let mut state = self.app_state.lock().unwrap();
+                    let (gl_opt, shader_name) = {
+                        let state = self.app_state.lock().unwrap();
+                        (state.gl.clone(), state.layout.colors.shader_path.clone())
+                    };
 
-                    if let Some(gl) = &state.gl {
+                    if let Some(gl) = gl_opt {
                         let shader_path = config_base_dir()
                             .join("shaders")
-                            .join(&state.layout.colors.shader_path)
+                            .join(&shader_name)
                             .to_string_lossy()
                             .to_string();
                         let vertex_shader_path = config_base_dir()
                             .join("shaders")
-                            .join(format!("{}.vert", state.layout.colors.shader_path))
+                            .join(format!("{}.vert", shader_name))
                             .to_string_lossy()
                             .to_string();
 
-                        state.shader =
-                            ShaderBackground::new(gl.clone(), shader_path, vertex_shader_path);
+                        if let Some(shader) =
+                            ShaderBackground::new(gl.clone(), shader_path, vertex_shader_path)
+                        {
+                            let mut state = self.app_state.lock().unwrap();
+                            state.shader = Some(shader);
+                        } else {
+                            eprintln!("Error: no se pudo recargar el shader '{}'", shader_name);
+                        }
                     } else {
                         eprintln!("No OpenGL context available to reload shader");
                     }
@@ -100,20 +109,34 @@ impl eframe::App for AppWrapper {
             }
         }
 
-        let mut fonts = egui::FontDefinitions::default();
-        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
-
-        ctx.set_fonts(fonts);
-
-        let elapsed = {
-            let app = self.app_state.lock().unwrap();
-            app.start_time.elapsed().as_secs_f32()
-        };
-
         let mut app = self.app_state.lock().unwrap();
+
+        if !app.fonts_loaded {
+            let mut fonts = egui::FontDefinitions::default();
+            egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+            ctx.set_fonts(fonts);
+            app.fonts_loaded = true;
+        }
+
+        let elapsed = app.start_time.elapsed().as_secs_f32();
 
         let delta_time = elapsed - app.last_elapsed;
         app.last_elapsed = elapsed;
+
+        if app.layout.options.enable_shader && !app.transparent_set {
+            let mut style = (*ctx.style()).clone();
+            style.visuals.window_fill = Color32::TRANSPARENT;
+            style.visuals.extreme_bg_color = Color32::TRANSPARENT;
+            style.visuals.panel_fill = Color32::TRANSPARENT;
+            style.visuals.widgets.noninteractive.bg_fill = Color32::TRANSPARENT;
+            style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+            style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
+            style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
+            style.visuals.window_stroke = egui::Stroke::NONE;
+            style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::NONE;
+            ctx.set_style(style);
+            app.transparent_set = true;
+        }
 
         if app.layout.options.enable_shader {
             if let Some(shader) = &mut app.shader {
@@ -131,18 +154,6 @@ impl eframe::App for AppWrapper {
                     now.day() as i32,
                     (now.hour() * 3600 + now.minute() * 60 + now.second()) as f32,
                 );
-
-                let mut style = (*ctx.style()).clone();
-                style.visuals.window_fill = Color32::TRANSPARENT;
-                style.visuals.extreme_bg_color = Color32::TRANSPARENT;
-                style.visuals.panel_fill = Color32::TRANSPARENT;
-                style.visuals.widgets.noninteractive.bg_fill = Color32::TRANSPARENT;
-                style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
-                style.visuals.widgets.active.bg_fill = Color32::TRANSPARENT;
-                style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
-                style.visuals.window_stroke = egui::Stroke::NONE;
-                style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::NONE;
-                ctx.set_style(style);
 
                 shader.render(elapsed, w, h, date, delta_time);
             }
