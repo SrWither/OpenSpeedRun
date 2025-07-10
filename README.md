@@ -171,13 +171,20 @@ void main() {
 
 * You must explicitly declare a #version directive — e.g., #version 100 (minimum supported version).
 * Use **GLSL ES 1.00** or higher.
-* Declare the following uniforms (injected by the app):
-  - `uniform float u_time;` — elapsed time in seconds.
-  - `uniform vec2 u_resolution;` — viewport size in pixels.
 * Use `gl_FragCoord` or interpolated UVs to compute per-pixel output.
 
 > 🖍️ In GLSL 1.00, write to `gl_FragColor`.  
 > 🎨 In modern GLSL (`#version 330 core`), define an `out vec4` like `FragColor`.
+
+Uniforms:
+| Alias(es)                            | Description                                    |
+|--------------------------------------|------------------------------------------------|
+| `u_time`, `time`, `iTime`                           | Elapsed time in seconds                          |
+| `u_resolution`, `resolution`, `iResolution`         | Viewport size in pixels                          |
+| `u_mouse`, `mouse`, `iMouse`                        | Is always `(0, 0)`                               |
+| `deltaTime`, `u_deltaTime`, `iTimeDelta`            | Time elapsed between frames in seconds           |
+| `u_date`, `date`, `iDate`                           | Current date: (year, month, day, seconds)        |
+
 
 ### Example — Fragment Shader (`#version 100`)
 ```glsl
