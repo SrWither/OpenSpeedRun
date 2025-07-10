@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
+use crate::syntax;
 use eframe::egui;
 use egui::RichText;
 
@@ -69,6 +70,37 @@ impl ShaderEditor {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
+        // syntax highlighting theme and layouter
+        let syntax_set = syntax::load_syntax_set();
+        let theme = syntax::get_theme("base16-eighties.dark");
+
+        let mut layouter_frag = move |ui: &egui::Ui, text: &str, wrap_width: f32| {
+            let highlighted = syntax::highlight_glsl_lines(text, syntax_set, theme);
+            let mut job = egui::text::LayoutJob::default();
+            job.wrap.max_width = wrap_width;
+
+            for (style, segment) in highlighted {
+                let color = egui::Color32::from_rgb(
+                    style.foreground.r,
+                    style.foreground.g,
+                    style.foreground.b,
+                );
+                job.append(
+                    segment,
+                    0.0,
+                    egui::TextFormat {
+                        font_id: egui::FontId::monospace(14.0),
+                        color,
+                        ..Default::default()
+                    },
+                );
+            }
+
+            ui.fonts(|f| f.layout_job(job))
+        };
+
+        let mut layouter_vert = layouter_frag.clone();
+
         ui.horizontal(|ui| {
             if ui.button("New Shader").clicked() {
                 self.new_shader_name.clear();
@@ -116,7 +148,8 @@ impl ShaderEditor {
                         egui::TextEdit::multiline(&mut self.code_frag)
                             .font(egui::TextStyle::Monospace)
                             .code_editor()
-                            .desired_rows(20),
+                            .desired_rows(20)
+                            .layouter(&mut layouter_frag),
                     )
                 });
                 if edit.response.changed() {
@@ -132,7 +165,8 @@ impl ShaderEditor {
                         egui::TextEdit::multiline(&mut self.code_vert)
                             .font(egui::TextStyle::Monospace)
                             .code_editor()
-                            .desired_rows(20),
+                            .desired_rows(20)
+                            .layouter(&mut layouter_vert),
                     )
                 });
                 if edit.response.changed() {
