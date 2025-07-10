@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use rdev::Key;
+use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct KeyWrapper(pub String);
 

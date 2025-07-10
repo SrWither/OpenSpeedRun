@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use std::fs;
 #[cfg(windows)]
 use crate::config::keys::KeyWrapper;
+use serde::{Deserialize, Serialize};
+use std::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]

@@ -1,8 +1,8 @@
 use crate::app::AppWrapper;
 use crate::app::resize::draw_resize_borders;
 use crate::app::state::AppState;
-use crate::config::shaders::ShaderBackground;
 use crate::config::load::config_base_dir;
+use crate::config::shaders::ShaderBackground;
 #[cfg(unix)]
 use crate::core::server::UICommand;
 #[cfg(windows)]
@@ -90,7 +90,8 @@ impl eframe::App for AppWrapper {
                             .to_string_lossy()
                             .to_string();
 
-                        state.shader = ShaderBackground::new(gl.clone(), shader_path, vertex_shader_path);
+                        state.shader =
+                            ShaderBackground::new(gl.clone(), shader_path, vertex_shader_path);
                     } else {
                         eprintln!("No OpenGL context available to reload shader");
                     }

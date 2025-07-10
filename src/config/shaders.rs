@@ -1,8 +1,8 @@
+use eframe::glow;
+use glow::HasContext;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
-use eframe::glow;
-use glow::HasContext;
 
 pub struct ShaderBackground {
     pub gl: Arc<glow::Context>,
@@ -13,7 +13,11 @@ pub struct ShaderBackground {
 }
 
 impl ShaderBackground {
-    pub fn new(gl: Arc<glow::Context>, shader_path: String, vertex_shader_path: String) -> Option<Self> {
+    pub fn new(
+        gl: Arc<glow::Context>,
+        shader_path: String,
+        vertex_shader_path: String,
+    ) -> Option<Self> {
         let shader_exists = Path::new(&shader_path).exists();
         let vertex_exists = Path::new(&vertex_shader_path).exists();
 
@@ -39,7 +43,11 @@ impl ShaderBackground {
         })
     }
 
-    fn init_gl(gl: &glow::Context, fragment_shader_src: &str, vertex_shader_src: &str) -> (glow::NativeProgram, glow::NativeVertexArray) {
+    fn init_gl(
+        gl: &glow::Context,
+        fragment_shader_src: &str,
+        vertex_shader_src: &str,
+    ) -> (glow::NativeProgram, glow::NativeVertexArray) {
         unsafe {
             let vs = gl.create_shader(glow::VERTEX_SHADER).unwrap();
             gl.shader_source(vs, vertex_shader_src);
@@ -67,8 +75,7 @@ impl ShaderBackground {
             gl.bind_vertex_array(Some(vao));
 
             let vertices: [f32; 12] = [
-                -1.0, -1.0, 1.0, -1.0, -1.0, 1.0,
-                -1.0,  1.0, 1.0, -1.0, 1.0,  1.0,
+                -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0,
             ];
 
             let vbo = gl.create_buffer().unwrap();

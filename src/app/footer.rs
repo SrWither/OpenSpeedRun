@@ -123,7 +123,7 @@ impl AppState {
                     .line_segment([egui::pos2(left, top), egui::pos2(right, top)], stroke);
 
                 if options.show_info {
-                    ui.add_space(4.0); 
+                    ui.add_space(4.0);
                     ui.vertical(|ui| {
                         ui.horizontal(|ui| {
                             ui.add_space(8.0);

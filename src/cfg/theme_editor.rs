@@ -129,10 +129,7 @@ impl ThemeEditor {
                     ui.label("Shader file:");
                     let available_shaders = list_available_shaders();
 
-                    let mut current_shader = self
-                        .layout
-                        .colors
-                        .shader_path.clone();
+                    let mut current_shader = self.layout.colors.shader_path.clone();
 
                     egui::ComboBox::from_id_salt("shader_select")
                         .selected_text(&current_shader)

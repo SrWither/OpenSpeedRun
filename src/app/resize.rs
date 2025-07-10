@@ -1,6 +1,4 @@
-use eframe::egui::{
-    Context, CursorIcon, Id, Order, Rect, Sense, Vec2, Area, ViewportCommand,
-};
+use eframe::egui::{Area, Context, CursorIcon, Id, Order, Rect, Sense, Vec2, ViewportCommand};
 
 #[derive(Debug, Clone, Copy)]
 enum ResizeEdge {
@@ -24,14 +22,56 @@ pub fn draw_resize_borders(ctx: &Context) {
         .fixed_pos(rect.min)
         .show(ctx, |ui| {
             let zones: [(ResizeEdge, Rect); 8] = [
-                (ResizeEdge::North, Rect::from_min_max(rect.left_top(), rect.right_top() + Vec2::new(0.0, margin))),
-                (ResizeEdge::South, Rect::from_min_max(rect.left_bottom() - Vec2::new(0.0, margin), rect.right_bottom())),
-                (ResizeEdge::West, Rect::from_min_max(rect.left_top(), rect.left_bottom() + Vec2::new(margin, 0.0))),
-                (ResizeEdge::East, Rect::from_min_max(rect.right_top() - Vec2::new(margin, 0.0), rect.right_bottom())),
-                (ResizeEdge::NorthWest, Rect::from_min_max(rect.left_top(), rect.left_top() + Vec2::splat(margin))),
-                (ResizeEdge::NorthEast, Rect::from_min_max(rect.right_top() - Vec2::new(margin, 0.0), rect.right_top() + Vec2::new(0.0, margin))),
-                (ResizeEdge::SouthWest, Rect::from_min_max(rect.left_bottom() - Vec2::new(0.0, margin), rect.left_bottom() + Vec2::new(margin, 0.0))),
-                (ResizeEdge::SouthEast, Rect::from_min_max(rect.right_bottom() - Vec2::splat(margin), rect.right_bottom())),
+                (
+                    ResizeEdge::North,
+                    Rect::from_min_max(rect.left_top(), rect.right_top() + Vec2::new(0.0, margin)),
+                ),
+                (
+                    ResizeEdge::South,
+                    Rect::from_min_max(
+                        rect.left_bottom() - Vec2::new(0.0, margin),
+                        rect.right_bottom(),
+                    ),
+                ),
+                (
+                    ResizeEdge::West,
+                    Rect::from_min_max(
+                        rect.left_top(),
+                        rect.left_bottom() + Vec2::new(margin, 0.0),
+                    ),
+                ),
+                (
+                    ResizeEdge::East,
+                    Rect::from_min_max(
+                        rect.right_top() - Vec2::new(margin, 0.0),
+                        rect.right_bottom(),
+                    ),
+                ),
+                (
+                    ResizeEdge::NorthWest,
+                    Rect::from_min_max(rect.left_top(), rect.left_top() + Vec2::splat(margin)),
+                ),
+                (
+                    ResizeEdge::NorthEast,
+                    Rect::from_min_max(
+                        rect.right_top() - Vec2::new(margin, 0.0),
+                        rect.right_top() + Vec2::new(0.0, margin),
+                    ),
+                ),
+                (
+                    ResizeEdge::SouthWest,
+                    Rect::from_min_max(
+                        rect.left_bottom() - Vec2::new(0.0, margin),
+                        rect.left_bottom() + Vec2::new(margin, 0.0),
+                    ),
+                ),
+                (
+                    ResizeEdge::SouthEast,
+                    Rect::from_min_max(
+                        rect.right_bottom() - Vec2::splat(margin),
+                        rect.right_bottom(),
+                    ),
+                ),
             ];
 
             for (edge, zone) in zones {
@@ -39,15 +79,17 @@ pub fn draw_resize_borders(ctx: &Context) {
                 let response = ui.interact(zone, id, Sense::click_and_drag());
 
                 if response.hovered() {
-                    ctx.output_mut(|o| o.cursor_icon = match edge {
-                        ResizeEdge::North => CursorIcon::ResizeNorth,
-                        ResizeEdge::South => CursorIcon::ResizeSouth,
-                        ResizeEdge::East => CursorIcon::ResizeEast,
-                        ResizeEdge::West => CursorIcon::ResizeWest,
-                        ResizeEdge::NorthEast => CursorIcon::ResizeNeSw,
-                        ResizeEdge::NorthWest => CursorIcon::ResizeNwSe,
-                        ResizeEdge::SouthEast => CursorIcon::ResizeNwSe,
-                        ResizeEdge::SouthWest => CursorIcon::ResizeNeSw,
+                    ctx.output_mut(|o| {
+                        o.cursor_icon = match edge {
+                            ResizeEdge::North => CursorIcon::ResizeNorth,
+                            ResizeEdge::South => CursorIcon::ResizeSouth,
+                            ResizeEdge::East => CursorIcon::ResizeEast,
+                            ResizeEdge::West => CursorIcon::ResizeWest,
+                            ResizeEdge::NorthEast => CursorIcon::ResizeNeSw,
+                            ResizeEdge::NorthWest => CursorIcon::ResizeNwSe,
+                            ResizeEdge::SouthEast => CursorIcon::ResizeNwSe,
+                            ResizeEdge::SouthWest => CursorIcon::ResizeNeSw,
+                        }
                     });
                 }
 

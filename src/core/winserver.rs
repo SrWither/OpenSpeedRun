@@ -1,10 +1,10 @@
-use std::sync::{Arc, Mutex};
 use crate::app::AppState;
-use rdev::{listen, Event, EventType};
-use std::io::{BufReader, BufRead};
-use std::sync::mpsc::Sender;
-use std::thread;
 use named_pipe::PipeOptions;
+use rdev::{Event, EventType, listen};
+use std::io::{BufRead, BufReader};
+use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 #[derive(Debug)]
 pub enum UICommand {

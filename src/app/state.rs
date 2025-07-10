@@ -11,10 +11,10 @@ use crate::config::load::{AppConfig, config_base_dir};
 use crate::config::shaders::ShaderBackground;
 #[cfg(unix)]
 use crate::core::server::UICommand;
-#[cfg(windows)]
-use crate::core::winserver::UICommand;
 use crate::core::split::{Run, Split};
 use crate::core::timer::{Timer, TimerState};
+#[cfg(windows)]
+use crate::core::winserver::UICommand;
 
 pub struct AppState {
     pub timer: Timer,
@@ -394,11 +394,7 @@ impl AppWrapper {
         {
             let mut state = app_state.lock().unwrap();
             state.gl = Some(gl.clone());
-            state.shader = ShaderBackground::new(
-                gl.clone(),
-                shader_path,
-                vertex_shader_path,
-            );
+            state.shader = ShaderBackground::new(gl.clone(), shader_path, vertex_shader_path);
         }
 
         Self {

@@ -1,7 +1,7 @@
 mod shader_editor;
 mod split_editor;
-mod theme_editor;
 mod syntax;
+mod theme_editor;
 
 use std::fs;
 #[cfg(unix)]
