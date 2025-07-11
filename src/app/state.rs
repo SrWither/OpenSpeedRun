@@ -1,6 +1,6 @@
 use chrono::Duration;
-use eframe::{egui, glow};
 use eframe::glow::Context;
+use eframe::{egui, glow};
 use egui::TextureHandle;
 use std::collections::HashMap;
 use std::sync::mpsc::Receiver;

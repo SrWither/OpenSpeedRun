@@ -84,7 +84,9 @@ impl AppWrapper {
 
                     if let Some(gl) = gl_opt {
                         let shader_path = config_base_dir().join("shaders").join(&shader_name);
-                        let vertex_path = config_base_dir().join("shaders").join(format!("{}.vert", shader_name));
+                        let vertex_path = config_base_dir()
+                            .join("shaders")
+                            .join(format!("{}.vert", shader_name));
 
                         if let Some(shader) = ShaderBackground::new(
                             gl.clone(),
@@ -180,7 +182,14 @@ impl AppWrapper {
                     (now.hour() * 3600 + now.minute() * 60 + now.second()) as f32,
                 );
 
-                shader.render(elapsed, w, h, date, delta_time, app.background_gl_texture.as_ref());
+                shader.render(
+                    elapsed,
+                    w,
+                    h,
+                    date,
+                    delta_time,
+                    app.background_gl_texture.as_ref(),
+                );
             }
         }
     }
@@ -194,7 +203,6 @@ impl AppWrapper {
         }
     }
 }
-
 
 impl eframe::App for AppWrapper {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {

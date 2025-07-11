@@ -114,7 +114,10 @@ impl ThemeEditor {
                                         Some(file_name.to_string());
                                     send_message("reloadtheme");
                                 } else {
-                                    eprintln!("Error obtaining file name from path: {:?}", new_path);
+                                    eprintln!(
+                                        "Error obtaining file name from path: {:?}",
+                                        new_path
+                                    );
                                 }
                             } else {
                                 eprintln!("Error copying image to backgrounds folder");
