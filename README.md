@@ -2,9 +2,8 @@
 
 **OpenSpeedRun** is a modern and minimalistic open-source speedrun timer designed for Unix systems. It features a clean GUI, external CLI control, and customizable themes.
 
-
 | ![Screenshot 1](assets/screenshot.png) | ![Screenshot 2](assets/screenshot2.png) |
-|----------------------------------------|-----------------------------------------|
+| -------------------------------------- | --------------------------------------- |
 
 ## Features
 
@@ -51,6 +50,7 @@ Precompiled binaries are available for **Windows**, **Linux**, and **macOS** in 
    ```
 
 > 💡 You may need to make the binaries executable:
+>
 > ```bash
 > chmod +x openspeedrun openspeedrun-cfg openspeedrun-cli
 > ```
@@ -72,6 +72,7 @@ Precompiled binaries are available for **Windows**, **Linux**, and **macOS** in 
    ```
 
 > 🛡️ If you get a “cannot be opened because it is from an unidentified developer” error, try:
+>
 > ```bash
 > chmod +x openspeedrun
 > xattr -d com.apple.quarantine openspeedrun
@@ -116,6 +117,7 @@ You can bind system-wide keyboard shortcuts in your window manager or compositor
 ```bash
 openspeedrun-cli split
 ```
+
 This enables full control (start, pause, reset, split) without relying on the GUI, ensuring compatibility and flexibility in any environment.
 
 ## Hotkeys
@@ -124,6 +126,7 @@ On Windows, OpenSpeedRun supports customizable hotkeys.
 You can assign your own keys for actions like start, split, and reset using the `openspeedrun-cfg` configuration tool.
 
 ### Example hotkeys:
+
 - Start/Stop: `F1`
 - Split: `F2`
 - Reset: `F3`
@@ -136,15 +139,16 @@ Supported versions are: `1.10, 1.20, 1.30, 1.40, 1.50, 3.30, 4.00, 4.10, 4.20, 4
 
 ## ✅ Vertex Shader Requirements
 
-* You must explicitly declare a #version directive — e.g., #version 100 (minimum supported version).
-* Use **GLSL ES 1.00** or higher.
-* Define an attribute named `a_pos` of type `vec2`.
-* Compute `gl_Position` from `a_pos`.
-* No additional outputs are required unless your fragment shader needs them.
+- You must explicitly declare a #version directive — e.g., #version 100 (minimum supported version).
+- Use **GLSL ES 1.00** or higher.
+- Define an attribute named `a_pos` of type `vec2`.
+- Compute `gl_Position` from `a_pos`.
+- No additional outputs are required unless your fragment shader needs them.
 
 > 💡 You may use higher versions like `#version 330 core` when running in desktop OpenGL contexts. This allows for more modern syntax (`in`, `out`, `layout`, etc.) and features.
 
 ### Example — Vertex Shader (`#version 100`)
+
 ```glsl
 #version 100
 attribute vec2 a_pos;
@@ -155,6 +159,7 @@ void main() {
 ```
 
 ### Example — Vertex Shader (`#version 330 core`)
+
 ```glsl
 #version 330 core
 
@@ -169,24 +174,25 @@ void main() {
 
 ## ✅ Fragment Shader Requirements
 
-* You must explicitly declare a #version directive — e.g., #version 100 (minimum supported version).
-* Use **GLSL ES 1.00** or higher.
-* Use `gl_FragCoord` or interpolated UVs to compute per-pixel output.
+- You must explicitly declare a #version directive — e.g., #version 100 (minimum supported version).
+- Use **GLSL ES 1.00** or higher.
+- Use `gl_FragCoord` or interpolated UVs to compute per-pixel output.
 
 > 🖍️ In GLSL 1.00, write to `gl_FragColor`.  
 > 🎨 In modern GLSL (`#version 330 core`), define an `out vec4` like `FragColor`.
 
 Uniforms:
-| Alias(es)                            | Description                                    |
+| Alias(es) | Description |
 |--------------------------------------|------------------------------------------------|
-| `u_time`, `time`, `iTime`                           | Elapsed time in seconds                          |
-| `u_resolution`, `resolution`, `iResolution`         | Viewport size in pixels                          |
-| `u_mouse`, `mouse`, `iMouse`                        | Is always `(0, 0)`                               |
-| `deltaTime`, `u_deltaTime`, `iTimeDelta`            | Time elapsed between frames in seconds           |
-| `u_date`, `date`, `iDate`                           | Current date: (year, month, day, seconds)        |
-
+| `u_time`, `time`, `iTime` | Elapsed time in seconds |
+| `u_resolution`, `resolution`, `iResolution` | Viewport size in pixels |
+| `u_mouse`, `mouse`, `iMouse` | Is always `(0, 0)` |
+| `deltaTime`, `u_deltaTime`, `iTimeDelta` | Time elapsed between frames in seconds |
+| `u_date`, `date`, `iDate` | Current date: (year, month, day, seconds) |
+| `u_texture`, `iChannel0`, `image` | Background texture (optional) |
 
 ### Example — Fragment Shader (`#version 100`)
+
 ```glsl
 #version 100
 precision mediump float;
@@ -201,6 +207,7 @@ void main() {
 ```
 
 ### Example — Fragment Shader (`#version 330 core`)
+
 ```glsl
 #version 330 core
 
@@ -237,8 +244,8 @@ for examples of shaders, see the [shaders](docs/SHADERS.md) directory.
 
 ### Showcase
 
-| ![Screenshot 1](assets/screenshot6.png) | ![Screenshot 2](assets/screenshot7.png) | ![Screenshot 2](assets/screenshot8.png) | 
-|----------------------------------------|-----------------------------------------|-----------------------------------------|
+| ![Screenshot 1](assets/screenshot6.png) | ![Screenshot 2](assets/screenshot7.png) | ![Screenshot 2](assets/screenshot8.png) |
+| --------------------------------------- | --------------------------------------- | --------------------------------------- |
 
 ## Status and Licensing
 
