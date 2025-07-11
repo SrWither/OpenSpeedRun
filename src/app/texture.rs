@@ -58,17 +58,15 @@ impl AppState {
         self.background_image = Some(texture.clone());
         self.background_image_name = Some(image_name.clone());
 
-        if self.layout.options.enable_shader {
-            if let Some(gl) = &self.gl {
-                if let Some(native_tex) = Self::create_gl_texture(&**gl, &rgba, size) {
-                    let replace = match self.background_gl_texture {
-                        Some(existing) => existing != native_tex,
-                        None => true,
-                    };
+        if let Some(gl) = &self.gl {
+            if let Some(native_tex) = Self::create_gl_texture(&**gl, &rgba, size) {
+                let replace = match self.background_gl_texture {
+                    Some(existing) => existing != native_tex,
+                    None => true,
+                };
 
-                    if replace {
-                        self.background_gl_texture = Some(native_tex);
-                    }
+                if replace {
+                    self.background_gl_texture = Some(native_tex);
                 }
             }
         }
