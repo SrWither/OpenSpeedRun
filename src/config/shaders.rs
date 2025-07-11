@@ -116,6 +116,7 @@ impl ShaderBackground {
         height: f32,
         date: (i32, i32, i32, f32),
         delta_time: f32,
+        background_gl_texture: Option<&glow::NativeTexture>,
     ) {
         unsafe {
             let gl = &*self.gl;
@@ -158,6 +159,16 @@ impl ShaderBackground {
             ) {
                 gl.uniform_1_f32(Some(&loc), delta_time);
             }
+
+            if let Some(tex) = background_gl_texture {
+                gl.active_texture(glow::TEXTURE0); // Usa la unidad 0
+                gl.bind_texture(glow::TEXTURE_2D, Some(*tex));
+            
+                if let Some(loc) = Self::get_uniform_location_any(gl, self.program, &["u_texture", "iChannel0", "image"]) {
+                    gl.uniform_1_i32(Some(&loc), 0); // sampler2D en unidad 0
+                }
+            }
+            
 
             gl.draw_arrays(glow::TRIANGLES, 0, 6);
         }

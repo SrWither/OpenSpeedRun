@@ -13,7 +13,7 @@ impl AppState {
                 hotkeys: _,
         } = self.layout.clone();
 
-        let bg_color = if options.enable_shader {
+        let bg_color = if options.enable_shader || options.enable_background_image {
             Color32::TRANSPARENT
         } else {
             Color32::from_hex(&colors.background).unwrap_or(Color32::BLACK)

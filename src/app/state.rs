@@ -1,5 +1,5 @@
 use chrono::Duration;
-use eframe::egui;
+use eframe::{egui, glow};
 use eframe::glow::Context;
 use egui::TextureHandle;
 use std::collections::HashMap;
@@ -34,6 +34,9 @@ pub struct AppState {
     pub gl: Option<Arc<Context>>,
     pub fonts_loaded: bool,
     pub transparent_set: bool,
+    pub background_image: Option<TextureHandle>,
+    pub background_image_name: Option<String>,
+    pub background_gl_texture: Option<glow::NativeTexture>,
 }
 
 impl Default for AppState {
@@ -71,6 +74,9 @@ impl Default for AppState {
             gl: None,
             fonts_loaded: false,
             transparent_set: false,
+            background_image: None,
+            background_image_name: None,
+            background_gl_texture: None,
         }
     }
 }

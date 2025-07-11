@@ -72,8 +72,8 @@ impl AppState {
     }
 }
 
-impl eframe::App for AppWrapper {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+impl AppWrapper {
+    fn handle_commands(&mut self) {
         while let Ok(cmd) = self.command_rx.try_recv() {
             match cmd {
                 UICommand::ReloadShader => {
@@ -83,22 +83,15 @@ impl eframe::App for AppWrapper {
                     };
 
                     if let Some(gl) = gl_opt {
-                        let shader_path = config_base_dir()
-                            .join("shaders")
-                            .join(&shader_name)
-                            .to_string_lossy()
-                            .to_string();
-                        let vertex_shader_path = config_base_dir()
-                            .join("shaders")
-                            .join(format!("{}.vert", shader_name))
-                            .to_string_lossy()
-                            .to_string();
+                        let shader_path = config_base_dir().join("shaders").join(&shader_name);
+                        let vertex_path = config_base_dir().join("shaders").join(format!("{}.vert", shader_name));
 
-                        if let Some(shader) =
-                            ShaderBackground::new(gl.clone(), shader_path, vertex_shader_path)
-                        {
-                            let mut state = self.app_state.lock().unwrap();
-                            state.shader = Some(shader);
+                        if let Some(shader) = ShaderBackground::new(
+                            gl.clone(),
+                            shader_path.to_string_lossy().to_string(),
+                            vertex_path.to_string_lossy().to_string(),
+                        ) {
+                            self.app_state.lock().unwrap().shader = Some(shader);
                         } else {
                             eprintln!("Error: no se pudo recargar el shader '{}'", shader_name);
                         }
@@ -108,22 +101,48 @@ impl eframe::App for AppWrapper {
                 }
             }
         }
+    }
 
-        let mut app = self.app_state.lock().unwrap();
+    fn prepare_background(
+        &self,
+        ctx: &egui::Context,
+        app: &mut AppState,
+    ) -> Option<egui::TextureHandle> {
+        if app.layout.options.enable_shader || app.layout.options.enable_background_image {
+            let tex = app.get_or_load_background_image(ctx);
 
+            if app.layout.options.enable_background_image {
+                if let Some(tex) = &tex {
+                    let screen_rect = ctx.screen_rect();
+                    let painter = ctx.layer_painter(egui::LayerId::background());
+                    painter.image(
+                        tex.id(),
+                        screen_rect,
+                        egui::Rect::from_min_max([0.0, 0.0].into(), [1.0, 1.0].into()),
+                        egui::Color32::WHITE,
+                    );
+                }
+            }
+
+            tex
+        } else {
+            None
+        }
+    }
+
+    fn load_fonts_if_needed(&self, ctx: &egui::Context, app: &mut AppState) {
         if !app.fonts_loaded {
             let mut fonts = egui::FontDefinitions::default();
             egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
             ctx.set_fonts(fonts);
             app.fonts_loaded = true;
         }
+    }
 
-        let elapsed = app.start_time.elapsed().as_secs_f32();
-
-        let delta_time = elapsed - app.last_elapsed;
-        app.last_elapsed = elapsed;
-
-        if app.layout.options.enable_shader && !app.transparent_set {
+    fn apply_transparency_if_needed(&self, ctx: &egui::Context, app: &mut AppState) {
+        if (app.layout.options.enable_background_image || app.layout.options.enable_shader)
+            && !app.transparent_set
+        {
             let mut style = (*ctx.style()).clone();
             style.visuals.window_fill = Color32::TRANSPARENT;
             style.visuals.extreme_bg_color = Color32::TRANSPARENT;
@@ -135,17 +154,23 @@ impl eframe::App for AppWrapper {
             style.visuals.window_stroke = egui::Stroke::NONE;
             style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::NONE;
             ctx.set_style(style);
+
             app.transparent_set = true;
         }
+    }
 
+    fn render_shader_if_enabled(
+        &self,
+        ctx: &egui::Context,
+        app: &mut AppState,
+        elapsed: f32,
+        delta_time: f32,
+    ) {
         if app.layout.options.enable_shader {
             if let Some(shader) = &mut app.shader {
                 let screen = ctx.screen_rect();
-                let native_pixels_per_point = ctx.native_pixels_per_point().unwrap_or(1.0);
-                let (w, h) = (
-                    screen.width() * native_pixels_per_point,
-                    screen.height() * native_pixels_per_point,
-                );
+                let scale = ctx.native_pixels_per_point().unwrap_or(1.0);
+                let (w, h) = (screen.width() * scale, screen.height() * scale);
 
                 let now = chrono::Local::now();
                 let date = (
@@ -155,15 +180,38 @@ impl eframe::App for AppWrapper {
                     (now.hour() * 3600 + now.minute() * 60 + now.second()) as f32,
                 );
 
-                shader.render(elapsed, w, h, date, delta_time);
+                shader.render(elapsed, w, h, date, delta_time, app.background_gl_texture.as_ref());
             }
         }
+    }
 
+    fn draw_ui_and_misc(&self, ctx: &egui::Context, app: &mut AppState) {
         app.handle_input(ctx);
         app.draw_ui(ctx);
+
         if !app.layout.options.titlebar {
             draw_resize_borders(ctx);
         }
+    }
+}
+
+
+impl eframe::App for AppWrapper {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.handle_commands();
+        let mut app = self.app_state.lock().unwrap();
+
+        let _ = self.prepare_background(ctx, &mut app);
+        self.load_fonts_if_needed(ctx, &mut app);
+
+        let elapsed = app.start_time.elapsed().as_secs_f32();
+        let delta_time = elapsed - app.last_elapsed;
+        app.last_elapsed = elapsed;
+
+        self.apply_transparency_if_needed(ctx, &mut app);
+        self.render_shader_if_enabled(ctx, &mut app, elapsed, delta_time);
+        self.draw_ui_and_misc(ctx, &mut app);
+
         ctx.request_repaint();
     }
 }

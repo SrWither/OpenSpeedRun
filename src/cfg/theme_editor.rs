@@ -2,7 +2,7 @@ use eframe::egui;
 #[cfg(windows)]
 use openspeedrun::config::keys::KeyWrapper;
 use openspeedrun::{config::layout::LayoutConfig, config_base_dir};
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use crate::send_message;
 
@@ -99,6 +99,75 @@ impl ThemeEditor {
                     color_edit(ui, "PB +", &mut self.layout.colors.pb_positive);
                     color_edit(ui, "PB -", &mut self.layout.colors.pb_negative);
                     color_edit(ui, "Info", &mut self.layout.colors.info);
+                    ui.add_space(6.0);
+                    // open file picker for background image
+                    if ui.button("Load Image").clicked() {
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("Images", &["png", "jpg", "jpeg", "gif", "webp"])
+                            .pick_file()
+                        {
+                            if let Ok(new_path) = copy_image_to_backgrounds_folder(&path) {
+                                if let Some(file_name) =
+                                    new_path.file_name().and_then(|n| n.to_str())
+                                {
+                                    self.layout.colors.background_image =
+                                        Some(file_name.to_string());
+                                    send_message("reloadtheme");
+                                } else {
+                                    eprintln!("Error obtaining file name from path: {:?}", new_path);
+                                }
+                            } else {
+                                eprintln!("Error copying image to backgrounds folder");
+                            }
+                        }
+                    }
+
+                    ui.label("Select Image:");
+
+                    let backgrounds_dir = config_base_dir().join("backgrounds");
+                    let mut bg_files: Vec<String> = Vec::new();
+
+                    if let Ok(entries) = fs::read_dir(&backgrounds_dir) {
+                        for entry in entries.flatten() {
+                            if let Ok(file_type) = entry.file_type() {
+                                if file_type.is_file() {
+                                    if let Some(ext) = entry.path().extension() {
+                                        if matches!(
+                                            ext.to_str().unwrap_or("").to_lowercase().as_str(),
+                                            "png" | "jpg" | "jpeg" | "gif" | "webp"
+                                        ) {
+                                            if let Some(file_name) = entry.file_name().to_str() {
+                                                bg_files.push(file_name.to_string());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    egui::ComboBox::from_id_salt("background_image_selector")
+                        .selected_text(
+                            self.layout
+                                .colors
+                                .background_image
+                                .as_deref()
+                                .unwrap_or("None"),
+                        )
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut self.layout.colors.background_image,
+                                None,
+                                "None",
+                            );
+                            for bg in bg_files.iter() {
+                                ui.selectable_value(
+                                    &mut self.layout.colors.background_image,
+                                    Some(bg.clone()),
+                                    bg,
+                                );
+                            }
+                        });
                 });
             });
 
@@ -115,6 +184,10 @@ impl ThemeEditor {
                     ui.checkbox(&mut self.layout.options.show_footer, "Show footer");
                     ui.checkbox(&mut self.layout.options.titlebar, "Titlebar");
                     ui.checkbox(&mut self.layout.options.enable_shader, "Enable shader");
+                    ui.checkbox(
+                        &mut self.layout.options.enable_background_image,
+                        "Show only bg image",
+                    );
 
                     ui.label("Window size:");
                     ui.horizontal(|ui| {
@@ -274,12 +347,12 @@ impl ThemeEditor {
                 }
             }
 
-            egui::Window::new("Esperando tecla...")
+            egui::Window::new("Waiting for key...")
                 .collapsible(false)
                 .resizable(false)
                 .fixed_size((200.0, 60.0))
                 .show(ui.ctx(), |ui| {
-                    ui.label("Presiona una tecla para asignar.");
+                    ui.label("Press a key to assign.");
                 });
         }
     }
@@ -342,4 +415,15 @@ fn list_available_shaders() -> Vec<String> {
     } else {
         vec![]
     }
+}
+
+fn copy_image_to_backgrounds_folder(image_path: &PathBuf) -> Result<PathBuf, String> {
+    let backgrounds_dir = config_base_dir().join("backgrounds");
+    std::fs::create_dir_all(&backgrounds_dir)
+        .map_err(|e| format!("Error creating backgrounds directory: {}", e))?;
+
+    let new_path = backgrounds_dir.join(image_path.file_name().unwrap());
+    std::fs::copy(image_path, &new_path).map_err(|e| format!("Error copying image: {}", e))?;
+
+    Ok(new_path)
 }

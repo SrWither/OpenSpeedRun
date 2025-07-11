@@ -43,6 +43,7 @@ pub struct Colors {
     pub pb_negative: String,
     pub info: String,
     pub shader_path: String,
+    pub background_image: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,6 +64,7 @@ pub struct Options {
     pub show_footer: bool,
     pub titlebar: bool,
     pub enable_shader: bool,
+    pub enable_background_image: bool,
     pub window_size: (u32, u32),
 }
 
@@ -137,6 +139,7 @@ impl Default for Colors {
             pb_negative: "#FF6347".to_string(),
             info: "#808080".to_string(),
             shader_path: "".to_string(),
+            background_image: None,
         }
     }
 }
@@ -161,6 +164,7 @@ impl Default for Options {
             show_footer: true,
             titlebar: true,
             enable_shader: false,
+            enable_background_image: false,
             window_size: (720, 1280),
         }
     }
