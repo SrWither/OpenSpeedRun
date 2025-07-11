@@ -189,7 +189,7 @@ impl ThemeEditor {
                     ui.checkbox(&mut self.layout.options.enable_shader, "Enable shader");
                     ui.checkbox(
                         &mut self.layout.options.enable_background_image,
-                        "Show only bg image",
+                        "Show bg image",
                     );
 
                     ui.label("Window size:");
