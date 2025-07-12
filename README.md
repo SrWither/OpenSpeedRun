@@ -190,6 +190,10 @@ Uniforms:
 | `deltaTime`, `u_deltaTime`, `iTimeDelta` | Time elapsed between frames in seconds |
 | `u_date`, `date`, `iDate` | Current date: (year, month, day, seconds) |
 | `u_texture`, `iChannel0`, `image` | Background texture (optional) |
+| `u_current_split`, `current_split`, `iCurrentSplit` | Current split index (0-based) |
+| `u_total_splits`, `total_splits`, `iTotalSplits` | Total number of splits |
+| `u_elapsed_time`, `elapsed_time`, `iElapsedTime` | Total elapsed time in seconds |
+| `u_elapsed_split_time`, `elapsed_split_time`, `iElapsedSplitTime` | Time since last split in seconds |
 
 ### Example — Fragment Shader (`#version 100`)
 
