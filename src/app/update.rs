@@ -167,6 +167,10 @@ impl AppWrapper {
         app: &mut AppState,
         elapsed: f32,
         delta_time: f32,
+        current_split: i32,
+        total_splits: i32,
+        elapsed_time: f32,
+        elapsed_split_time: f32,
     ) {
         if app.layout.options.enable_shader {
             if let Some(shader) = &mut app.shader {
@@ -189,6 +193,10 @@ impl AppWrapper {
                     date,
                     delta_time,
                     app.background_gl_texture.as_ref(),
+                    current_split,
+                    total_splits,
+                    elapsed_time,
+                    elapsed_split_time,
                 );
             }
         }
@@ -216,8 +224,32 @@ impl eframe::App for AppWrapper {
         let delta_time = elapsed - app.last_elapsed;
         app.last_elapsed = elapsed;
 
+        let current_split = app.current_split as i32;
+        let total_splits = app.run.splits.len() as i32;
+        let elapsed_time = app.timer.current_time().as_seconds_f32();
+
+        let last_split_time = if app.current_split > 0 {
+            app.splits_display[app.current_split - 1]
+                .last_time
+                .map(|t| t.as_seconds_f32())
+                .unwrap_or(0.0)
+        } else {
+            0.0
+        };
+
+        let elapsed_split_time = elapsed_time - last_split_time;
+
         self.apply_transparency_if_needed(ctx, &mut app);
-        self.render_shader_if_enabled(ctx, &mut app, elapsed, delta_time);
+        self.render_shader_if_enabled(
+            ctx,
+            &mut app,
+            elapsed,
+            delta_time,
+            current_split,
+            total_splits,
+            elapsed_time,
+            elapsed_split_time,
+        );
         self.draw_ui_and_misc(ctx, &mut app);
 
         ctx.request_repaint();

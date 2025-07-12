@@ -117,6 +117,10 @@ impl ShaderBackground {
         date: (i32, i32, i32, f32),
         delta_time: f32,
         background_gl_texture: Option<&glow::NativeTexture>,
+        current_split: i32,
+        total_splits: i32,
+        elapsed_time: f32,
+        elapsed_split_time: f32,
     ) {
         unsafe {
             let gl = &*self.gl;
@@ -171,6 +175,42 @@ impl ShaderBackground {
                 ) {
                     gl.uniform_1_i32(Some(&loc), 0); // sampler2D en unidad 0
                 }
+            }
+
+            if let Some(loc) = Self::get_uniform_location_any(
+                gl,
+                self.program,
+                &["current_split", "u_current_split", "iCurrentSplit"],
+            ) {
+                gl.uniform_1_i32(Some(&loc), current_split);
+            }
+
+            if let Some(loc) = Self::get_uniform_location_any(
+                gl,
+                self.program,
+                &["total_splits", "u_total_splits", "iTotalSplits"],
+            ) {
+                gl.uniform_1_i32(Some(&loc), total_splits);
+            }
+
+            if let Some(loc) = Self::get_uniform_location_any(
+                gl,
+                self.program,
+                &["elapsed_time", "u_elapsed_time", "iElapsedTime"],
+            ) {
+                gl.uniform_1_f32(Some(&loc), elapsed_time);
+            }
+
+            if let Some(loc) = Self::get_uniform_location_any(
+                gl,
+                self.program,
+                &[
+                    "elapsed_split_time",
+                    "u_elapsed_split_time",
+                    "iElapsedSplitTime",
+                ],
+            ) {
+                gl.uniform_1_f32(Some(&loc), elapsed_split_time);
             }
 
             gl.draw_arrays(glow::TRIANGLES, 0, 6);
