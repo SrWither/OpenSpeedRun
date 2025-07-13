@@ -47,37 +47,80 @@ impl ThemeEditor {
                 ui.vertical(|ui| {
                     ui.label("Font Sizes:");
                     ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.title, 10.0..=64.0)
+                        egui::Slider::new(&mut self.layout.font_sizes.title, 10.0..=96.0)
                             .text("Title"),
                     );
                     ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.category, 10.0..=64.0)
+                        egui::Slider::new(&mut self.layout.font_sizes.category, 10.0..=96.0)
                             .text("Category"),
                     );
                     ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.timer, 10.0..=64.0)
+                        egui::Slider::new(&mut self.layout.font_sizes.timer, 10.0..=96.0)
                             .text("Timer"),
                     );
                     ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.split, 10.0..=64.0)
+                        egui::Slider::new(&mut self.layout.font_sizes.split, 10.0..=96.0)
                             .text("Split Name"),
                     );
                     ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.split_timer, 10.0..=64.0)
+                        egui::Slider::new(&mut self.layout.font_sizes.split_timer, 10.0..=96.0)
                             .text("Split Timer"),
                     );
                     ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.split_gold, 10.0..=64.0)
+                        egui::Slider::new(&mut self.layout.font_sizes.split_gold, 10.0..=96.0)
                             .text("Split Gold"),
                     );
                     ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.split_pb, 10.0..=64.0)
+                        egui::Slider::new(&mut self.layout.font_sizes.split_pb, 10.0..=96.0)
                             .text("Split PB"),
                     );
                     ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.info, 10.0..=64.0)
+                        egui::Slider::new(&mut self.layout.font_sizes.info, 10.0..=96.0)
                             .text("Info"),
                     );
+
+                    if ui.button("Load Font").clicked() {
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("Fonts", &["ttf", "otf"])
+                            .pick_file()
+                        {
+                            if let Ok(new_path) = copy_font_to_fonts_folder(&path) {
+                                if let Some(file_name) =
+                                    new_path.file_stem().and_then(|n| n.to_str())
+                                {
+                                    self.layout.font_sizes.font = Some(file_name.to_string());
+                                    send_message("reloadtheme");
+                                } else {
+                                    eprintln!("Cannot obtain file name from path: {:?}", new_path);
+                                }
+                            } else {
+                                eprintln!("Error copying font to fonts folder");
+                            }
+                        }
+                    }
+
+                    ui.label("Select Font:");
+
+                    let font_files = get_font_names();
+
+                    egui::ComboBox::from_id_salt("font_selector")
+                        .selected_text(self.layout.font_sizes.font.as_deref().unwrap_or("Default"))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.layout.font_sizes.font, None, "Default");
+
+                            for file in font_files {
+                                if let Some(name) = file
+                                    .strip_suffix(".ttf")
+                                    .or_else(|| file.strip_suffix(".otf"))
+                                {
+                                    ui.selectable_value(
+                                        &mut self.layout.font_sizes.font,
+                                        Some(name.to_string()),
+                                        name,
+                                    );
+                                }
+                            }
+                        });
                 })
             });
 
@@ -427,6 +470,42 @@ fn copy_image_to_backgrounds_folder(image_path: &PathBuf) -> Result<PathBuf, Str
 
     let new_path = backgrounds_dir.join(image_path.file_name().unwrap());
     std::fs::copy(image_path, &new_path).map_err(|e| format!("Error copying image: {}", e))?;
+
+    Ok(new_path)
+}
+
+fn get_font_names() -> Vec<String> {
+    let fonts_dir = config_base_dir().join("fonts");
+    if let Ok(entries) = std::fs::read_dir(fonts_dir) {
+        entries
+            .filter_map(Result::ok)
+            .filter_map(|entry| {
+                let path = entry.path();
+                if path
+                    .extension()
+                    .map(|e| e == "ttf" || e == "otf")
+                    .unwrap_or(false)
+                {
+                    path.file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|s| s.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    } else {
+        vec![]
+    }
+}
+
+fn copy_font_to_fonts_folder(font_path: &PathBuf) -> Result<PathBuf, String> {
+    let fonts_dir = config_base_dir().join("fonts");
+    std::fs::create_dir_all(&fonts_dir)
+        .map_err(|e| format!("Error creating fonts directory: {}", e))?;
+
+    let new_path = fonts_dir.join(font_path.file_name().unwrap());
+    std::fs::copy(font_path, &new_path).map_err(|e| format!("Error copying font: {}", e))?;
 
     Ok(new_path)
 }

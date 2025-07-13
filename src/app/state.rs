@@ -1,7 +1,7 @@
 use chrono::Duration;
 use eframe::glow::Context;
 use eframe::{egui, glow};
-use egui::TextureHandle;
+use egui::{FontDefinitions, TextureHandle};
 use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
@@ -37,6 +37,7 @@ pub struct AppState {
     pub background_image: Option<TextureHandle>,
     pub background_image_name: Option<String>,
     pub background_gl_texture: Option<glow::NativeTexture>,
+    pub loaded_fonts: Option<FontDefinitions>,
 }
 
 impl Default for AppState {
@@ -77,6 +78,7 @@ impl Default for AppState {
             background_image: None,
             background_image_name: None,
             background_gl_texture: None,
+            loaded_fonts: None,
         }
     }
 }
@@ -305,6 +307,7 @@ impl AppState {
             let app_config = AppConfig::load();
             let layout_path = config_base_dir().join(&app_config.theme);
             self.layout = LayoutConfig::load_or_default(layout_path.to_str().unwrap());
+            self.fonts_loaded = false;
         }
     }
 

@@ -25,6 +25,7 @@ pub struct FontSizes {
     pub split_gold: f32,
     pub split_pb: f32,
     pub info: f32,
+    pub font: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -119,6 +120,7 @@ impl Default for FontSizes {
             split_gold: 14.0,
             split_pb: 14.0,
             info: 14.0,
+            font: None,
         }
     }
 }
