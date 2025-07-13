@@ -131,6 +131,20 @@ You can assign your own keys for actions like start, split, and reset using the 
 - Split: `F2`
 - Reset: `F3`
 
+## 🅵 Custom Fonts
+
+**OpenSpeedRun** supports custom fonts for a personalized look.
+
+You can add fonts in two ways:
+
+- Manually place a `.ttf` or `.otf` file inside the following folder, depending on your OS:
+  - On **Linux/macOS/BSD**: `~/.config/openspeedrun/fonts/`
+  - On **Windows**: `"%APPDATA%\openspeedrun\fonts\"`
+- Or, use the graphical configuration tool (`openspeedrun-cfg`) and click on **"Load Font"**. This will open a file picker, copy the selected font file into the same `fonts/` directory, and let you choose from any installed font there.
+
+> ⚠️ **Recommended:** Use a **monospaced font** (e.g., Roboto Mono, JetBrains Mono, or Courier New).  
+> Non-monospaced fonts may cause **jittery or uneven digit movement** in the timer display as numbers change.
+
 # Shaders
 
 For shaders used as backgrounds in this app, follow these conventions to ensure compatibility and expected behavior.
