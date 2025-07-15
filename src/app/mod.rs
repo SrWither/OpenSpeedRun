@@ -6,5 +6,6 @@ pub mod splits_panel;
 pub mod state;
 pub mod texture;
 pub mod update;
+pub mod fonts;
 
 pub use state::{AppState, AppWrapper};
