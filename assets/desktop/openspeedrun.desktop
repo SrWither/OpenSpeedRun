@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=0.2.6
+Type=Application
+Name=OpenSpeedRun
+Comment=Modern and minimalistic open-source speedrun timer.
+Exec=openspeedrun
+Icon=openspeedrun
+Terminal=false
+Categories=Game;Utility;
+Keywords=speedrun;timer;minimal;
+StartupNotify=true
+URL=https://github.com/SrWither/OpenSpeedRun

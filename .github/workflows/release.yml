@@ -83,6 +83,14 @@ jobs:
           cp extracted/* pkg_root/usr/bin/
           cp -r README.md LICENSE docs assets pkg_root/usr/share/doc/openspeedrun/
 
+          mkdir -p pkg_root/usr/share/applications
+          cp assets/desktop/openspeedrun.desktop pkg_root/usr/share/applications/
+          cp assets/desktop/openspeedrun-cfg.desktop pkg_root/usr/share/applications/
+
+          mkdir -p pkg_root/usr/share/icons/hicolor/256x256/apps
+          cp assets/icons/OpenSpeedRun.png pkg_root/usr/share/icons/hicolor/256x256/apps/openspeedrun.png
+          cp assets/icons/OpenSpeedRun-CFG.png pkg_root/usr/share/icons/hicolor/256x256/apps/openspeedrun-cfg.png
+
       - name: Build .deb with fpm
         run: |
           fpm -s dir -t deb \

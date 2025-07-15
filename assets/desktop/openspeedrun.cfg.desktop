@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=0.2.6
+Type=Application
+Name=OpenSpeedRun Config
+Comment=Configuration tool for OpenSpeedRun.
+Exec=openspeedrun-cfg
+Icon=openspeedrun-cfg
+Terminal=false
+Categories=Settings;Utility;
+Keywords=speedrun;config;settings;
+StartupNotify=true
+URL=https://github.com/SrWither/OpenSpeedRun
