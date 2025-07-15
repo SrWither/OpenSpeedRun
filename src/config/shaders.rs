@@ -129,6 +129,8 @@ impl ShaderBackground {
             gl.use_program(Some(self.program));
             gl.bind_vertex_array(Some(self.vao));
 
+            // Pass uniforms to the shader
+
             if let Some(loc) =
                 Self::get_uniform_location_any(gl, self.program, &["u_time", "time", "iTime"])
             {

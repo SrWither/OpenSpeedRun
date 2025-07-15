@@ -13,6 +13,7 @@ impl AppState {
                 hotkeys: _,
         } = self.layout.clone();
 
+        // set colors
         let bg_color = if options.enable_shader || options.enable_background_image {
             Color32::TRANSPARENT
         } else {
@@ -44,6 +45,7 @@ impl AppState {
                             let is_current = i == current_split;
                             let is_first = i == page_start;
 
+                            // Determine if this is the first split on the current page
                             if is_first {
                                 let (rect, _) = ui.allocate_exact_size(
                                     egui::vec2(ui.available_width(), 1.0),
@@ -61,7 +63,8 @@ impl AppState {
                                 ui.set_min_height(32.0);
                                 ui.set_min_width(ui.available_width());
                                 ui.add_space(10.0);
-
+                                
+                                // Display the split icon if available
                                 let texture = split
                                     .icon_path
                                     .as_ref()
@@ -88,7 +91,7 @@ impl AppState {
                                     egui::Layout::right_to_left(egui::Align::Center),
                                     |ui| {
                                         if let Some(last) = &split.last_time {
-                                            // Mostrar el tiempo total
+                                            // Show total time
                                             let time_text = self.format_duration(*last, 0);
 
                                             ui.label(
@@ -153,6 +156,7 @@ impl AppState {
                                                     }
                                                 }
                                             }
+                                            // Show relative time if applicable
                                         } else if is_current
                                             && options.show_relative_times
                                             && self.timer.state == TimerState::Running
