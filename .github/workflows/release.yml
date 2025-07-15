@@ -33,49 +33,89 @@ jobs:
       - name: Build Linux Release
         uses: ./.github/workflows/deployment/release/linux
 
-  # build-freebsd:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4.2.2
-  #
-  #     - name: Build FreeBSD Release
-  #       uses: ./.github/workflows/deployment/release/freebsd
-  #
-
   deploy:
     name: Deploy Release
     needs:
       - build-windows
       - build-macos
       - build-linux
-      # - build-freebsd
     runs-on: ubuntu-24.04
     steps:
-    - name: Download Windows artifact
-      uses: actions/download-artifact@v4.3.0
-      with:
-        name: release-builds-windows
-        path: builds
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
 
-    - name: Download macOS artifact
-      uses: actions/download-artifact@v4.3.0
-      with:
-        name: release-builds-macos
-        path: builds
+      - name: Extract version from tag
+        id: vars
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-    - name: Download Linux artifact
-      uses: actions/download-artifact@v4.3.0
-      with:
-        name: release-builds-linux
-        path: builds
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4.3.0
+        with:
+          name: release-builds-windows
+          path: builds
 
-    # - name: Download FreeBSD artifacts
-    #   uses: actions/download-artifact@v4.3.0
-    #   with:
-    #     name: release-builds-freebsd
-    #     path: builds
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4.3.0
+        with:
+          name: release-builds-macos
+          path: builds
 
-    - uses: ncipollo/release-action@v1.16.0
-      with:
-        artifacts: "builds/*.zip"
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4.3.0
+        with:
+          name: release-builds-linux
+          path: builds
+
+      - name: Install fpm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev build-essential unzip
+          sudo gem install --no-document fpm
+
+      - name: Extract Linux zip
+        run: |
+          unzip builds/openspeedrun-linux-gnu-x86_64.zip -d extracted
+
+      - name: Prepare fpm pkg_root
+        run: |
+          mkdir -p pkg_root/usr/bin
+          mkdir -p pkg_root/usr/share/doc/openspeedrun
+          cp extracted/* pkg_root/usr/bin/
+          cp -r README.md LICENSE docs pkg_root/usr/share/doc/openspeedrun/
+
+      - name: Build .deb with fpm
+        run: |
+          fpm -s dir -t deb \
+            -n openspeedrun \
+            -v ${{ steps.vars.outputs.VERSION }} \
+            --description "Modern and minimalistic open-source speedrun timer." \
+            --url "https://github.com/SrWither/OpenSpeedRun" \
+            --maintainer "Fadel Jachuf <fjachuf@gmail.com>" \
+            --license "BSD3CLAUSE" \
+            --category "Games" \
+            --architecture amd64 \
+            -C pkg_root \
+            usr
+
+      - name: Build .rpm with fpm
+        run: |
+          fpm -s dir -t rpm \
+            -n openspeedrun \
+            -v ${{ steps.vars.outputs.VERSION }} \
+            --description "Modern and minimalistic open-source speedrun timer." \
+            --url "https://github.com/SrWither/OpenSpeedRun" \
+            --maintainer "Fadel Jachuf <fjachuf@gmail.com>" \
+            --license "BSD3CLAUSE" \
+            --category "Games" \
+            --architecture x86_64 \
+            --rpm-os linux \
+            -C pkg_root \
+            usr
+
+      - name: Upload all artifacts to GitHub Release
+        uses: ncipollo/release-action@v1.16.0
+        with:
+          artifacts: |
+            builds/*.zip
+            *.deb
+            *.rpm
