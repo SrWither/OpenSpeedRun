@@ -326,6 +326,7 @@ impl AppState {
             self.splits_backup = self.run.splits.clone();
             self.current_split = 0;
             self.current_page = 0;
+            self.splits_per_page = self.run.splits_per_page.unwrap_or(5);
             self.update_page();
         }
     }
