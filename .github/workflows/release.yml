@@ -81,7 +81,7 @@ jobs:
           mkdir -p pkg_root/usr/bin
           mkdir -p pkg_root/usr/share/doc/openspeedrun
           cp extracted/* pkg_root/usr/bin/
-          cp -r README.md LICENSE docs pkg_root/usr/share/doc/openspeedrun/
+          cp -r README.md LICENSE docs assets pkg_root/usr/share/doc/openspeedrun/
 
       - name: Build .deb with fpm
         run: |
