@@ -228,6 +228,10 @@ impl ThemeEditor {
                     ui.checkbox(&mut self.layout.options.show_info, "Show info");
                     ui.checkbox(&mut self.layout.options.show_body, "Show body");
                     ui.checkbox(&mut self.layout.options.show_footer, "Show footer");
+                    ui.checkbox(
+                        &mut self.layout.options.show_relative_times,
+                        "Show relative times",
+                    );
                     ui.checkbox(&mut self.layout.options.titlebar, "Titlebar");
                     ui.checkbox(&mut self.layout.options.enable_shader, "Enable shader");
                     ui.checkbox(

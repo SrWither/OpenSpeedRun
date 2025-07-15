@@ -1,4 +1,4 @@
-use crate::{app::state::AppState, config::layout::LayoutConfig};
+use crate::{app::state::AppState, config::layout::LayoutConfig, core::timer::TimerState};
 use chrono::Duration;
 use eframe::egui::{self, Color32, RichText};
 
@@ -150,6 +150,76 @@ impl AppState {
                                                                 .size(font_sizes.split_pb)
                                                                 .color(diff_color),
                                                         );
+                                                    }
+                                                }
+                                            }
+                                        } else if is_current
+                                            && options.show_relative_times
+                                            && self.timer.state == TimerState::Running
+                                            && self.timer.current_time() >= Duration::zero()
+                                        {
+                                            let start_of_split = if i == 0 {
+                                                Duration::zero()
+                                            } else {
+                                                self.splits_display
+                                                    .get(i - 1)
+                                                    .and_then(|s| s.last_time)
+                                                    .unwrap_or(Duration::zero())
+                                            };
+                                            let current_time = self.timer.current_time();
+                                            let relative = current_time - start_of_split;
+
+                                            let formatted = self.format_duration(relative, 0);
+                                            ui.label(
+                                                RichText::new(formatted)
+                                                    .size(font_sizes.split_timer)
+                                                    .color(split_timer_color),
+                                            );
+
+                                            let live_relative = relative;
+
+                                            let threshold = Duration::seconds(5);
+
+                                            if self.run.gold_split {
+                                                if let Some(gold) = &split.gold_time {
+                                                    if gold.num_milliseconds() > 0 {
+                                                        let diff = live_relative - *gold;
+                                                        if diff >= -threshold {
+                                                            let diff_text =
+                                                                self.format_duration(diff, 2);
+                                                            let diff_color =
+                                                                if diff < Duration::zero() {
+                                                                    gold_positive_color
+                                                                } else {
+                                                                    gold_negative_color
+                                                                };
+                                                            ui.label(
+                                                                RichText::new(diff_text)
+                                                                    .size(font_sizes.split_gold)
+                                                                    .color(diff_color),
+                                                            );
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                if let Some(pb) = &split.pb_time {
+                                                    if pb.num_milliseconds() > 0 {
+                                                        let diff = live_relative - *pb;
+                                                        if diff >= -threshold {
+                                                            let diff_text =
+                                                                self.format_duration(diff, 2);
+                                                            let diff_color =
+                                                                if diff < Duration::zero() {
+                                                                    pb_positive_color
+                                                                } else {
+                                                                    pb_negative_color
+                                                                };
+                                                            ui.label(
+                                                                RichText::new(diff_text)
+                                                                    .size(font_sizes.split_pb)
+                                                                    .color(diff_color),
+                                                            );
+                                                        }
                                                     }
                                                 }
                                             }
