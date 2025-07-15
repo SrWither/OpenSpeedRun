@@ -76,6 +76,10 @@ jobs:
         run: |
           unzip builds/openspeedrun-linux-gnu-x86_64.zip -d extracted
 
+      - name: Replace @VERSION@ in .desktop files
+        run: |
+          sed -i "s/@VERSION@/${{ steps.vars.outputs.VERSION }}/g" assets/desktop/*.desktop
+
       - name: Prepare fpm pkg_root
         run: |
           mkdir -p pkg_root/usr/bin

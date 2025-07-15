@@ -1,5 +1,5 @@
 [Desktop Entry]
-Version=0.2.6
+Version=@VERSION@
 Type=Application
 Name=OpenSpeedRun Config
 Comment=Configuration tool for OpenSpeedRun.
