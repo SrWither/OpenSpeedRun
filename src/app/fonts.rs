@@ -1,6 +1,6 @@
 use egui::{FontData, FontDefinitions, FontFamily};
 
-use crate::{config::load::config_base_dir, AppState, AppWrapper};
+use crate::{AppState, AppWrapper, config::load::config_base_dir};
 
 impl AppWrapper {
     fn load_custom_fonts_into(&self, fonts: &mut FontDefinitions) {
