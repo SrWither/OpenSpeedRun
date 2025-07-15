@@ -232,6 +232,10 @@ impl ThemeEditor {
                         &mut self.layout.options.show_relative_times,
                         "Show relative times",
                     );
+                    ui.checkbox(
+                        &mut self.layout.options.show_last_relative_time,
+                        "Show last relative time",
+                    );
                     ui.checkbox(&mut self.layout.options.titlebar, "Titlebar");
                     ui.checkbox(&mut self.layout.options.enable_shader, "Enable shader");
                     ui.checkbox(

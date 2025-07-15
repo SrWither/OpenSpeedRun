@@ -63,7 +63,7 @@ impl AppState {
                                 ui.set_min_height(32.0);
                                 ui.set_min_width(ui.available_width());
                                 ui.add_space(10.0);
-                                
+
                                 // Display the split icon if available
                                 let texture = split
                                     .icon_path
@@ -94,12 +94,6 @@ impl AppState {
                                             // Show total time
                                             let time_text = self.format_duration(*last, 0);
 
-                                            ui.label(
-                                                RichText::new(time_text)
-                                                    .size(font_sizes.split)
-                                                    .color(split_timer_color),
-                                            );
-
                                             let prev = if i == 0 {
                                                 Duration::zero()
                                             } else {
@@ -110,6 +104,23 @@ impl AppState {
                                             };
 
                                             let relative = *last - prev;
+
+                                            let relative_time_text =
+                                                self.format_duration(relative, 3);
+
+                                            if options.show_last_relative_time {
+                                                ui.label(
+                                                    RichText::new(relative_time_text)
+                                                        .size(font_sizes.split)
+                                                        .color(split_timer_color),
+                                                );
+                                            } else {
+                                                ui.label(
+                                                    RichText::new(time_text)
+                                                        .size(font_sizes.split)
+                                                        .color(split_timer_color),
+                                                );
+                                            }
 
                                             if self.run.gold_split {
                                                 if let Some(gold) = &split.gold_time {
