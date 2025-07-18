@@ -160,27 +160,15 @@ impl AppState {
             return;
         }
 
-        let is_new_pb = self.run.splits.iter().enumerate().all(|(i, split)| {
-            let current = &self.splits_display[i];
+        let last_current_time = self.splits_display.last().and_then(|s| s.last_time);
 
-            if let Some(current_time) = current.last_time {
-                let prev_time = if i == 0 {
-                    Duration::zero()
-                } else {
-                    self.splits_display[i - 1]
-                        .last_time
-                        .unwrap_or(Duration::zero())
-                };
-                let relative = current_time - prev_time;
+        let last_pb_time = self.run.splits.last().and_then(|s| s.pb_time);
 
-                match split.pb_time {
-                    Some(pb) => relative <= pb,
-                    None => true,
-                }
-            } else {
-                false
-            }
-        });
+        let is_new_pb = match (last_current_time, last_pb_time) {
+            (Some(current), Some(pb)) => current < pb,
+            (Some(_), None) => true,
+            _ => false,
+        };
 
         if is_new_pb {
             for i in 0..self.splits_display.len() {
