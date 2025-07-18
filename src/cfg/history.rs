@@ -13,6 +13,7 @@ pub struct History {
     pub run_path: PathBuf,
     pub run: Run,
     active_tab: Tab,
+    confirm_clear: bool,
 }
 
 fn format_duration(duration: chrono::Duration) -> String {
@@ -37,10 +38,11 @@ impl History {
             run_path,
             run,
             active_tab: Tab::Attempts,
+            confirm_clear: false,
         }
     }
 
-    pub fn ui(&mut self, _ctx: &egui::Context, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
         use egui::{Color32, Grid, RichText, ScrollArea};
 
         ui.heading(format!("{} [{}]", self.run.title, self.run.category));
@@ -56,6 +58,12 @@ impl History {
                 if ui.selectable_label(self.active_tab == tab, label).clicked() {
                     self.active_tab = tab;
                 }
+            }
+        });
+
+        ui.horizontal(|ui| {
+            if ui.button("🗑 Clear History").clicked() {
+                self.confirm_clear = true;
             }
         });
 
@@ -221,6 +229,36 @@ impl History {
                     }
                 });
             }
+        }
+
+        if self.confirm_clear {
+            egui::Window::new("Confirm Clear History")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .show(ctx, |ui| {
+                    ui.label("Are you sure you want to clear all attempt and PB history?");
+                    ui.horizontal(|ui| {
+                        if ui.button("Cancel").clicked() {
+                            self.confirm_clear = false;
+                        }
+                        if ui
+                            .button(RichText::new("Yes, clear").color(Color32::RED))
+                            .clicked()
+                        {
+                            self.run.attempt_history.clear();
+                            self.run.pb_history.clear();
+                            self.run.attempts = 0;
+                            for split in &mut self.run.splits {
+                                split.pb_history.clear();
+                                split.gold_history.clear();
+                            }
+
+                            let _ = self.run.save_to_file(self.run_path.to_str().unwrap());
+                            self.confirm_clear = false;
+                        }
+                    });
+                });
         }
     }
 }
