@@ -95,14 +95,14 @@ jobs:
           mkdir -p pkg_root/usr/share/icons/hicolor/512x512/apps
           mkdir -p pkg_root/usr/share/icons/hicolor/256x256/apps
 
-          cp assets/icons/1024/OpenSpeedRun.png pkg_root/usr/share/icons/hicolor/1024x1024/apps/openspeedrun.png
-          cp assets/icons/1024/OpenSpeedRun-CFG.png pkg_root/usr/share/icons/hicolor/1024x1024/apps/openspeedrun-cfg.png
+          cp assets/icons/1024/OpenSpeedRun.png pkg_root/usr/share/icons/hicolor/1024x1024/apps/
+          cp assets/icons/1024/OpenSpeedRun-CFG.png pkg_root/usr/share/icons/hicolor/1024x1024/apps/
 
-          cp assets/icons/512/OpenSpeedRun.png pkg_root/usr/share/icons/hicolor/512x512/apps/openspeedrun.png
-          cp assets/icons/512/OpenSpeedRun-CFG.png pkg_root/usr/share/icons/hicolor/512x512/apps/openspeedrun-cfg.png
+          cp assets/icons/512/OpenSpeedRun.png pkg_root/usr/share/icons/hicolor/512x512/apps/
+          cp assets/icons/512/OpenSpeedRun-CFG.png pkg_root/usr/share/icons/hicolor/512x512/apps/
 
-          cp assets/icons/256/OpenSpeedRun.png pkg_root/usr/share/icons/hicolor/256x256/apps/openspeedrun.png
-          cp assets/icons/256/OpenSpeedRun-CFG.png pkg_root/usr/share/icons/hicolor/256x256/apps/openspeedrun-cfg.png
+          cp assets/icons/256/OpenSpeedRun.png pkg_root/usr/share/icons/hicolor/256x256/apps/
+          cp assets/icons/256/OpenSpeedRun-CFG.png pkg_root/usr/share/icons/hicolor/256x256/apps/
 
       - name: Build .deb with fpm
         run: |
