@@ -129,6 +129,19 @@ impl AppState {
                             ui.add_space(8.0);
                             ui.label(
                                 RichText::new(format!(
+                                    "{} Attempts: {}",
+                                    egui_phosphor::regular::ARROW_COUNTER_CLOCKWISE,
+                                    self.run.attempts
+                                ))
+                                .color(info_color)
+                                .size(font_sizes.info),
+                            );
+                        });
+
+                        ui.horizontal(|ui| {
+                            ui.add_space(8.0);
+                            ui.label(
+                                RichText::new(format!(
                                     "{} Sum of Best: {}",
                                     egui_phosphor::regular::FLAG_CHECKERED,
                                     format_dur(sum_of_bests)
