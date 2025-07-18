@@ -1,7 +1,8 @@
-use chrono::Duration;
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Split {
     pub name: String,
     #[serde(with = "crate::core::split::duration_millis")]
@@ -11,12 +12,16 @@ pub struct Split {
     #[serde(with = "crate::core::split::duration_millis")]
     pub gold_time: Option<Duration>,
     pub icon_path: Option<String>,
+    pub gold_history: Vec<SegmentHistoryEntry>,
+    pub pb_history: Vec<SegmentHistoryEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Run {
     pub title: String,
     pub category: String,
+    pub attempts: u32,
     pub splits: Vec<Split>,
     #[serde(default)]
     pub start_offset: Option<i64>,
@@ -24,6 +29,26 @@ pub struct Run {
     pub auto_update_pb: bool,
     #[serde(default)]
     pub gold_split: bool,
+    pub attempt_history: Vec<AttemptHistoryEntry>,
+    pub pb_history: Vec<AttemptHistoryEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SegmentHistoryEntry {
+    pub run_index: u32,
+    #[serde(with = "crate::core::split::duration_millis")]
+    pub time: Option<Duration>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttemptHistoryEntry {
+    pub run_index: u32,
+    #[serde(with = "crate::core::split::duration_millis")]
+    pub total_time: Option<Duration>,
+    #[serde(with = "crate::core::split::duration_millis")]
+    pub ingame_time: Option<Duration>,
+    pub ended: bool,
+    pub date: Option<DateTime<Utc>>,
 }
 
 impl Run {
@@ -36,6 +61,8 @@ impl Run {
                 last_time: None,
                 icon_path: None,
                 gold_time: None,
+                gold_history: Vec::new(),
+                pb_history: Vec::new(),
             })
             .collect();
 
@@ -48,11 +75,14 @@ impl Run {
         Self {
             title: title.to_string(),
             category: category.to_string(),
+            attempts: 0,
             splits,
             start_offset: None,
             splits_per_page: Some(5),
             auto_update_pb: true,
             gold_split: true,
+            attempt_history: Vec::new(),
+            pb_history: Vec::new(),
         }
     }
 
@@ -66,6 +96,26 @@ impl Run {
         let json = serde_json::to_string_pretty(self).unwrap();
         std::fs::write(path, json)?;
         Ok(())
+    }
+}
+
+impl Default for Run {
+    fn default() -> Self {
+        Self::new("New Run", "Category", &["Split 1", "Split 2"])
+    }
+}
+
+impl Default for Split {
+    fn default() -> Self {
+        Self {
+            name: "New Split".to_string(),
+            pb_time: None,
+            last_time: None,
+            icon_path: None,
+            gold_time: None,
+            gold_history: Vec::new(),
+            pb_history: Vec::new(),
+        }
     }
 }
 

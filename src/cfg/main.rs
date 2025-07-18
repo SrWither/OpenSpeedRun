@@ -1,3 +1,4 @@
+mod history;
 mod shader_editor;
 mod split_editor;
 mod syntax;
@@ -14,6 +15,7 @@ use openspeedrun::{
     config::load::{AppConfig, config_base_dir},
 };
 
+use history::History;
 use shader_editor::ShaderEditor;
 use split_editor::SplitEditor;
 use theme_editor::ThemeEditor;
@@ -28,6 +30,7 @@ pub struct ConfigApp {
     theme_editor: Option<ThemeEditor>,
     split_editor: Option<SplitEditor>,
     shader_editor: Option<ShaderEditor>,
+    history: Option<History>,
     new_name_input: String,
     show_name_input: bool,
     is_creating_theme: bool,
@@ -94,6 +97,11 @@ impl ConfigApp {
             ShaderEditor::new(base.join("shaders").join(&layout.colors.shader_path))
         });
 
+        let history = selected_split.as_ref().map(|s| {
+            let run_path = base.join("splits").join(s).join("split.json");
+            History::new(run_path)
+        });
+
         Self {
             app_config,
             available_splits,
@@ -104,6 +112,7 @@ impl ConfigApp {
             theme_editor,
             split_editor,
             shader_editor,
+            history,
             new_name_input: String::new(),
             show_name_input: false,
             is_creating_theme: false,
@@ -281,6 +290,9 @@ impl eframe::App for ConfigApp {
                 if ui.selectable_label(self.tab == 3, "Shader").clicked() {
                     self.tab = 3;
                 }
+                if ui.selectable_label(self.tab == 4, "History").clicked() {
+                    self.tab = 4;
+                }
             });
         });
 
@@ -324,6 +336,25 @@ impl eframe::App for ConfigApp {
                             editor.ui(ui);
                         } else {
                             ui.label("Select a theme to edit its shader.");
+                        }
+                    }
+                    4 => {
+                        if let Some(split_editor) = &self.split_editor {
+                            let needs_reload = self
+                                .history
+                                .as_ref()
+                                .map(|h| h.run_path != split_editor.run_path)
+                                .unwrap_or(true);
+
+                            if needs_reload {
+                                self.history = Some(History::new(split_editor.run_path.clone()));
+                            }
+                        }
+
+                        if let Some(history) = &mut self.history {
+                            history.ui(ctx, ui);
+                        } else {
+                            ui.label("Select a split to view its history.");
                         }
                     }
 

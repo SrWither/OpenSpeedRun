@@ -1,4 +1,4 @@
-use chrono::Duration;
+use chrono::{Duration, Utc};
 use eframe::glow::Context;
 use eframe::{egui, glow};
 use egui::{FontDefinitions, TextureHandle};
@@ -11,7 +11,7 @@ use crate::config::load::{AppConfig, config_base_dir};
 use crate::config::shaders::ShaderBackground;
 #[cfg(unix)]
 use crate::core::server::UICommand;
-use crate::core::split::{Run, Split};
+use crate::core::split::{AttemptHistoryEntry, Run, SegmentHistoryEntry, Split};
 use crate::core::timer::{Timer, TimerState};
 #[cfg(windows)]
 use crate::core::winserver::UICommand;
@@ -117,6 +117,46 @@ impl AppState {
 
         self.update_page();
         self.check_auto_update_pb();
+        self.save_history();
+    }
+
+    fn save_history(&mut self) {
+        if self.current_split >= self.splits_display.len() {
+            self.run.attempts += 1;
+
+            let total_time = self.splits_display.last().and_then(|s| s.last_time);
+
+            let ingame_time = total_time;
+
+            self.run.attempt_history.push(AttemptHistoryEntry {
+                run_index: self.run.attempts,
+                total_time,
+                ingame_time,
+                ended: true,
+                date: Some(Utc::now()),
+            });
+
+            let last_pb_time = self.run.splits.last().and_then(|s| s.pb_time);
+            let is_new_pb = match (total_time, last_pb_time) {
+                (Some(current), Some(pb)) => current > pb,
+                (Some(_), None) => true,
+                _ => false,
+            };
+
+            if is_new_pb {
+                self.run.pb_history.push(AttemptHistoryEntry {
+                    run_index: self.run.attempts,
+                    total_time,
+                    ingame_time,
+                    ended: true,
+                    date: Some(Utc::now()),
+                });
+            }
+
+            if let Err(e) = self.save() {
+                eprintln!("Error saving run history: {}", e);
+            }
+        }
     }
 
     fn update_page(&mut self) {
@@ -140,13 +180,19 @@ impl AppState {
                     };
 
                     let relative = current_time - prev_time;
-
                     let target = &mut self.run.splits[i];
 
-                    match target.gold_time {
-                        Some(gold) if relative < gold => target.gold_time = Some(relative),
-                        None => target.gold_time = Some(relative),
-                        _ => {}
+                    let is_new_gold = match target.gold_time {
+                        Some(gold) => relative < gold,
+                        None => true,
+                    };
+
+                    if is_new_gold {
+                        target.gold_time = Some(relative);
+                        target.gold_history.push(SegmentHistoryEntry {
+                            run_index: self.run.attempts,
+                            time: Some(relative),
+                        });
                     }
                 }
             }
@@ -165,7 +211,7 @@ impl AppState {
         let last_pb_time = self.run.splits.last().and_then(|s| s.pb_time);
 
         let is_new_pb = match (last_current_time, last_pb_time) {
-            (Some(current), Some(pb)) => current < pb,
+            (Some(current), Some(pb)) => current > pb,
             (Some(_), None) => true,
             _ => false,
         };
@@ -184,7 +230,13 @@ impl AppState {
 
                     let relative = current_time - prev_time;
 
-                    self.run.splits[i].pb_time = Some(relative);
+                    let split = &mut self.run.splits[i];
+                    split.pb_time = Some(relative);
+
+                    split.pb_history.push(SegmentHistoryEntry {
+                        run_index: self.run.attempts,
+                        time: Some(relative),
+                    });
                 }
             }
         }
@@ -260,8 +312,19 @@ impl AppState {
     pub fn save_pb(&mut self) -> std::io::Result<()> {
         if self.current_split == self.run.splits.len() {
             let path = self.split_base_path.join("split.json");
-            return self.run.save_to_file(path.to_str().unwrap());
+
+            let mut saved_run = Run::load_from_file(path.to_str().unwrap())?;
+
+            for (saved_split, current_split) in
+                saved_run.splits.iter_mut().zip(self.run.splits.iter())
+            {
+                saved_split.pb_time = current_split.pb_time.clone();
+                saved_split.pb_history = current_split.pb_history.clone();
+            }
+
+            return saved_run.save_to_file(path.to_str().unwrap());
         }
+
         Ok(())
     }
 
@@ -277,6 +340,7 @@ impl AppState {
         for (saved_split, current_split) in saved_run.splits.iter_mut().zip(self.run.splits.iter())
         {
             saved_split.gold_time = current_split.gold_time.clone();
+            saved_split.gold_history = current_split.gold_history.clone();
         }
 
         saved_run.save_to_file(path.to_str().unwrap())

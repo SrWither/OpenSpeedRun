@@ -140,6 +140,8 @@ impl SplitEditor {
                     last_time: None,
                     icon_path: None,
                     gold_time: None,
+                    gold_history: Vec::new(),
+                    pb_history: Vec::new(),
                 });
             }
 
