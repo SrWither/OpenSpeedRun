@@ -116,8 +116,8 @@ impl AppState {
         }
 
         self.update_page();
-        self.check_auto_update_pb();
         self.save_history();
+        self.check_auto_update_pb();
     }
 
     fn save_history(&mut self) {
@@ -136,11 +136,15 @@ impl AppState {
                 date: Some(Utc::now()),
             });
 
-            let last_pb_time = self.run.splits.last().and_then(|s| s.pb_time);
-            let is_new_pb = match (total_time, last_pb_time) {
-                (Some(current), Some(pb)) => current > pb,
-                (Some(_), None) => true,
-                _ => false,
+            let pb_total_time: Duration = self.run.splits.iter().filter_map(|s| s.pb_time).sum();
+
+            println!("Current PB total time: {:?}", pb_total_time);
+            println!("Current total time: {:?}", total_time);
+
+            let is_new_pb = match total_time {
+                Some(current) if pb_total_time.num_milliseconds() > 0 => current < pb_total_time,
+                Some(_) => true,
+                None => false,
             };
 
             if is_new_pb {
@@ -206,14 +210,18 @@ impl AppState {
             return;
         }
 
-        let last_current_time = self.splits_display.last().and_then(|s| s.last_time);
+        let current_total = self
+            .splits_display
+            .last()
+            .and_then(|s| s.last_time)
+            .unwrap_or(Duration::MAX);
 
-        let last_pb_time = self.run.splits.last().and_then(|s| s.pb_time);
+        let pb_total: Duration = self.run.splits.iter().filter_map(|s| s.pb_time).sum();
 
-        let is_new_pb = match (last_current_time, last_pb_time) {
-            (Some(current), Some(pb)) => current > pb,
-            (Some(_), None) => true,
-            _ => false,
+        let is_new_pb = if pb_total.num_milliseconds() > 0 {
+            current_total < pb_total
+        } else {
+            true
         };
 
         if is_new_pb {
