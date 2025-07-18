@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use openspeedrun::Run;
 
+use crate::send_message;
+
 #[derive(PartialEq)]
 enum Tab {
     Attempts,
@@ -64,6 +66,7 @@ impl History {
         ui.horizontal(|ui| {
             if ui.button("🗑 Clear History").clicked() {
                 self.confirm_clear = true;
+                send_message("reloadrun");
             }
         });
 

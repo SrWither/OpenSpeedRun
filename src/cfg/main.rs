@@ -31,6 +31,7 @@ pub struct ConfigApp {
     split_editor: Option<SplitEditor>,
     shader_editor: Option<ShaderEditor>,
     history: Option<History>,
+    split_reload: bool,
     new_name_input: String,
     show_name_input: bool,
     is_creating_theme: bool,
@@ -113,6 +114,7 @@ impl ConfigApp {
             split_editor,
             shader_editor,
             history,
+            split_reload: false,
             new_name_input: String::new(),
             show_name_input: false,
             is_creating_theme: false,
@@ -286,12 +288,14 @@ impl eframe::App for ConfigApp {
                 }
                 if ui.selectable_label(self.tab == 2, "Splits").clicked() {
                     self.tab = 2;
+                    self.split_reload = true;
                 }
                 if ui.selectable_label(self.tab == 3, "Shader").clicked() {
                     self.tab = 3;
                 }
                 if ui.selectable_label(self.tab == 4, "History").clicked() {
                     self.tab = 4;
+                    self.split_reload = true;
                 }
             });
         });
@@ -310,6 +314,16 @@ impl eframe::App for ConfigApp {
                         }
                     }
                     2 => {
+                        if self.split_reload {
+                            self.split_editor = Some(SplitEditor::new(
+                                config_base_dir()
+                                    .join("splits")
+                                    .join(self.selected_split.as_ref().unwrap_or(&"".to_string()))
+                                    .join("split.json"),
+                            ));
+                            self.split_reload = false;
+                        }
+
                         if let Some(editor) = &mut self.split_editor {
                             editor.ui(ctx, ui);
                         } else {
@@ -340,14 +354,16 @@ impl eframe::App for ConfigApp {
                     }
                     4 => {
                         if let Some(split_editor) = &self.split_editor {
-                            let needs_reload = self
-                                .history
-                                .as_ref()
-                                .map(|h| h.run_path != split_editor.run_path)
-                                .unwrap_or(true);
+                            let needs_reload = self.split_reload
+                                || self
+                                    .history
+                                    .as_ref()
+                                    .map(|h| h.run_path != split_editor.run_path)
+                                    .unwrap_or(true);
 
                             if needs_reload {
                                 self.history = Some(History::new(split_editor.run_path.clone()));
+                                self.split_reload = false;
                             }
                         }
 
