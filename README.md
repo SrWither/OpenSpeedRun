@@ -24,11 +24,11 @@ OpenSpeedRun provides 3 executables:
 
 ## 📦 Install from Releases
 
-Precompiled binaries are available for **Windows**, **Linux**, and **macOS** in the [Releases](https://github.com/tu_usuario/OpenSpeedRun/releases) section.
+Precompiled binaries are available for **Windows**, **Linux**, and **macOS** in the [Releases](https://github.com/SrWither/OpenSpeedRun/releases) section.
 
 ### 🪟 Windows
 
-1. Go to the [Releases](https://github.com/tu_usuario/OpenSpeedRun/releases) page.
+1. Go to the [Releases](https://github.com/SrWither/OpenSpeedRun/releases) page.
 2. Download the `.zip` for Windows (e.g. `openspeedrun-windows-x86_64.zip`).
 3. Extract it anywhere (e.g. `C:\Games\OpenSpeedRun\`).
 4. Run `openspeedrun.exe`.
