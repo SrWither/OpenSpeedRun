@@ -74,8 +74,8 @@ impl ShaderEditor {
         let syntax_set = syntax::load_syntax_set();
         let theme = syntax::get_theme("base16-eighties.dark");
 
-        let mut layouter_frag = move |ui: &egui::Ui, text: &str, wrap_width: f32| {
-            let highlighted = syntax::highlight_glsl_lines(text, syntax_set, theme);
+        let mut layouter_frag = move |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| {
+            let highlighted = syntax::highlight_glsl_lines(text.as_str(), syntax_set, theme);
             let mut job = egui::text::LayoutJob::default();
             job.wrap.max_width = wrap_width;
 
@@ -99,7 +99,30 @@ impl ShaderEditor {
             ui.fonts(|f| f.layout_job(job))
         };
 
-        let mut layouter_vert = layouter_frag.clone();
+        let mut layouter_vert = move |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| {
+            let highlighted = syntax::highlight_glsl_lines(text.as_str(), syntax_set, theme);
+            let mut job = egui::text::LayoutJob::default();
+            job.wrap.max_width = wrap_width;
+
+            for (style, segment) in highlighted {
+                let color = egui::Color32::from_rgb(
+                    style.foreground.r,
+                    style.foreground.g,
+                    style.foreground.b,
+                );
+                job.append(
+                    segment,
+                    0.0,
+                    egui::TextFormat {
+                        font_id: egui::FontId::monospace(14.0),
+                        color,
+                        ..Default::default()
+                    },
+                );
+            }
+
+            ui.fonts(|f| f.layout_job(job))
+        };
 
         ui.horizontal(|ui| {
             if ui.button("New Shader").clicked() {
