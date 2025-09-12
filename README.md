@@ -55,6 +55,10 @@ Precompiled binaries are available for **Windows**, **Linux**, and **macOS** in 
 > chmod +x openspeedrun openspeedrun-cfg openspeedrun-cli
 > ```
 
+#### AUR
+
+You can also install it on ArchLinux-based distributions from [AUR](https://aur.archlinux.org/packages/openspeedrun-bin)
+
 ---
 
 ### 🍎 macOS
