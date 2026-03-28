@@ -96,7 +96,7 @@ impl ShaderEditor {
                 );
             }
 
-            ui.fonts(|f| f.layout_job(job))
+            ui.fonts_mut(|f| f.layout_job(job))
         };
 
         let mut layouter_vert = move |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| {
@@ -121,7 +121,7 @@ impl ShaderEditor {
                 );
             }
 
-            ui.fonts(|f| f.layout_job(job))
+            ui.fonts_mut(|f| f.layout_job(job))
         };
 
         ui.horizontal(|ui| {

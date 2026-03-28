@@ -378,6 +378,10 @@ impl eframe::App for ConfigApp {
                 });
         });
     }
+
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        
+    }
 }
 
 impl ConfigApp {

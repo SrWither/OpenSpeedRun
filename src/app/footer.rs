@@ -105,9 +105,9 @@ impl AppState {
             self.format_duration(dur, 2) // signo + y -
         };
 
-        egui::TopBottomPanel::bottom("footer")
+        egui::Panel::bottom("footer")
             .resizable(false)
-            .min_height(64.0)
+            .min_size(64.0)
             .frame(egui::Frame {
                 fill: bg_color,
                 stroke: egui::Stroke::NONE,

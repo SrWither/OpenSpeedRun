@@ -22,7 +22,7 @@ impl AppState {
         let category_color = Color32::from_hex(&colors.category).unwrap_or(Color32::WHITE);
         let timer_color = Color32::from_hex(&colors.timer).unwrap_or(Color32::RED);
 
-        egui::TopBottomPanel::top("header")
+        egui::Panel::top("header")
             .frame(egui::Frame::default().fill(bg_color))
             .show(ctx, |ui| {
                 ui.add_space(10.0);

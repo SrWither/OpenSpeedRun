@@ -115,7 +115,7 @@ impl AppWrapper {
 
             if app.layout.options.enable_background_image {
                 if let Some(tex) = &tex {
-                    let screen_rect = ctx.screen_rect();
+                    let screen_rect = ctx.content_rect();
                     let painter = ctx.layer_painter(egui::LayerId::background());
                     painter.image(
                         tex.id(),
@@ -136,7 +136,7 @@ impl AppWrapper {
         if (app.layout.options.enable_background_image || app.layout.options.enable_shader)
             && !app.transparent_set
         {
-            let mut style = (*ctx.style()).clone();
+            let mut style = (*ctx.global_style()).clone();
             style.visuals.window_fill = Color32::TRANSPARENT;
             style.visuals.extreme_bg_color = Color32::TRANSPARENT;
             style.visuals.panel_fill = Color32::TRANSPARENT;
@@ -146,7 +146,7 @@ impl AppWrapper {
             style.visuals.widgets.hovered.bg_fill = Color32::TRANSPARENT;
             style.visuals.window_stroke = egui::Stroke::NONE;
             style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::NONE;
-            ctx.set_style(style);
+            ctx.set_global_style(style);
 
             app.transparent_set = true;
         }
@@ -165,7 +165,7 @@ impl AppWrapper {
     ) {
         if app.layout.options.enable_shader {
             if let Some(shader) = &mut app.shader {
-                let screen = ctx.screen_rect();
+                let screen = ctx.content_rect();
                 let scale = ctx.native_pixels_per_point().unwrap_or(1.0);
                 let (w, h) = (screen.width() * scale, screen.height() * scale);
 
@@ -244,5 +244,9 @@ impl eframe::App for AppWrapper {
         self.draw_ui_and_misc(ctx, &mut app);
 
         ctx.request_repaint();
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        
     }
 }
