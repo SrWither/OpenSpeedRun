@@ -219,7 +219,7 @@ impl eframe::App for AppWrapper {
         let total_splits = app.run.splits.len() as i32;
         let elapsed_time = app.timer.current_time().as_seconds_f32();
 
-        let last_split_time = if app.current_split > 0 {
+        let last_split_time = if app.current_split > 0 && (app.current_split as usize) < app.run.splits.len() {
             app.splits_display[app.current_split - 1]
                 .last_time
                 .map(|t| t.as_seconds_f32())
