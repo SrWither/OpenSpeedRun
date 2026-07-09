@@ -7,6 +7,8 @@ use openspeedrun::core::split::Split;
 use openspeedrun::speedrun_com::{self, Category, Game, Variable};
 use openspeedrun::therun_gg;
 
+use crate::style;
+
 /// Tracks a blocking network call running on a background thread, so the UI
 /// thread never blocks on it — every request in this picker used to call
 /// into `ureq` directly from a button's `clicked()` handler, freezing the
@@ -302,47 +304,49 @@ impl SpeedrunComPicker {
             .collapsible(false)
             .default_width(420.0)
             .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Game:");
-                    let response =
-                        ui.add_enabled(!self.games_op.is_loading(), egui::TextEdit::singleline(&mut self.query));
-                    let submitted =
-                        response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                    if ui
-                        .add_enabled(!self.games_op.is_loading(), egui::Button::new("Search"))
-                        .clicked()
-                        || submitted
-                    {
-                        self.search();
-                    }
-                    if self.games_op.is_loading() {
-                        ui.spinner();
-                    }
-                });
-                ui.label(
-                    egui::RichText::new(
-                        "Tip: speedrun.com's search is picky about punctuation — try the exact \
-                         title (e.g. \"Super Mario Bros. 3\", with the period) if nothing shows up.",
-                    )
-                    .small()
-                    .weak(),
-                );
-
-                if !self.games.is_empty() && self.selected_game.is_none() {
-                    ui.separator();
-                    ui.label("Pick a game:");
-                    egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| {
-                        for game in self.games.clone() {
-                            let label = format!("{} ({})", game.name, game.abbreviation);
-                            if ui.selectable_label(false, label).clicked() {
-                                self.pick_game(game);
-                            }
+                style::section_card(ui, "Search", egui_phosphor::regular::MAGNIFYING_GLASS, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Game:");
+                        let response =
+                            ui.add_enabled(!self.games_op.is_loading(), egui::TextEdit::singleline(&mut self.query));
+                        let submitted =
+                            response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                        if ui
+                            .add_enabled(!self.games_op.is_loading(), egui::Button::new("Search"))
+                            .clicked()
+                            || submitted
+                        {
+                            self.search();
+                        }
+                        if self.games_op.is_loading() {
+                            ui.spinner();
                         }
                     });
-                }
+                    ui.label(
+                        egui::RichText::new(
+                            "Tip: speedrun.com's search is picky about punctuation — try the exact \
+                             title (e.g. \"Super Mario Bros. 3\", with the period) if nothing shows up.",
+                        )
+                        .small()
+                        .weak(),
+                    );
+
+                    if !self.games.is_empty() && self.selected_game.is_none() {
+                        ui.add_space(style::SPACE_SM);
+                        ui.label("Pick a game:");
+                        egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| {
+                            for game in self.games.clone() {
+                                let label = format!("{} ({})", game.name, game.abbreviation);
+                                if ui.selectable_label(false, label).clicked() {
+                                    self.pick_game(game);
+                                }
+                            }
+                        });
+                    }
+                });
 
                 if let Some(game) = self.selected_game.clone() {
-                    ui.separator();
+                    ui.add_space(style::SPACE_SM);
                     ui.horizontal(|ui| {
                         ui.label(format!("Game: {}", game.name));
                         if ui.small_button("change").clicked() {
@@ -374,65 +378,67 @@ impl SpeedrunComPicker {
                             }
                         });
 
-                        ui.separator();
-                        ui.label(
-                            egui::RichText::new(
-                                "Optional: therun.gg tracks real splits (names, PB, best segments, \
-                                 history) uploaded by runners via LiveSplit. speedrun.com and \
-                                 therun.gg don't always agree on category names, so pick from what's \
-                                 actually there instead of guessing.",
-                            )
-                            .small()
-                            .weak(),
-                        );
-                        ui.horizontal(|ui| {
-                            if ui
-                                .add_enabled(
-                                    !self.therun_categories_op.is_loading(),
-                                    egui::Button::new("Check therun.gg for this game"),
+                        ui.add_space(style::SPACE_SM);
+                        style::section_card(ui, "Real splits (therun.gg)", egui_phosphor::regular::GLOBE, |ui| {
+                            ui.label(
+                                egui::RichText::new(
+                                    "Optional: therun.gg tracks real splits (names, PB, best segments, \
+                                     history) uploaded by runners via LiveSplit. speedrun.com and \
+                                     therun.gg don't always agree on category names, so pick from what's \
+                                     actually there instead of guessing.",
                                 )
-                                .clicked()
-                            {
-                                self.load_therun_categories(&game);
+                                .small()
+                                .weak(),
+                            );
+                            ui.horizontal(|ui| {
+                                if ui
+                                    .add_enabled(
+                                        !self.therun_categories_op.is_loading(),
+                                        egui::Button::new("Check therun.gg for this game"),
+                                    )
+                                    .clicked()
+                                {
+                                    self.load_therun_categories(&game);
+                                }
+                                if self.therun_categories_op.is_loading() {
+                                    ui.spinner();
+                                }
+                            });
+                            if let Some(status) = &self.therun_categories_status {
+                                ui.label(status);
                             }
-                            if self.therun_categories_op.is_loading() {
-                                ui.spinner();
+
+                            if !self.therun_categories.is_empty() {
+                                let mut clicked_slug = None;
+                                ui.add_enabled_ui(!self.splits_op.is_loading(), |ui| {
+                                    egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
+                                        for cat in &self.therun_categories {
+                                            let label = format!(
+                                                "{}  —  {} runner{} tracked",
+                                                cat.display_name,
+                                                cat.runner_count,
+                                                if cat.runner_count == 1 { "" } else { "s" }
+                                            );
+                                            if ui.button(label).clicked() {
+                                                clicked_slug = Some(cat.slug.clone());
+                                            }
+                                        }
+                                    });
+                                });
+                                if let Some(slug) = clicked_slug {
+                                    self.fetch_splits(&slug);
+                                }
+                            }
+
+                            if self.splits_op.is_loading() {
+                                ui.horizontal(|ui| {
+                                    ui.spinner();
+                                    ui.label("Fetching real splits from therun.gg…");
+                                });
+                            } else if let Some(splits_status) = &self.splits_status {
+                                ui.label(splits_status);
                             }
                         });
-                        if let Some(status) = &self.therun_categories_status {
-                            ui.label(status);
-                        }
-
-                        if !self.therun_categories.is_empty() {
-                            let mut clicked_slug = None;
-                            ui.add_enabled_ui(!self.splits_op.is_loading(), |ui| {
-                                egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
-                                    for cat in &self.therun_categories {
-                                        let label = format!(
-                                            "{}  —  {} runner{} tracked",
-                                            cat.display_name,
-                                            cat.runner_count,
-                                            if cat.runner_count == 1 { "" } else { "s" }
-                                        );
-                                        if ui.button(label).clicked() {
-                                            clicked_slug = Some(cat.slug.clone());
-                                        }
-                                    }
-                                });
-                            });
-                            if let Some(slug) = clicked_slug {
-                                self.fetch_splits(&slug);
-                            }
-                        }
-
-                        if self.splits_op.is_loading() {
-                            ui.horizontal(|ui| {
-                                ui.spinner();
-                                ui.label("Fetching real splits from therun.gg…");
-                            });
-                        } else if let Some(splits_status) = &self.splits_status {
-                            ui.label(splits_status);
-                        }
 
                         if self.variables_op.is_loading() {
                             ui.horizontal(|ui| {
@@ -440,43 +446,50 @@ impl SpeedrunComPicker {
                                 ui.label("Loading variables…");
                             });
                         } else if !self.variables.is_empty() {
-                            ui.separator();
-                            ui.label("Variables:");
-                            for variable in &self.variables {
-                                ui.horizontal(|ui| {
-                                    let label = if variable.mandatory {
-                                        variable.name.clone()
-                                    } else {
-                                        format!("{} (optional)", variable.name)
-                                    };
-                                    ui.label(label);
+                            ui.add_space(style::SPACE_SM);
+                            style::section_card(ui, "Variables", egui_phosphor::regular::SLIDERS, |ui| {
+                                for variable in &self.variables {
+                                    ui.horizontal(|ui| {
+                                        let label = if variable.mandatory {
+                                            variable.name.clone()
+                                        } else {
+                                            format!("{} (optional)", variable.name)
+                                        };
+                                        ui.label(label);
 
-                                    let current =
-                                        self.chosen_values.get(&variable.id).cloned().unwrap_or_default();
-                                    egui::ComboBox::from_id_salt(("srcom_var", &variable.id))
-                                        .selected_text(if current.is_empty() { "(none)" } else { &current })
-                                        .show_ui(ui, |ui| {
-                                            if !variable.mandatory
-                                                && ui.selectable_label(current.is_empty(), "(none)").clicked()
-                                            {
-                                                self.chosen_values.remove(&variable.id);
-                                            }
-                                            for value in &variable.values {
-                                                if ui
-                                                    .selectable_label(current == value.label, &value.label)
-                                                    .clicked()
+                                        let current =
+                                            self.chosen_values.get(&variable.id).cloned().unwrap_or_default();
+                                        egui::ComboBox::from_id_salt(("srcom_var", &variable.id))
+                                            .selected_text(if current.is_empty() { "(none)" } else { &current })
+                                            .show_ui(ui, |ui| {
+                                                if !variable.mandatory
+                                                    && ui.selectable_label(current.is_empty(), "(none)").clicked()
                                                 {
-                                                    self.chosen_values
-                                                        .insert(variable.id.clone(), value.label.clone());
+                                                    self.chosen_values.remove(&variable.id);
                                                 }
-                                            }
-                                        });
-                                });
-                            }
+                                                for value in &variable.values {
+                                                    if ui
+                                                        .selectable_label(current == value.label, &value.label)
+                                                        .clicked()
+                                                    {
+                                                        self.chosen_values
+                                                            .insert(variable.id.clone(), value.label.clone());
+                                                    }
+                                                }
+                                            });
+                                    });
+                                }
+                            });
                         }
 
-                        ui.separator();
-                        if ui.button("Use this").clicked() {
+                        ui.add_space(style::SPACE_MD);
+                        let use_button = egui::Button::new(format!(
+                            "{} Use this",
+                            egui_phosphor::regular::CHECK_CIRCLE
+                        ))
+                        .fill(style::ACCENT_BG)
+                        .stroke(egui::Stroke::new(1.0, style::ACCENT));
+                        if ui.add(use_button).clicked() {
                             result = Some(PickerResult {
                                 title: game.name.clone(),
                                 category: category.name.clone(),
@@ -497,7 +510,7 @@ impl SpeedrunComPicker {
                 }
 
                 if let Some(status) = &self.status {
-                    ui.colored_label(egui::Color32::RED, status);
+                    ui.colored_label(style::ERROR, status);
                 }
             });
 

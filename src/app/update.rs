@@ -46,6 +46,10 @@ impl AppState {
             self.toggle_igt_pause();
         }
 
+        if ctx.input(|i| i.key_pressed(egui::Key::C)) {
+            self.cycle_comparison();
+        }
+
         if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
             if self.current_page > 0 {
                 self.current_page -= 1;

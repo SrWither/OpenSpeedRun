@@ -175,6 +175,24 @@ impl AppState {
         }
     }
 
+    /// Switches to the next available comparison (Personal Best -> Best
+    /// Segments -> Average Segments -> Median Segments -> any custom ones
+    /// -> back to Personal Best), wrapping around. Reachable from the timer
+    /// itself (click on the delta label, or a hotkey) instead of only from
+    /// the config app's split editor.
+    pub fn cycle_comparison(&mut self) {
+        let names = self.run.comparison_names();
+        let Some(current_index) = names.iter().position(|n| n == &self.run.selected_comparison) else {
+            return;
+        };
+        let next_index = (current_index + 1) % names.len();
+        self.run.selected_comparison = names[next_index].clone();
+
+        if let Err(e) = self.save() {
+            eprintln!("Error saving selected comparison: {}", e);
+        }
+    }
+
     fn save_history(&mut self) {
         if self.current_split >= self.splits_display.len() {
             self.run.attempts += 1;

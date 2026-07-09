@@ -1,11 +1,10 @@
 use crate::core::split::{COMPARISON_BEST_SEGMENTS, COMPARISON_PERSONAL_BEST};
-use crate::core::timer::TimerState;
 use crate::{app::state::AppState, config::layout::LayoutConfig};
 use chrono::Duration;
 use eframe::egui::{self, Color32, RichText};
 
 impl AppState {
-    pub fn draw_footer(&self, ui: &mut egui::Ui) {
+    pub fn draw_footer(&mut self, ui: &mut egui::Ui) {
         let LayoutConfig {
             font_sizes,
             colors,
@@ -106,6 +105,8 @@ impl AppState {
             self.format_duration(dur, 2) // signo + y -
         };
 
+        let mut comparison_clicked = false;
+
         egui::Panel::bottom("footer")
             .resizable(false)
             .min_size(64.0)
@@ -203,37 +204,24 @@ impl AppState {
                         if self.current_split > 0 {
                             ui.horizontal(|ui| {
                                 ui.add_space(8.0);
-                                ui.label(
-                                    RichText::new(format!(
-                                        "{} Prev {} Segment: {}",
-                                        delta_icon,
-                                        selected_comparison,
-                                        format_diff(delta_vs_selected)
-                                    ))
-                                    .color(delta_color)
-                                    .size(font_sizes.info),
-                                );
-                            });
-                        }
+                                let response = ui.add(
+                                    egui::Label::new(
+                                        RichText::new(format!(
+                                            "{} Prev {} Segment: {}",
+                                            delta_icon,
+                                            selected_comparison,
+                                            format_diff(delta_vs_selected)
+                                        ))
+                                        .color(delta_color)
+                                        .size(font_sizes.info),
+                                    )
+                                    .sense(egui::Sense::click()),
+                                )
+                                .on_hover_text("Click to switch comparison (or press C)");
 
-                        if self.igt_timer.state != TimerState::NotStarted {
-                            ui.horizontal(|ui| {
-                                ui.add_space(8.0);
-                                let loading_suffix = if self.igt_timer.is_paused() {
-                                    format!(" {}", egui_phosphor::regular::HOURGLASS)
-                                } else {
-                                    String::new()
-                                };
-                                ui.label(
-                                    RichText::new(format!(
-                                        "{} Game Time: {}{}",
-                                        egui_phosphor::regular::GAME_CONTROLLER,
-                                        format_dur(self.igt_timer.current_time()),
-                                        loading_suffix
-                                    ))
-                                    .color(info_color)
-                                    .size(font_sizes.info),
-                                );
+                                if response.clicked() {
+                                    comparison_clicked = true;
+                                }
                             });
                         }
 
@@ -241,5 +229,9 @@ impl AppState {
                     });
                 }
             });
+
+        if comparison_clicked {
+            self.cycle_comparison();
+        }
     }
 }

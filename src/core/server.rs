@@ -61,6 +61,7 @@ pub async fn listen_for_commands(app: Arc<Mutex<AppState>>, tx: Sender<UICommand
                             "undolastsplit" => app.undo_split(),
                             "loadbackup" => app.undo_pb(),
                             "toggleloading" => app.toggle_igt_pause(),
+                            "cyclecomparison" => app.cycle_comparison(),
                             "nextpage" => {
                                 let total_splits = app.run.splits.len();
                                 let total_pages =

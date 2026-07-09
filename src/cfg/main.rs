@@ -2,6 +2,7 @@ mod history;
 mod shader_editor;
 mod speedrun_com_picker;
 mod split_editor;
+mod style;
 mod syntax;
 mod theme_editor;
 
@@ -12,7 +13,7 @@ use std::sync::Arc;
 
 use eframe::egui;
 use eframe::glow;
-use egui::{Color32, RichText, ViewportBuilder};
+use egui::ViewportBuilder;
 use openspeedrun::{
     LayoutConfig, Run,
     config::load::{AppConfig, config_base_dir},
@@ -288,30 +289,72 @@ impl eframe::App for ConfigApp {
         }
 
         // Top Tabs
-        egui::Panel::top("tabs").show_inside(ui, |ui| {
-            ui.horizontal(|ui| {
-                if ui.selectable_label(self.tab == 0, "Selector").clicked() {
-                    self.tab = 0;
-                }
-                if ui.selectable_label(self.tab == 1, "Themes").clicked() {
-                    self.tab = 1;
-                }
-                if ui.selectable_label(self.tab == 2, "Splits").clicked() {
-                    self.tab = 2;
-                    self.split_reload = true;
-                }
-                if ui.selectable_label(self.tab == 3, "Shader").clicked() {
-                    self.tab = 3;
-                }
-                if ui.selectable_label(self.tab == 4, "History").clicked() {
-                    self.tab = 4;
-                    self.split_reload = true;
-                }
-            });
-        });
+        egui::Panel::top("tabs")
+            .frame(egui::Frame {
+                fill: style::BG_ELEVATED,
+                stroke: egui::Stroke::new(1.0, style::BORDER_SUBTLE),
+                inner_margin: egui::Margin::symmetric(
+                    style::SPACE_MD as i8,
+                    style::SPACE_SM as i8,
+                ),
+                ..Default::default()
+            })
+            .show_inside(ui, |ui| {
+                ui.horizontal(|ui| {
+                    let tabs: [(&str, &str, bool); 5] = [
+                        (egui_phosphor::regular::LIST, "Selector", false),
+                        (egui_phosphor::regular::PALETTE, "Themes", false),
+                        (egui_phosphor::regular::FLAG_CHECKERED, "Splits", true),
+                        (egui_phosphor::regular::CODE, "Shader", false),
+                        (
+                            egui_phosphor::regular::CLOCK_COUNTER_CLOCKWISE,
+                            "History",
+                            true,
+                        ),
+                    ];
 
-        // Central content with scroll
+                    for (i, (icon, label, reload)) in tabs.into_iter().enumerate() {
+                        if ui
+                            .selectable_label(self.tab == i, format!("{icon} {label}"))
+                            .clicked()
+                        {
+                            self.tab = i;
+                            if reload {
+                                self.split_reload = true;
+                            }
+                        }
+                    }
+                });
+            });
+
+        // Central content. The shader tab manages its own internal scroll
+        // areas (one per text editor) so its text editors can be scrolled
+        // independently instead of scrolling the whole page around them.
         egui::CentralPanel::default().show_inside(ui, |ui| {
+            if self.tab == 3 {
+                if let Some(theme_editor) = &self.theme_editor {
+                    let new_path = config_base_dir()
+                        .join("shaders")
+                        .join(&theme_editor.layout.colors.shader_path);
+
+                    let needs_reload = self
+                        .shader_editor
+                        .as_ref()
+                        .map_or(true, |e| e.path != new_path);
+
+                    if needs_reload {
+                        self.shader_editor = Some(ShaderEditor::new(new_path, self.gl.clone()));
+                    }
+                }
+
+                if let Some(editor) = &mut self.shader_editor {
+                    editor.ui(ui);
+                } else {
+                    ui.label("Select a theme to edit its shader.");
+                }
+                return;
+            }
+
             egui::ScrollArea::vertical()
                 .auto_shrink([false; 2])
                 .show(ui, |ui| match self.tab {
@@ -338,29 +381,6 @@ impl eframe::App for ConfigApp {
                             editor.ui(ctx, ui);
                         } else {
                             ui.label("Select a split to edit.");
-                        }
-                    }
-                    3 => {
-                        if let Some(theme_editor) = &self.theme_editor {
-                            let new_path = config_base_dir()
-                                .join("shaders")
-                                .join(&theme_editor.layout.colors.shader_path);
-
-                            let needs_reload = self
-                                .shader_editor
-                                .as_ref()
-                                .map_or(true, |e| e.path != new_path);
-
-                            if needs_reload {
-                                self.shader_editor =
-                                    Some(ShaderEditor::new(new_path, self.gl.clone()));
-                            }
-                        }
-
-                        if let Some(editor) = &mut self.shader_editor {
-                            editor.ui(ui);
-                        } else {
-                            ui.label("Select a theme to edit its shader.");
                         }
                     }
                     4 => {
@@ -400,10 +420,7 @@ impl ConfigApp {
         ui.add_space(12.0);
 
         // === THEMES ===
-        ui.group(|ui| {
-            ui.label(RichText::new("📁 Themes").strong().size(16.0));
-            ui.add_space(6.0);
-
+        style::section_card(ui, "Themes", egui_phosphor::regular::PALETTE, |ui| {
             egui::ScrollArea::vertical()
                 .id_salt("themes_scroll") // ID único para scroll independiente
                 .max_height(160.0)
@@ -411,23 +428,15 @@ impl ConfigApp {
                     ui.horizontal_wrapped(|ui| {
                         for theme in &self.available_themes {
                             let selected = Some(theme) == self.selected_theme.as_ref();
-                            let button = egui::Button::new(theme.clone())
-                                .fill(if selected {
-                                    Color32::from_rgb(50, 50, 0)
-                                } else {
-                                    Color32::from_rgb(30, 30, 30)
-                                })
-                                .stroke(egui::Stroke::new(
-                                    1.0,
-                                    if selected {
-                                        Color32::YELLOW
-                                    } else {
-                                        Color32::DARK_GRAY
-                                    },
-                                ))
-                                .min_size(egui::vec2(100.0, 28.0));
+                            let clicked = style::selectable_chip(
+                                ui,
+                                egui_phosphor::regular::PALETTE,
+                                theme,
+                                selected,
+                            )
+                            .clicked();
 
-                            if ui.add(button).clicked() {
+                            if clicked {
                                 self.selected_theme = Some(theme.clone());
                                 self.app_config.theme = format!("themes/{}.json", theme);
                                 let base = config_base_dir();
@@ -442,10 +451,16 @@ impl ConfigApp {
             ui.add_space(8.0);
 
             ui.horizontal(|ui| {
-                if ui.button("➕ New Theme").clicked() {
+                if ui
+                    .button(format!("{} New Theme", egui_phosphor::regular::PLUS))
+                    .clicked()
+                {
                     self.show_name_input_popup(true);
                 }
-                if ui.button("🗑 Delete Theme").clicked() {
+                if ui
+                    .button(format!("{} Delete Theme", egui_phosphor::regular::TRASH))
+                    .clicked()
+                {
                     if let Some(theme) = &self.selected_theme {
                         self.show_delete_confirmation(theme.clone(), true);
                     }
@@ -453,13 +468,10 @@ impl ConfigApp {
             });
         });
 
-        ui.add_space(16.0);
+        ui.add_space(style::SPACE_LG);
 
         // === SPLITS ===
-        ui.group(|ui| {
-            ui.label(RichText::new("🏁 Splits").strong().size(16.0));
-            ui.add_space(6.0);
-
+        style::section_card(ui, "Splits", egui_phosphor::regular::FLAG_CHECKERED, |ui| {
             egui::ScrollArea::vertical()
                 .id_salt("splits_scroll") // ID único para scroll independiente
                 .max_height(160.0)
@@ -467,23 +479,15 @@ impl ConfigApp {
                     ui.horizontal_wrapped(|ui| {
                         for split in &self.available_splits {
                             let selected = Some(split) == self.selected_split.as_ref();
-                            let button = egui::Button::new(split.clone())
-                                .fill(if selected {
-                                    Color32::from_rgb(0, 40, 60)
-                                } else {
-                                    Color32::from_rgb(20, 20, 20)
-                                })
-                                .stroke(egui::Stroke::new(
-                                    1.0,
-                                    if selected {
-                                        Color32::from_rgb(100, 200, 255)
-                                    } else {
-                                        Color32::GRAY
-                                    },
-                                ))
-                                .min_size(egui::vec2(100.0, 28.0));
+                            let clicked = style::selectable_chip(
+                                ui,
+                                egui_phosphor::regular::FLAG_CHECKERED,
+                                split,
+                                selected,
+                            )
+                            .clicked();
 
-                            if ui.add(button).clicked() {
+                            if clicked {
                                 self.selected_split = Some(split.clone());
                                 self.app_config.last_split_path = format!("splits/{}", split);
                                 let base = config_base_dir();
@@ -498,10 +502,16 @@ impl ConfigApp {
             ui.add_space(8.0);
 
             ui.horizontal(|ui| {
-                if ui.button("➕ New Split").clicked() {
+                if ui
+                    .button(format!("{} New Split", egui_phosphor::regular::PLUS))
+                    .clicked()
+                {
                     self.show_name_input_popup(false);
                 }
-                if ui.button("🗑 Delete Split").clicked() {
+                if ui
+                    .button(format!("{} Delete Split", egui_phosphor::regular::TRASH))
+                    .clicked()
+                {
                     if let Some(split) = &self.selected_split {
                         self.show_delete_confirmation(split.clone(), false);
                     }
@@ -509,13 +519,17 @@ impl ConfigApp {
             });
         });
 
-        ui.add_space(16.0);
+        ui.add_space(style::SPACE_LG);
 
         ui.horizontal(|ui| {
-            if ui
-                .add_sized([140.0, 42.0], egui::Button::new("💾 Save Changes"))
-                .clicked()
-            {
+            let save_button = egui::Button::new(format!(
+                "{} Save Changes",
+                egui_phosphor::regular::FLOPPY_DISK
+            ))
+            .fill(style::ACCENT_BG)
+            .stroke(egui::Stroke::new(1.0, style::ACCENT));
+
+            if ui.add_sized([160.0, 42.0], save_button).clicked() {
                 self.app_config.save();
 
                 if let Some(editor) = &self.theme_editor {
@@ -589,11 +603,16 @@ pub fn send_message(msg: &str) {
 fn main() -> eframe::Result<()> {
     let mut options = eframe::NativeOptions::default();
     options.renderer = eframe::Renderer::Glow;
-    options.viewport = ViewportBuilder::default().with_inner_size(egui::vec2(850.0, 650.0));
+    options.viewport = ViewportBuilder::default()
+        .with_inner_size(egui::vec2(1360.0, 720.0))
+        .with_min_inner_size(egui::vec2(1360.0, 720.0));
 
     eframe::run_native(
         "OpenSpeedRun Config",
         options,
-        Box::new(|cc| Ok(Box::new(ConfigApp::new(cc.gl.clone())))),
+        Box::new(|cc| {
+            style::apply_style(&cc.egui_ctx);
+            Ok(Box::new(ConfigApp::new(cc.gl.clone())))
+        }),
     )
 }

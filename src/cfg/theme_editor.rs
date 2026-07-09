@@ -5,6 +5,7 @@ use openspeedrun::{config::layout::LayoutConfig, config_base_dir};
 use std::{fs, path::PathBuf};
 
 use crate::send_message;
+use crate::style;
 
 pub struct ThemeEditor {
     pub current_theme_path: PathBuf,
@@ -28,24 +29,36 @@ impl ThemeEditor {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.heading("🎨 Edit Theme");
-        ui.add_space(12.0);
-        if ui.button("💾 Save Changes").clicked() {
-            if let Err(e) = self.layout.save(self.current_theme_path.to_str().unwrap()) {
-                eprintln!("Error saving theme: {}", e);
-            }
-            send_message("reloadtheme");
-            if self.layout.options.enable_shader {
-                send_message("reloadshader");
-            }
-        }
+        ui.horizontal(|ui| {
+            ui.heading(format!(
+                "{} Edit Theme",
+                egui_phosphor::regular::PALETTE
+            ));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let save_button = egui::Button::new(format!(
+                    "{} Save Changes",
+                    egui_phosphor::regular::FLOPPY_DISK
+                ))
+                .fill(style::ACCENT_BG)
+                .stroke(egui::Stroke::new(1.0, style::ACCENT));
+
+                if ui.add(save_button).clicked() {
+                    if let Err(e) = self.layout.save(self.current_theme_path.to_str().unwrap()) {
+                        eprintln!("Error saving theme: {}", e);
+                    }
+                    send_message("reloadtheme");
+                    if self.layout.options.enable_shader {
+                        send_message("reloadshader");
+                    }
+                }
+            });
+        });
 
         ui.add_space(12.0);
 
         ui.horizontal(|ui| {
-            ui.group(|ui| {
+            style::section_card(ui, "Font Sizes", egui_phosphor::regular::TEXT_AA, |ui| {
                 ui.vertical(|ui| {
-                    ui.label("Font Sizes:");
                     ui.add(
                         egui::Slider::new(&mut self.layout.font_sizes.title, 10.0..=96.0)
                             .text("Title"),
@@ -126,10 +139,8 @@ impl ThemeEditor {
 
             ui.add_space(6.0);
 
-            ui.group(|ui| {
+            style::section_card(ui, "Colors", egui_phosphor::regular::SWATCHES, |ui| {
                 ui.vertical(|ui| {
-                    ui.label("Colors:");
-
                     color_edit(ui, "Background", &mut self.layout.colors.background);
                     color_edit(ui, "Title", &mut self.layout.colors.title);
                     color_edit(ui, "Category", &mut self.layout.colors.category);
@@ -219,9 +230,8 @@ impl ThemeEditor {
 
             ui.add_space(6.0);
 
-            ui.group(|ui| {
+            style::section_card(ui, "Options", egui_phosphor::regular::SLIDERS, |ui| {
                 ui.vertical(|ui| {
-                    ui.label("Options:");
                     ui.checkbox(&mut self.layout.options.show_title, "Show title");
                     ui.checkbox(&mut self.layout.options.show_category, "Show category");
                     ui.checkbox(&mut self.layout.options.show_splits, "Show splits");
@@ -276,9 +286,8 @@ impl ThemeEditor {
 
             ui.add_space(6.0);
 
-            ui.group(|ui| {
+            style::section_card(ui, "Spacings", egui_phosphor::regular::ARROWS_OUT_LINE_VERTICAL, |ui| {
                 ui.vertical(|ui| {
-                    ui.label("Spacings:");
                     ui.add(
                         egui::Slider::new(&mut self.layout.spacings.split_top, 0.0..=64.0)
                             .text("Split Top"),
@@ -293,10 +302,9 @@ impl ThemeEditor {
 
         #[cfg(windows)]
         {
-            ui.group(|ui| {
+            ui.add_space(6.0);
+            style::section_card(ui, "Hotkeys (Windows only)", egui_phosphor::regular::KEYBOARD, |ui| {
                 ui.vertical(|ui| {
-                    ui.label("Hotkeys: (Windows only)");
-
                     let hotkeys = &mut self.layout.hotkeys;
                     let waiting = &mut self.waiting_for_key;
 
@@ -307,7 +315,7 @@ impl ThemeEditor {
                                 hotkey_button(ui, "Start", &hotkeys.start, "start", waiting);
                                 hotkey_button(ui, "Pause", &hotkeys.pause, "pause", waiting);
                                 hotkey_button(ui, "Reset", &hotkeys.reset, "reset", waiting);
-                                hotkey_button(ui, "Save PB", &hotkeys.save_pb, "save_pb", waiting);
+                                hotkey_button(ui, "Save Comparisons", &hotkeys.save_pb, "save_pb", waiting);
                                 hotkey_button(
                                     ui,
                                     "Undo Split",
@@ -319,6 +327,20 @@ impl ThemeEditor {
                             });
 
                             ui.vertical(|ui| {
+                                hotkey_button(
+                                    ui,
+                                    "Toggle Loading",
+                                    &hotkeys.toggle_loading,
+                                    "toggle_loading",
+                                    waiting,
+                                );
+                                hotkey_button(
+                                    ui,
+                                    "Cycle Comparison",
+                                    &hotkeys.cycle_comparison,
+                                    "cycle_comparison",
+                                    waiting,
+                                );
                                 hotkey_button(
                                     ui,
                                     "Next Page",
@@ -388,6 +410,8 @@ impl ThemeEditor {
                         "save_pb" => self.layout.hotkeys.save_pb = key_wrapper,
                         "undo_split" => self.layout.hotkeys.undo_split = key_wrapper,
                         "undo_pb" => self.layout.hotkeys.undo_pb = key_wrapper,
+                        "toggle_loading" => self.layout.hotkeys.toggle_loading = key_wrapper,
+                        "cycle_comparison" => self.layout.hotkeys.cycle_comparison = key_wrapper,
                         "next_page" => self.layout.hotkeys.next_page = key_wrapper,
                         "prev_page" => self.layout.hotkeys.prev_page = key_wrapper,
                         "toggle_help" => self.layout.hotkeys.toggle_help = key_wrapper,

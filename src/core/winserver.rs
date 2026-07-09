@@ -89,6 +89,10 @@ fn handle_event(event: Event, app: &Arc<Mutex<AppState>>) {
             app.toggle_igt_pause();
         });
 
+        check_and_run!(&hotkeys.cycle_comparison, {
+            app.cycle_comparison();
+        });
+
         check_and_run!(&hotkeys.reload_all, {
             app.reload_all();
         });

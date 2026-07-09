@@ -4,6 +4,7 @@ use openspeedrun::Run;
 use openspeedrun::core::split::TimingMethod;
 
 use crate::send_message;
+use crate::style;
 
 #[derive(PartialEq)]
 enum Tab {
@@ -46,7 +47,7 @@ impl History {
     }
 
     pub fn ui(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
-        use egui::{Color32, Grid, RichText, ScrollArea};
+        use egui::{Grid, RichText, ScrollArea};
 
         ui.heading(format!("{} [{}]", self.run.title, self.run.category));
         ui.separator();
@@ -65,7 +66,13 @@ impl History {
         });
 
         ui.horizontal(|ui| {
-            if ui.button("🗑 Clear History").clicked() {
+            let clear_button = egui::Button::new(format!(
+                "{} Clear History",
+                egui_phosphor::regular::TRASH
+            ))
+            .fill(egui::Color32::from_rgb(50, 22, 22))
+            .stroke(egui::Stroke::new(1.0, style::ERROR));
+            if ui.add(clear_button).clicked() {
                 self.confirm_clear = true;
                 send_message("reloadrun");
             }
@@ -79,56 +86,58 @@ impl History {
                     ui.label("No attempts recorded yet.");
                     return;
                 }
-                ScrollArea::vertical().show(ui, |ui| {
-                    Grid::new("attempt_history_grid")
-                        .striped(true)
-                        .min_col_width(100.0)
-                        .show(ui, |ui| {
-                            ui.label("Attempt #");
-                            ui.label("Date");
-                            ui.label("Real Time");
-                            ui.label("Game Time");
-                            ui.label("Ended");
-                            ui.label("Is PB");
-                            ui.end_row();
-
-                            for attempt in &self.run.attempt_history {
-                                ui.label(attempt.run_index.to_string());
-                                let date_str = attempt
-                                    .date
-                                    .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
-                                    .unwrap_or_else(|| "-".to_string());
-                                ui.label(date_str);
-
-                                let real_time_str = attempt
-                                    .real_time
-                                    .map(format_duration)
-                                    .unwrap_or_else(|| "-".to_string());
-                                ui.label(real_time_str);
-
-                                let game_time_str = attempt
-                                    .game_time
-                                    .map(format_duration)
-                                    .unwrap_or_else(|| "-".to_string());
-                                ui.label(game_time_str);
-
-                                ui.label(if attempt.ended { "Yes" } else { "No" });
-
-                                let is_pb = self
-                                    .run
-                                    .pb_history
-                                    .iter()
-                                    .any(|pb| pb.run_index == attempt.run_index);
-                                let pb_text = if is_pb {
-                                    RichText::new("Yes").color(Color32::LIGHT_GREEN)
-                                } else {
-                                    RichText::new("No")
-                                };
-                                ui.label(pb_text);
-
+                style::section_card(ui, "Attempts", egui_phosphor::regular::LIST, |ui| {
+                    ScrollArea::vertical().show(ui, |ui| {
+                        Grid::new("attempt_history_grid")
+                            .striped(true)
+                            .min_col_width(100.0)
+                            .show(ui, |ui| {
+                                ui.label("Attempt #");
+                                ui.label("Date");
+                                ui.label("Real Time");
+                                ui.label("Game Time");
+                                ui.label("Ended");
+                                ui.label("Is PB");
                                 ui.end_row();
-                            }
-                        });
+
+                                for attempt in &self.run.attempt_history {
+                                    ui.label(attempt.run_index.to_string());
+                                    let date_str = attempt
+                                        .date
+                                        .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
+                                        .unwrap_or_else(|| "-".to_string());
+                                    ui.label(date_str);
+
+                                    let real_time_str = attempt
+                                        .real_time
+                                        .map(format_duration)
+                                        .unwrap_or_else(|| "-".to_string());
+                                    ui.label(real_time_str);
+
+                                    let game_time_str = attempt
+                                        .game_time
+                                        .map(format_duration)
+                                        .unwrap_or_else(|| "-".to_string());
+                                    ui.label(game_time_str);
+
+                                    ui.label(if attempt.ended { "Yes" } else { "No" });
+
+                                    let is_pb = self
+                                        .run
+                                        .pb_history
+                                        .iter()
+                                        .any(|pb| pb.run_index == attempt.run_index);
+                                    let pb_text = if is_pb {
+                                        RichText::new("Yes").color(style::SUCCESS)
+                                    } else {
+                                        RichText::new("No")
+                                    };
+                                    ui.label(pb_text);
+
+                                    ui.end_row();
+                                }
+                            });
+                    });
                 });
             }
 
@@ -137,43 +146,45 @@ impl History {
                     ui.label("No PB history available.");
                     return;
                 }
-                ScrollArea::vertical().show(ui, |ui| {
-                    Grid::new("pb_history_grid")
-                        .striped(true)
-                        .min_col_width(100.0)
-                        .show(ui, |ui| {
-                            ui.label("PB Attempt #");
-                            ui.label("Date");
-                            ui.label("Real Time");
-                            ui.label("Game Time");
-                            ui.label("Ended");
-                            ui.end_row();
-
-                            for pb in &self.run.pb_history {
-                                ui.label(pb.run_index.to_string());
-
-                                let date_str = pb
-                                    .date
-                                    .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
-                                    .unwrap_or_else(|| "-".to_string());
-                                ui.label(date_str);
-
-                                ui.label(
-                                    pb.real_time
-                                        .map(format_duration)
-                                        .unwrap_or_else(|| "-".to_string()),
-                                );
-                                ui.label(
-                                    pb.game_time
-                                        .map(format_duration)
-                                        .unwrap_or_else(|| "-".to_string()),
-                                );
-
-                                ui.label(if pb.ended { "Yes" } else { "No" });
-
+                style::section_card(ui, "PB History", egui_phosphor::regular::TROPHY, |ui| {
+                    ScrollArea::vertical().show(ui, |ui| {
+                        Grid::new("pb_history_grid")
+                            .striped(true)
+                            .min_col_width(100.0)
+                            .show(ui, |ui| {
+                                ui.label("PB Attempt #");
+                                ui.label("Date");
+                                ui.label("Real Time");
+                                ui.label("Game Time");
+                                ui.label("Ended");
                                 ui.end_row();
-                            }
-                        });
+
+                                for pb in &self.run.pb_history {
+                                    ui.label(pb.run_index.to_string());
+
+                                    let date_str = pb
+                                        .date
+                                        .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
+                                        .unwrap_or_else(|| "-".to_string());
+                                    ui.label(date_str);
+
+                                    ui.label(
+                                        pb.real_time
+                                            .map(format_duration)
+                                            .unwrap_or_else(|| "-".to_string()),
+                                    );
+                                    ui.label(
+                                        pb.game_time
+                                            .map(format_duration)
+                                            .unwrap_or_else(|| "-".to_string()),
+                                    );
+
+                                    ui.label(if pb.ended { "Yes" } else { "No" });
+
+                                    ui.end_row();
+                                }
+                            });
+                    });
                 });
             }
 
@@ -184,50 +195,53 @@ impl History {
                 }
                 ScrollArea::vertical().show(ui, |ui| {
                     for (i, split) in self.run.splits.iter().enumerate() {
-                        ui.group(|ui| {
-                            ui.label(format!("Split #{}: {}", i + 1, split.name));
-
-                            ui.horizontal(|ui| {
-                                let pb = split
-                                    .comparison_time("Personal Best", TimingMethod::RealTime)
-                                    .map(format_duration)
-                                    .unwrap_or_else(|| "-".to_string());
-                                let best = split
-                                    .comparison_time("Best Segments", TimingMethod::RealTime)
-                                    .map(format_duration)
-                                    .unwrap_or_else(|| "-".to_string());
-                                ui.label(format!("Personal Best: {pb}"));
-                                ui.label(format!("Best Segments: {best}"));
-                            });
-
-                            Grid::new(format!("split_{}_history", i))
-                                .striped(true)
-                                .min_col_width(100.0)
-                                .show(ui, |ui| {
-                                    ui.label("Run #");
-                                    ui.label("Real Time");
-                                    ui.label("Game Time");
-                                    ui.end_row();
-
-                                    for entry in &split.segment_history {
-                                        ui.label(entry.run_index.to_string());
-                                        ui.label(
-                                            entry
-                                                .real_time
-                                                .map(format_duration)
-                                                .unwrap_or_else(|| "-".to_string()),
-                                        );
-                                        ui.label(
-                                            entry
-                                                .game_time
-                                                .map(format_duration)
-                                                .unwrap_or_else(|| "-".to_string()),
-                                        );
-                                        ui.end_row();
-                                    }
+                        style::section_card(
+                            ui,
+                            &format!("Split #{}: {}", i + 1, split.name),
+                            egui_phosphor::regular::FLAG_CHECKERED,
+                            |ui| {
+                                ui.horizontal(|ui| {
+                                    let pb = split
+                                        .comparison_time("Personal Best", TimingMethod::RealTime)
+                                        .map(format_duration)
+                                        .unwrap_or_else(|| "-".to_string());
+                                    let best = split
+                                        .comparison_time("Best Segments", TimingMethod::RealTime)
+                                        .map(format_duration)
+                                        .unwrap_or_else(|| "-".to_string());
+                                    ui.label(format!("Personal Best: {pb}"));
+                                    ui.label(format!("Best Segments: {best}"));
                                 });
-                        });
-                        ui.separator();
+
+                                Grid::new(format!("split_{}_history", i))
+                                    .striped(true)
+                                    .min_col_width(100.0)
+                                    .show(ui, |ui| {
+                                        ui.label("Run #");
+                                        ui.label("Real Time");
+                                        ui.label("Game Time");
+                                        ui.end_row();
+
+                                        for entry in &split.segment_history {
+                                            ui.label(entry.run_index.to_string());
+                                            ui.label(
+                                                entry
+                                                    .real_time
+                                                    .map(format_duration)
+                                                    .unwrap_or_else(|| "-".to_string()),
+                                            );
+                                            ui.label(
+                                                entry
+                                                    .game_time
+                                                    .map(format_duration)
+                                                    .unwrap_or_else(|| "-".to_string()),
+                                            );
+                                            ui.end_row();
+                                        }
+                                    });
+                            },
+                        );
+                        ui.add_space(style::SPACE_SM);
                     }
                 });
             }
@@ -245,7 +259,7 @@ impl History {
                             self.confirm_clear = false;
                         }
                         if ui
-                            .button(RichText::new("Yes, clear").color(Color32::RED))
+                            .button(RichText::new("Yes, clear").color(style::ERROR))
                             .clicked()
                         {
                             self.run.attempt_history.clear();

@@ -12,7 +12,7 @@ fn main() {
     if args.len() < 2 {
         eprintln!("Usage: {} <command>", args[0]);
         eprintln!(
-            "Commands: split, start, pause, reset, savepb, undolastsplit, loadbackup, nextpage, prevpage, togglehelp, toggleloading"
+            "Commands: split, start, pause, reset, savepb, undolastsplit, loadbackup, nextpage, prevpage, togglehelp, toggleloading, cyclecomparison"
         );
         process::exit(1);
     }
@@ -31,6 +31,7 @@ fn main() {
         "prevpage",
         "togglehelp",
         "toggleloading",
+        "cyclecomparison",
     ];
     if !valid_cmds.contains(&cmd) {
         eprintln!("Invalid command '{}'", cmd);

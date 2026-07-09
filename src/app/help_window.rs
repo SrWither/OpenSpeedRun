@@ -19,7 +19,9 @@ impl AppState {
                         ui.label("[P] Pause");
                         ui.label("[R] Reset");
                         ui.label("[Enter] Split");
-                        ui.label("[Ctrl + S] Save PB");
+                        ui.label("[L] Toggle loading (pause/resume IGT only)");
+                        ui.label("[C] Cycle comparison");
+                        ui.label("[Ctrl + S] Save comparisons");
                         ui.label("[Ctrl + Z] Undo last split");
                         ui.label("[Ctrl + D] Load Backup");
                         ui.label(format!(
