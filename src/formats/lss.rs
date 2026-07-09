@@ -12,12 +12,19 @@
 //!   `SegmentHistory` at runtime — they're never written as `SplitTime`
 //!   entries, and neither are ours on export.
 //!
-//! Known limitations (see the LSS_IMPORT_EXPORT plan): icons are
-//! `.NET BinaryFormatter`-wrapped, not plain PNGs — import extracts the
-//! embedded PNG bytes with a signature scan; export never embeds icons.
-//! `AutoSplitterSettings` is ignored both ways. `AttemptCount`/
-//! `AttemptHistory` fidelity is limited by the fact that `Run::attempts`
-//! only counts completed runs, not resets.
+//! Known limitations (see the LSS_IMPORT_EXPORT plan): LiveSplit wraps icon
+//! bytes in a `.NET BinaryFormatter`-serialized `System.Drawing.Bitmap`, not
+//! a plain PNG — replicating that framing exactly isn't attempted (see
+//! `extract_icon`/`build_xml`'s icon handling below). Import extracts the
+//! embedded PNG with a signature scan, which works for both LiveSplit's
+//! wrapped form and our own unwrapped one; export always writes a plain
+//! base64 PNG with no wrapper, which round-trips losslessly through this
+//! module but may not display if the file is later opened in *real*
+//! LiveSplit (its BinaryFormatter deserializer will fail on the missing
+//! framing — expected to be skipped rather than fatal, but unverified
+//! against actual LiveSplit). `AutoSplitterSettings` is ignored both ways.
+//! `AttemptCount`/`AttemptHistory` fidelity is limited by the fact that
+//! `Run::attempts` only counts completed runs, not resets.
 
 use chrono::{DateTime, Duration, Utc};
 use quick_xml::events::Event;
@@ -470,18 +477,51 @@ fn base64_decode(input: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// Minimal standard-alphabet base64 encoder, the write-side counterpart of
+/// `base64_decode` — kept for the same reason (one CDATA blob doesn't
+/// justify a whole crate dependency).
+fn base64_encode(data: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0];
+        let b1 = chunk.get(1).copied().unwrap_or(0);
+        let b2 = chunk.get(2).copied().unwrap_or(0);
+        let n = ((b0 as u32) << 16) | ((b1 as u32) << 8) | (b2 as u32);
+
+        out.push(ALPHABET[(n >> 18 & 0x3F) as usize] as char);
+        out.push(ALPHABET[(n >> 12 & 0x3F) as usize] as char);
+        out.push(if chunk.len() > 1 {
+            ALPHABET[(n >> 6 & 0x3F) as usize] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            ALPHABET[(n & 0x3F) as usize] as char
+        } else {
+            '='
+        });
+    }
+    out
+}
+
 // ---------------------------------------------------------------------
 // Export
 // ---------------------------------------------------------------------
 
-/// Exports a `Run` to a LiveSplit-compatible `.lss` file. Icons are never
-/// embedded (see module docs) — `<Icon />` is always empty.
-pub fn export(run: &Run, path: &Path) -> Result<(), String> {
-    let xml = build_xml(run);
+/// Exports a `Run` to a LiveSplit-compatible `.lss` file. `icons_base_dir` is
+/// the directory `Split::icon_path` is relative to (i.e. the directory
+/// holding `split.json` — same convention `import`'s `icons_dir` writes
+/// into, one level down). A split's icon is embedded as a plain base64 PNG
+/// when its file can be read; see the module docs for the LiveSplit
+/// interop caveat this implies.
+pub fn export(run: &Run, path: &Path, icons_base_dir: &Path) -> Result<(), String> {
+    let xml = build_xml(run, icons_base_dir);
     std::fs::write(path, xml).map_err(|e| format!("Failed to write {}: {e}", path.display()))
 }
 
-fn build_xml(run: &Run) -> String {
+fn build_xml(run: &Run, icons_base_dir: &Path) -> String {
     let mut out = String::new();
     out.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     out.push_str("<Run version=\"1.7.0\">\n");
@@ -574,7 +614,19 @@ fn build_xml(run: &Run) -> String {
     for split in &run.splits {
         out.push_str("    <Segment>\n");
         out.push_str(&format!("      <Name>{}</Name>\n", xml_escape(&split.name)));
-        out.push_str("      <Icon />\n");
+
+        let icon_bytes = split
+            .icon_path
+            .as_ref()
+            .and_then(|rel| std::fs::read(icons_base_dir.join(rel)).ok());
+        match icon_bytes {
+            Some(bytes) => {
+                out.push_str("      <Icon>");
+                out.push_str(&base64_encode(&bytes));
+                out.push_str("</Icon>\n");
+            }
+            None => out.push_str("      <Icon />\n"),
+        }
 
         out.push_str("      <SplitTimes>\n");
         for (name, cmp) in &split.comparisons {

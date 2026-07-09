@@ -339,7 +339,8 @@ impl SplitEditor {
                                 .add_filter("LiveSplit", &["lss"])
                                 .save_file()
                             {
-                                self.import_export_status = Some(match lss::export(&self.run, &path) {
+                                let icons_base_dir = self.run_path.parent().unwrap();
+                                self.import_export_status = Some(match lss::export(&self.run, &path, icons_base_dir) {
                                     Ok(()) => format!("Exported to {}", path.display()),
                                     Err(e) => format!("Export failed: {e}"),
                                 });

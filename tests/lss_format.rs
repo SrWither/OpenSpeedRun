@@ -83,7 +83,7 @@ fn export_then_import_round_trips_core_fields() {
     let lss_path = dir.join("test.lss");
     let icons_dir = dir.join("icons");
 
-    lss::export(&run, &lss_path).expect("export failed");
+    lss::export(&run, &lss_path, &dir).expect("export failed");
     let result = lss::import(&lss_path, &icons_dir).expect("import failed");
     let imported = result.run;
 
@@ -132,6 +132,56 @@ fn export_then_import_round_trips_core_fields() {
             original.segment_history[0].real_time
         );
     }
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn export_then_import_round_trips_icon_bytes() {
+    let dir = scratch_dir("icons");
+
+    // icon_path is always relative to the directory holding split.json (see
+    // cfg/split_editor.rs), so exercise that same layout on both sides:
+    // export reads from `<base>/icons/...`, import writes to a fresh
+    // `<base>/icons/...` of its own.
+    let export_base = dir.join("export_side");
+    let export_icons_dir = export_base.join("icons");
+    std::fs::create_dir_all(&export_icons_dir).unwrap();
+    let icon_path = export_icons_dir.join("split0.png");
+    image::RgbaImage::new(2, 2)
+        .save(&icon_path)
+        .expect("failed to write test png");
+    let original_bytes = std::fs::read(&icon_path).unwrap();
+
+    let mut run = Run::new("Test Game", "Any%", &["Intro"]);
+    run.splits[0].icon_path = Some("icons/split0.png".to_string());
+
+    let lss_path = dir.join("test.lss");
+    lss::export(&run, &lss_path, &export_base).expect("export failed");
+
+    let import_base = dir.join("import_side");
+    let result = lss::import(&lss_path, &import_base.join("icons")).expect("import failed");
+
+    let imported_icon_path = result.run.splits[0]
+        .icon_path
+        .as_ref()
+        .expect("icon should round-trip");
+    let imported_bytes = std::fs::read(import_base.join(imported_icon_path)).unwrap();
+
+    assert_eq!(imported_bytes, original_bytes);
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn export_without_an_icon_path_writes_a_self_closing_tag() {
+    let dir = scratch_dir("noicon");
+    let run = Run::new("Test Game", "Any%", &["Intro"]);
+    let lss_path = dir.join("test.lss");
+
+    lss::export(&run, &lss_path, &dir).expect("export failed");
+    let xml = std::fs::read_to_string(&lss_path).unwrap();
+    assert!(xml.contains("<Icon />"));
 
     std::fs::remove_dir_all(&dir).ok();
 }
