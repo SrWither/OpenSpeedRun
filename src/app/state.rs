@@ -123,7 +123,23 @@ impl AppState {
         self.igt_timer.pause();
     }
 
+    /// Freezes both clocks for good — unlike `pause_timers`, this can't be
+    /// undone by the "start" action, since a finished run shouldn't start
+    /// ticking again. Only `reset_splits` can bring the timers back.
+    fn end_run(&mut self) {
+        self.timer.end();
+        self.igt_timer.end();
+    }
+
     fn record_split(&mut self) {
+        // Belt-and-suspenders: the run already finished, and `end_run`
+        // below should mean `self.timer.state` is `Ended` (not resumable)
+        // by the time this could be called again. Kept as an explicit
+        // guard anyway since `current_split` indexing below relies on it.
+        if self.current_split >= self.splits_display.len() {
+            return;
+        }
+
         let now = self.timer.current_time();
         if now < Duration::zero() {
             return;
@@ -138,7 +154,7 @@ impl AppState {
         self.current_split += 1;
 
         if self.current_split >= self.splits_display.len() {
-            self.pause_timers();
+            self.end_run();
         }
 
         self.update_page();
@@ -228,8 +244,12 @@ impl AppState {
         // too (it's only cleared once the whole run finishes), so looping
         // over all of them here would re-log each one on every subsequent
         // split.
-        if let Some(i) = self.current_split.checked_sub(1) {
-            let current = &self.splits_display[i];
+        if let Some(current) = self
+            .current_split
+            .checked_sub(1)
+            .and_then(|i| self.splits_display.get(i))
+        {
+            let i = self.current_split - 1;
             if let Some(current_time) = current.last_time {
                 let prev_time = if i == 0 {
                     Duration::zero()

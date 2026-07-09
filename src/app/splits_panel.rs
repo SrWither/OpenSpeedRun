@@ -65,7 +65,7 @@ impl AppState {
 
                             ui.add_space(spacings.split_top);
 
-                            ui.horizontal(|ui| {
+                            let row = ui.horizontal(|ui| {
                                 ui.set_min_height(32.0);
                                 ui.set_min_width(ui.available_width());
                                 ui.add_space(10.0);
@@ -225,6 +225,10 @@ impl AppState {
                                     },
                                 );
                             });
+
+                            if is_current {
+                                row.response.scroll_to_me(Some(egui::Align::Center));
+                            }
 
                             ui.add_space(spacings.split_bottom);
 

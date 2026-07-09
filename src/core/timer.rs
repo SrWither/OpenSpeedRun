@@ -48,6 +48,17 @@ impl Timer {
         }
     }
 
+    /// Freezes the clock permanently, the same way `pause` does, but marks
+    /// it `Ended` instead of `Paused` so `start_with_offset` refuses to
+    /// resume it — a finished run shouldn't start ticking again.
+    pub fn end(&mut self) {
+        if let Some(start) = self.start_time {
+            self.elapsed = Utc::now() - start + self.elapsed;
+            self.start_time = None;
+        }
+        self.state = TimerState::Ended;
+    }
+
     pub fn reset(&mut self) {
         self.start_time = None;
         self.elapsed = Duration::zero();
