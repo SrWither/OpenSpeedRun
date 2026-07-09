@@ -12,6 +12,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::send_message;
+use crate::speedrun_com_picker::SpeedrunComPicker;
 
 pub struct SplitEditor {
     pub run_path: PathBuf,
@@ -20,6 +21,7 @@ pub struct SplitEditor {
     icon_cache: HashMap<String, TextureHandle>,
     dragging_split_index: Option<usize>,
     import_export_status: Option<String>,
+    speedrun_com_picker: SpeedrunComPicker,
 }
 
 fn format_duration(duration: chrono::Duration) -> String {
@@ -113,6 +115,7 @@ impl SplitEditor {
             icon_cache: HashMap::new(),
             dragging_split_index: None,
             import_export_status: None,
+            speedrun_com_picker: SpeedrunComPicker::default(),
         }
     }
 
@@ -344,10 +347,30 @@ impl SplitEditor {
                         });
                 }
             }
+
+            if ui.button("Fill from speedrun.com").clicked() {
+                self.speedrun_com_picker.open = true;
+            }
         });
 
         if let Some(status) = &self.import_export_status {
             ui.label(status);
+        }
+
+        if let Some(picked) = self.speedrun_com_picker.ui(ctx) {
+            self.run.title = picked.title;
+            self.run.category = picked.category;
+            self.run.metadata.speedrun_com_game_id = Some(picked.speedrun_com_game_id);
+            self.run.metadata.speedrun_com_category_id = Some(picked.speedrun_com_category_id);
+            for (name, value) in picked.variables {
+                if let Some(existing) = self.run.metadata.variables.iter_mut().find(|v| v.name == name) {
+                    existing.value = value;
+                } else {
+                    self.run.metadata.variables.push(RunVariable { name, value });
+                }
+            }
+            self.import_export_status =
+                Some("Filled from speedrun.com. \"Save all\" to keep it.".to_string());
         }
 
         ui.separator();

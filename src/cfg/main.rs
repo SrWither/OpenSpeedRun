@@ -1,5 +1,6 @@
 mod history;
 mod shader_editor;
+mod speedrun_com_picker;
 mod split_editor;
 mod syntax;
 mod theme_editor;
