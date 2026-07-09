@@ -212,6 +212,17 @@ Uniforms:
 | `u_total_splits`, `total_splits`, `iTotalSplits` | Total number of splits |
 | `u_elapsed_time`, `elapsed_time`, `iElapsedTime` | Total elapsed time in seconds |
 | `u_elapsed_split_time`, `elapsed_split_time`, `iElapsedSplitTime` | Time since last split in seconds |
+| `u_timer_state`, `timer_state`, `iTimerState` | Timer state: `0` not started, `1` running, `2` paused, `3` ended |
+| `u_attempt_count`, `attempt_count`, `iAttemptCount` | Number of attempts made on this run so far |
+| `u_is_gold_split`, `is_gold_split`, `iGoldSplit` | `1` if the last completed split beat its Best Segment, else `0` (sticky until the next split) |
+| `u_is_new_pb`, `is_new_pb`, `iNewPB` | `1` if the last finished run beat the Personal Best, else `0` (sticky until the next run finishes) |
+| `u_igt_time`, `igt_time`, `iGameTime` | Elapsed in-game (manual) time in seconds, independent from the real-time clock |
+| `u_igt_paused`, `igt_paused`, `iGameTimePaused` | `1` while the in-game time clock is paused (a load is in progress), else `0` |
+| `u_live_delta`, `live_delta`, `iLiveDelta` | Seconds ahead (negative) or behind (positive) the selected comparison, live-updating through the current split |
+| `u_best_possible_time`, `best_possible_time`, `iBestPossibleTime` | Sum of every split's Best Segment, in seconds (`0` if incomplete) |
+| `u_pb_time`, `pb_time`, `iPBTime` | Total Personal Best time, in seconds (`0` if not set) |
+
+> 💡 `is_gold_split` / `is_new_pb` stay at `1` after the triggering split/run — pair them with `elapsed_split_time` to fade an effect out, e.g. `flash = float(is_gold_split) * smoothstep(2.0, 0.0, elapsed_split_time);`
 
 ### Example — Fragment Shader (`#version 100`)
 

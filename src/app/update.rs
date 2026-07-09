@@ -3,6 +3,7 @@ use crate::app::resize::draw_resize_borders;
 use crate::app::state::AppState;
 use crate::config::load::config_base_dir;
 use crate::config::shaders::ShaderBackground;
+use crate::core::timer::TimerState;
 #[cfg(unix)]
 use crate::core::server::UICommand;
 #[cfg(windows)]
@@ -169,6 +170,15 @@ impl AppWrapper {
         total_splits: i32,
         elapsed_time: f32,
         elapsed_split_time: f32,
+        timer_state: i32,
+        attempt_count: i32,
+        is_gold_split: i32,
+        is_new_pb: i32,
+        igt_time: f32,
+        igt_paused: i32,
+        live_delta: f32,
+        best_possible_time: f32,
+        pb_time: f32,
     ) {
         if app.layout.options.enable_shader {
             if let Some(shader) = &mut app.shader {
@@ -195,6 +205,15 @@ impl AppWrapper {
                     total_splits,
                     elapsed_time,
                     elapsed_split_time,
+                    timer_state,
+                    attempt_count,
+                    is_gold_split,
+                    is_new_pb,
+                    igt_time,
+                    igt_paused,
+                    live_delta,
+                    best_possible_time,
+                    pb_time,
                 );
             }
         }
@@ -239,6 +258,21 @@ impl eframe::App for AppWrapper {
 
         let elapsed_split_time = elapsed_time - last_split_time;
 
+        let timer_state = match app.timer.state {
+            TimerState::NotStarted => 0,
+            TimerState::Running => 1,
+            TimerState::Paused => 2,
+            TimerState::Ended => 3,
+        };
+        let attempt_count = app.run.attempts as i32;
+        let is_gold_split = app.last_segment_is_gold as i32;
+        let is_new_pb = app.last_run_is_pb as i32;
+        let igt_time = app.igt_timer.current_time().as_seconds_f32();
+        let igt_paused = app.igt_timer.is_paused() as i32;
+        let live_delta = app.live_delta(elapsed_split_time);
+        let best_possible_time = app.best_possible_time();
+        let pb_time = app.pb_time();
+
         self.apply_transparency_if_needed(&ctx, &mut app);
         self.render_shader_if_enabled(
             &ctx,
@@ -249,6 +283,15 @@ impl eframe::App for AppWrapper {
             total_splits,
             elapsed_time,
             elapsed_split_time,
+            timer_state,
+            attempt_count,
+            is_gold_split,
+            is_new_pb,
+            igt_time,
+            igt_paused,
+            live_delta,
+            best_possible_time,
+            pb_time,
         );
         self.draw_ui_and_misc(ui, &mut app);
 

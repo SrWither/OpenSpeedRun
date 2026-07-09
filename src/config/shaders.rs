@@ -15,6 +15,16 @@ const TOTAL_SPLITS_NAMES: &[&str] = &["total_splits", "u_total_splits", "iTotalS
 const ELAPSED_TIME_NAMES: &[&str] = &["elapsed_time", "u_elapsed_time", "iElapsedTime"];
 const ELAPSED_SPLIT_TIME_NAMES: &[&str] =
     &["elapsed_split_time", "u_elapsed_split_time", "iElapsedSplitTime"];
+const TIMER_STATE_NAMES: &[&str] = &["timer_state", "u_timer_state", "iTimerState"];
+const ATTEMPT_COUNT_NAMES: &[&str] = &["attempt_count", "u_attempt_count", "iAttemptCount"];
+const IS_GOLD_SPLIT_NAMES: &[&str] = &["is_gold_split", "u_is_gold_split", "iGoldSplit"];
+const IS_NEW_PB_NAMES: &[&str] = &["is_new_pb", "u_is_new_pb", "iNewPB"];
+const IGT_TIME_NAMES: &[&str] = &["igt_time", "u_igt_time", "iGameTime"];
+const IGT_PAUSED_NAMES: &[&str] = &["igt_paused", "u_igt_paused", "iGameTimePaused"];
+const LIVE_DELTA_NAMES: &[&str] = &["live_delta", "u_live_delta", "iLiveDelta"];
+const BEST_POSSIBLE_TIME_NAMES: &[&str] =
+    &["best_possible_time", "u_best_possible_time", "iBestPossibleTime"];
+const PB_TIME_NAMES: &[&str] = &["pb_time", "u_pb_time", "iPBTime"];
 
 /// Documents a uniform a shader may declare, under any of its accepted names.
 pub struct UniformDoc {
@@ -78,6 +88,51 @@ pub const UNIFORM_DOCS: &[UniformDoc] = &[
         glsl_type: "float",
         description: "Elapsed time in the current split, in seconds.",
     },
+    UniformDoc {
+        names: TIMER_STATE_NAMES,
+        glsl_type: "int",
+        description: "0 = not started, 1 = running, 2 = paused, 3 = ended.",
+    },
+    UniformDoc {
+        names: ATTEMPT_COUNT_NAMES,
+        glsl_type: "int",
+        description: "Number of attempts made on this run so far.",
+    },
+    UniformDoc {
+        names: IS_GOLD_SPLIT_NAMES,
+        glsl_type: "int",
+        description: "1 if the most recently completed split beat its Best Segment, else 0. Sticky until the next split.",
+    },
+    UniformDoc {
+        names: IS_NEW_PB_NAMES,
+        glsl_type: "int",
+        description: "1 if the most recently finished run beat the Personal Best, else 0. Sticky until the next run finishes.",
+    },
+    UniformDoc {
+        names: IGT_TIME_NAMES,
+        glsl_type: "float",
+        description: "Elapsed in-game (manual) time, in seconds — independent from the real-time clock.",
+    },
+    UniformDoc {
+        names: IGT_PAUSED_NAMES,
+        glsl_type: "int",
+        description: "1 while the in-game time clock is paused (a load is in progress), else 0.",
+    },
+    UniformDoc {
+        names: LIVE_DELTA_NAMES,
+        glsl_type: "float",
+        description: "Seconds ahead (negative) or behind (positive) the selected comparison, live-updating through the current split.",
+    },
+    UniformDoc {
+        names: BEST_POSSIBLE_TIME_NAMES,
+        glsl_type: "float",
+        description: "Sum of every split's Best Segment, in seconds (0 if incomplete).",
+    },
+    UniformDoc {
+        names: PB_TIME_NAMES,
+        glsl_type: "float",
+        description: "Total Personal Best time, in seconds (0 if not set).",
+    },
 ];
 
 struct ShaderUniforms {
@@ -91,6 +146,15 @@ struct ShaderUniforms {
     total_splits: Option<glow::UniformLocation>,
     elapsed_time: Option<glow::UniformLocation>,
     elapsed_split_time: Option<glow::UniformLocation>,
+    timer_state: Option<glow::UniformLocation>,
+    attempt_count: Option<glow::UniformLocation>,
+    is_gold_split: Option<glow::UniformLocation>,
+    is_new_pb: Option<glow::UniformLocation>,
+    igt_time: Option<glow::UniformLocation>,
+    igt_paused: Option<glow::UniformLocation>,
+    live_delta: Option<glow::UniformLocation>,
+    best_possible_time: Option<glow::UniformLocation>,
+    pb_time: Option<glow::UniformLocation>,
 }
 
 impl ShaderUniforms {
@@ -130,6 +194,35 @@ impl ShaderUniforms {
                 program,
                 ELAPSED_SPLIT_TIME_NAMES,
             ),
+            timer_state: ShaderBackground::get_uniform_location_any(
+                gl,
+                program,
+                TIMER_STATE_NAMES,
+            ),
+            attempt_count: ShaderBackground::get_uniform_location_any(
+                gl,
+                program,
+                ATTEMPT_COUNT_NAMES,
+            ),
+            is_gold_split: ShaderBackground::get_uniform_location_any(
+                gl,
+                program,
+                IS_GOLD_SPLIT_NAMES,
+            ),
+            is_new_pb: ShaderBackground::get_uniform_location_any(gl, program, IS_NEW_PB_NAMES),
+            igt_time: ShaderBackground::get_uniform_location_any(gl, program, IGT_TIME_NAMES),
+            igt_paused: ShaderBackground::get_uniform_location_any(
+                gl,
+                program,
+                IGT_PAUSED_NAMES,
+            ),
+            live_delta: ShaderBackground::get_uniform_location_any(gl, program, LIVE_DELTA_NAMES),
+            best_possible_time: ShaderBackground::get_uniform_location_any(
+                gl,
+                program,
+                BEST_POSSIBLE_TIME_NAMES,
+            ),
+            pb_time: ShaderBackground::get_uniform_location_any(gl, program, PB_TIME_NAMES),
         }
     }
 }
@@ -334,6 +427,15 @@ impl ShaderBackground {
         total_splits: i32,
         elapsed_time: f32,
         elapsed_split_time: f32,
+        timer_state: i32,
+        attempt_count: i32,
+        is_gold_split: i32,
+        is_new_pb: i32,
+        igt_time: f32,
+        igt_paused: i32,
+        live_delta: f32,
+        best_possible_time: f32,
+        pb_time: f32,
     ) {
         unsafe {
             let gl = &*self.gl;
@@ -362,6 +464,16 @@ impl ShaderBackground {
             gl.uniform_1_i32(u.total_splits.as_ref(), total_splits);
             gl.uniform_1_f32(u.elapsed_time.as_ref(), elapsed_time);
             gl.uniform_1_f32(u.elapsed_split_time.as_ref(), elapsed_split_time);
+
+            gl.uniform_1_i32(u.timer_state.as_ref(), timer_state);
+            gl.uniform_1_i32(u.attempt_count.as_ref(), attempt_count);
+            gl.uniform_1_i32(u.is_gold_split.as_ref(), is_gold_split);
+            gl.uniform_1_i32(u.is_new_pb.as_ref(), is_new_pb);
+            gl.uniform_1_f32(u.igt_time.as_ref(), igt_time);
+            gl.uniform_1_i32(u.igt_paused.as_ref(), igt_paused);
+            gl.uniform_1_f32(u.live_delta.as_ref(), live_delta);
+            gl.uniform_1_f32(u.best_possible_time.as_ref(), best_possible_time);
+            gl.uniform_1_f32(u.pb_time.as_ref(), pb_time);
 
             gl.draw_arrays(glow::TRIANGLES, 0, 6);
         }

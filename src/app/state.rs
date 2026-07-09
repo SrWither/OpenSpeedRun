@@ -45,6 +45,12 @@ pub struct AppState {
     pub background_image_name: Option<String>,
     pub background_gl_texture: Option<glow::NativeTexture>,
     pub loaded_fonts: Option<FontDefinitions>,
+    /// Whether the most recently completed split beat its "Best Segments"
+    /// comparison. Sticky until the next split (or a reset).
+    pub last_segment_is_gold: bool,
+    /// Whether the most recently *finished* run beat the existing Personal
+    /// Best. Sticky until the next run finishes (or a reset).
+    pub last_run_is_pb: bool,
 }
 
 impl Default for AppState {
@@ -87,6 +93,8 @@ impl Default for AppState {
             background_image_name: None,
             background_gl_texture: None,
             loaded_fonts: None,
+            last_segment_is_gold: false,
+            last_run_is_pb: false,
         }
     }
 }
@@ -209,13 +217,7 @@ impl AppState {
             });
 
             let method = self.run.timing_method;
-            let pb_total_time: Option<Duration> = self
-                .run
-                .splits
-                .iter()
-                .map(|s| s.comparison_time(COMPARISON_PERSONAL_BEST, method))
-                .collect::<Option<Vec<_>>>()
-                .map(|times| times.into_iter().fold(Duration::zero(), |a, b| a + b));
+            let pb_total_time = self.run.comparison_total(COMPARISON_PERSONAL_BEST, method);
 
             let current_total = match method {
                 TimingMethod::RealTime => real_time,
@@ -301,6 +303,13 @@ impl AppState {
                     .comparisons
                     .entry(COMPARISON_BEST_SEGMENTS.to_string())
                     .or_default();
+                let prev_best = best.get(method);
+
+                self.last_segment_is_gold = match method {
+                    TimingMethod::RealTime => prev_best.is_none_or(|gold| relative_real < gold),
+                    TimingMethod::GameTime => relative_game
+                        .is_some_and(|rg| prev_best.is_none_or(|gold| rg < gold)),
+                };
 
                 if best.real_time.is_none_or(|gold| relative_real < gold) {
                     best.real_time = Some(relative_real);
@@ -321,19 +330,14 @@ impl AppState {
                 }
             };
 
-            let existing_pb_total = self
-                .run
-                .splits
-                .iter()
-                .map(|s| s.comparison_time(COMPARISON_PERSONAL_BEST, method))
-                .collect::<Option<Vec<_>>>()
-                .map(|times| times.into_iter().fold(Duration::zero(), |a, b| a + b));
+            let existing_pb_total = self.run.comparison_total(COMPARISON_PERSONAL_BEST, method);
 
             let is_new_pb = match (current_total, existing_pb_total) {
                 (Some(current), Some(existing)) => current < existing,
                 (Some(_), None) => true,
                 (None, _) => false,
             };
+            self.last_run_is_pb = is_new_pb;
 
             if is_new_pb && self.run.auto_update_pb {
                 for i in 0..self.splits_display.len() {
@@ -395,12 +399,16 @@ impl AppState {
         self.current_split = 0;
         self.timer.reset();
         self.igt_timer.reset();
+        self.last_segment_is_gold = false;
+        self.last_run_is_pb = false;
         self.sync_splits();
     }
 
     pub fn undo_split(&mut self) {
         if self.current_split > 0 {
             self.current_split -= 1;
+            self.last_segment_is_gold = false;
+            self.last_run_is_pb = false;
 
             if let Some(backup) = self.splits_backup.get(self.current_split) {
                 if let Some(display_split) = self.splits_display.get_mut(self.current_split) {
@@ -466,6 +474,59 @@ impl AppState {
             eprintln!("Error saving PB after undo: {}", e);
         });
         self.reset_splits();
+    }
+
+    /// Signed seconds ahead (negative) or behind (positive) `selected_comparison`,
+    /// summed over every completed split plus the segment currently in
+    /// progress — mirrors LiveSplit's live-updating delta. `0.0` wherever a
+    /// split has no comparison time to measure against yet.
+    pub fn live_delta(&self, elapsed_split_time: f32) -> f32 {
+        let method = self.run.timing_method;
+        let comparison = self.run.selected_comparison.as_str();
+        let mut delta = Duration::zero();
+
+        for i in 0..self.current_split.min(self.splits_display.len()) {
+            let Some(actual_total) = self.splits_display[i].last_time_for(method) else {
+                continue;
+            };
+            let prev_actual = if i == 0 {
+                Duration::zero()
+            } else {
+                self.splits_display[i - 1]
+                    .last_time_for(method)
+                    .unwrap_or(Duration::zero())
+            };
+
+            if let Some(cmp_segment) = self.run.splits[i].comparison_time(comparison, method) {
+                delta = delta + ((actual_total - prev_actual) - cmp_segment);
+            }
+        }
+
+        if let Some(split) = self.run.splits.get(self.current_split) {
+            if let Some(cmp_segment) = split.comparison_time(comparison, method) {
+                let live_segment = Duration::milliseconds((elapsed_split_time * 1000.0) as i64);
+                delta = delta + (live_segment - cmp_segment);
+            }
+        }
+
+        delta.as_seconds_f32()
+    }
+
+    /// Sum of the "Best Segments" comparison across every split (the
+    /// theoretical best possible time), or `0.0` if any split is missing one.
+    pub fn best_possible_time(&self) -> f32 {
+        self.run
+            .comparison_total(COMPARISON_BEST_SEGMENTS, self.run.timing_method)
+            .map(|d| d.as_seconds_f32())
+            .unwrap_or(0.0)
+    }
+
+    /// Total Personal Best time, or `0.0` if no PB has been set yet.
+    pub fn pb_time(&self) -> f32 {
+        self.run
+            .comparison_total(COMPARISON_PERSONAL_BEST, self.run.timing_method)
+            .map(|d| d.as_seconds_f32())
+            .unwrap_or(0.0)
     }
 
     pub fn reload_theme(&mut self) {

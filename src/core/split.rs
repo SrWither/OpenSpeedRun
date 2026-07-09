@@ -231,6 +231,16 @@ impl Run {
         }
     }
 
+    /// Sum of a comparison's segment times across every split, or `None` if
+    /// any split is missing that comparison (e.g. no Personal Best set yet).
+    pub fn comparison_total(&self, name: &str, method: TimingMethod) -> Option<Duration> {
+        self.splits
+            .iter()
+            .map(|s| s.comparison_time(name, method))
+            .collect::<Option<Vec<_>>>()
+            .map(|times| times.into_iter().fold(Duration::zero(), |a, b| a + b))
+    }
+
     /// Every comparison name currently in use: the built-ins plus any
     /// custom ones present on at least one split.
     pub fn comparison_names(&self) -> Vec<String> {
