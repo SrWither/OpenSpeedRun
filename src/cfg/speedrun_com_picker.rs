@@ -41,6 +41,9 @@ pub struct SpeedrunComPicker {
     /// instead of us guessing a name match against speedrun.com.
     therun_categories: Vec<therun_gg::AvailableCategory>,
     therun_categories_status: Option<String>,
+    /// The therun.gg slug that actually resolved for the selected game
+    /// (might differ from `game.abbreviation` — see `therun_gg::list_categories`).
+    therun_game_slug: Option<String>,
     /// Real splits fetched from therun.gg for a chosen therun.gg category.
     fetched_splits: Option<Vec<Split>>,
     splits_status: Option<String>,
@@ -60,6 +63,7 @@ impl Default for SpeedrunComPicker {
             status: None,
             therun_categories: Vec::new(),
             therun_categories_status: None,
+            therun_game_slug: None,
             fetched_splits: None,
             splits_status: None,
         }
@@ -86,6 +90,7 @@ impl SpeedrunComPicker {
     fn reset_therun(&mut self) {
         self.therun_categories.clear();
         self.therun_categories_status = None;
+        self.therun_game_slug = None;
         self.fetched_splits = None;
         self.splits_status = None;
     }
@@ -93,29 +98,39 @@ impl SpeedrunComPicker {
     /// Loads what therun.gg actually tracks for this game, so the user can
     /// see and pick from real options instead of us guessing a match
     /// against speedrun.com's category name (the two sites don't always
-    /// agree on naming or even track the same subcategories).
+    /// agree on naming or even track the same subcategories). therun.gg's
+    /// slug for the game can also differ from speedrun.com's `abbreviation`
+    /// — `list_categories` falls back to a search when the direct guess
+    /// doesn't resolve, and hands back whichever slug actually worked.
     fn load_therun_categories(&mut self, game: &Game) {
         self.fetched_splits = None;
         self.splits_status = None;
-        match therun_gg::list_categories(&game.abbreviation) {
-            Ok(categories) if categories.is_empty() => {
+        match therun_gg::list_categories(&game.abbreviation, &game.name) {
+            Ok((_, categories)) if categories.is_empty() => {
                 self.therun_categories.clear();
+                self.therun_game_slug = None;
                 self.therun_categories_status =
                     Some("therun.gg has no tracked categories for this game.".to_string());
             }
-            Ok(categories) => {
+            Ok((resolved_slug, categories)) => {
                 self.therun_categories = categories;
+                self.therun_game_slug = Some(resolved_slug);
                 self.therun_categories_status = None;
             }
             Err(e) => {
                 self.therun_categories.clear();
+                self.therun_game_slug = None;
                 self.therun_categories_status = Some(format!("Failed to load therun.gg categories: {e}"));
             }
         }
     }
 
-    fn fetch_splits(&mut self, game: &Game, category_slug: &str) {
-        match therun_gg::fetch_record_splits(&game.abbreviation, category_slug) {
+    fn fetch_splits(&mut self, category_slug: &str) {
+        let Some(game_slug) = self.therun_game_slug.clone() else {
+            self.splits_status = Some("No therun.gg game resolved yet.".to_string());
+            return;
+        };
+        match therun_gg::fetch_record_splits(&game_slug, category_slug) {
             Ok(splits) => {
                 self.splits_status = Some(format!("Fetched {} real splits from therun.gg.", splits.len()));
                 self.fetched_splits = Some(splits);
@@ -280,7 +295,7 @@ impl SpeedrunComPicker {
                                 }
                             });
                             if let Some(slug) = clicked_slug {
-                                self.fetch_splits(&game, &slug);
+                                self.fetch_splits(&slug);
                             }
                         }
 

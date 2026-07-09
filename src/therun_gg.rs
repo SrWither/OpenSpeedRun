@@ -101,6 +101,25 @@ struct UserRun {
     history_filename: Option<String>,
     #[serde(rename = "attemptCount", default)]
     attempt_count: u32,
+    /// Display name of the game this run belongs to — only needed by
+    /// `resolve_game_slug`, to pick the right entry out of a user's full
+    /// run list (a search hit can be for a user who also plays other games).
+    #[serde(default)]
+    game: Option<String>,
+}
+
+// --- /api/search?q=... ---
+
+#[derive(Deserialize)]
+struct SearchResponse {
+    #[serde(default)]
+    runs: Vec<SearchRun>,
+}
+
+#[derive(Deserialize)]
+struct SearchRun {
+    user: String,
+    game: String,
 }
 
 // --- history.json ---
@@ -139,14 +158,78 @@ pub struct AvailableCategory {
     pub runner_count: usize,
 }
 
-/// Lists the categories therun.gg actually has data for, for the game
-/// identified by `game_slug` (therun.gg's slug, which matches speedrun.com's
-/// `abbreviation` field — confirmed for at least one game). Empty (not an
-/// error) if the game exists there but has no tracked categories.
-pub fn list_categories(game_slug: &str) -> Result<Vec<AvailableCategory>, String> {
-    let game: GameResponse = get_json(&format!("{API_BASE}/games/{game_slug}"))?;
+/// therun.gg's own slug for a game doesn't always match speedrun.com's
+/// `abbreviation` — confirmed: speedrun.com calls the original "Super Mario
+/// Bros." `smb1`, but therun.gg's real, richly-populated entry for it
+/// (159 runners on Any%) lives at `supermariobros.` (with a trailing
+/// period); the bare `smb1` guess 500s, and even a same-named-looking
+/// `supermariobros` slug exists but is a near-empty duplicate. Falls back
+/// to therun.gg's own `/api/search` (used by their site's search box) to
+/// find a real user with a run for this exact game display name, then
+/// reads the correct slug off their `originalRun`.
+fn resolve_game_slug(game_display_name: &str) -> Result<String, String> {
+    let search: SearchResponse =
+        get_json(&format!("{API_BASE}/search?q={}", urlencode(game_display_name)))?;
 
-    Ok(game
+    let matching_user = search
+        .runs
+        .iter()
+        .find(|r| r.game.eq_ignore_ascii_case(game_display_name))
+        .ok_or_else(|| format!("therun.gg has no data for \"{game_display_name}\""))?;
+
+    let user_runs: Vec<UserRun> = get_json(&format!("{API_BASE}/users/{}", matching_user.user))?;
+
+    user_runs
+        .iter()
+        .find(|r| r.game.as_deref().is_some_and(|g| g.eq_ignore_ascii_case(game_display_name)))
+        .and_then(|r| r.original_run.as_deref())
+        .and_then(|orig| orig.split('#').next())
+        .map(str::to_string)
+        .ok_or_else(|| format!("therun.gg's data for \"{game_display_name}\" has no usable identifier"))
+}
+
+/// Tries `game_slug_guess` (normally speedrun.com's `abbreviation`) first,
+/// falling back to `resolve_game_slug` if that doesn't resolve. Returns the
+/// slug that actually worked, so the caller can reuse it directly for
+/// `fetch_record_splits` without re-resolving.
+fn fetch_game(game_slug_guess: &str, game_display_name: &str) -> Result<(GameResponse, String), String> {
+    match get_json::<GameResponse>(&format!("{API_BASE}/games/{game_slug_guess}")) {
+        Ok(game) => Ok((game, game_slug_guess.to_string())),
+        Err(guess_error) => {
+            let resolved_slug = resolve_game_slug(game_display_name).map_err(|resolve_error| {
+                format!("Guessed slug \"{game_slug_guess}\" failed ({guess_error}); {resolve_error}")
+            })?;
+            let game: GameResponse = get_json(&format!("{API_BASE}/games/{resolved_slug}"))?;
+            Ok((game, resolved_slug))
+        }
+    }
+}
+
+fn urlencode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(byte as char),
+            b' ' => out.push('+'),
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+/// Lists the categories therun.gg actually has data for, for the game with
+/// `game_display_name` (using `game_slug_guess` — normally speedrun.com's
+/// `abbreviation` — as a first guess before falling back to search). Empty
+/// (not an error) if the game exists there but has no tracked categories.
+/// Returns the slug that actually resolved, for reuse with
+/// `fetch_record_splits`.
+pub fn list_categories(
+    game_slug_guess: &str,
+    game_display_name: &str,
+) -> Result<(String, Vec<AvailableCategory>), String> {
+    let (game, resolved_slug) = fetch_game(game_slug_guess, game_display_name)?;
+
+    let categories = game
         .stats
         .category_leaderboards
         .into_iter()
@@ -155,11 +238,15 @@ pub fn list_categories(game_slug: &str) -> Result<Vec<AvailableCategory>, String
             slug: c.category_name,
             runner_count: c.pb_leaderboard.len(),
         })
-        .collect())
+        .collect();
+
+    Ok((resolved_slug, categories))
 }
 
 /// Fetches the record holder's real splits for `category_slug` (from
-/// `list_categories`) of the game identified by `game_slug`.
+/// `list_categories`) of the game identified by `game_slug` (also from
+/// `list_categories`'s returned resolved slug — no fallback resolution
+/// needed here since the caller already has the right one).
 pub fn fetch_record_splits(game_slug: &str, category_slug: &str) -> Result<Vec<Split>, String> {
     let game: GameResponse = get_json(&format!("{API_BASE}/games/{game_slug}"))?;
 
