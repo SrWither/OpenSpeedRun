@@ -42,12 +42,11 @@ fn handle_event(event: Event, app: &Arc<Mutex<AppState>>) {
         });
 
         check_and_run!(&hotkeys.start, {
-            let offset = app.run.start_offset.unwrap_or(0);
-            app.timer.start_with_offset(offset);
+            app.start_timers();
         });
 
         check_and_run!(&hotkeys.pause, {
-            app.timer.pause();
+            app.pause_timers();
         });
 
         check_and_run!(&hotkeys.reset, {
@@ -55,8 +54,8 @@ fn handle_event(event: Event, app: &Arc<Mutex<AppState>>) {
         });
 
         check_and_run!(&hotkeys.save_pb, {
-            if let Err(e) = app.save_pb() {
-                eprintln!("Error saving PB: {}", e);
+            if let Err(e) = app.save_comparisons() {
+                eprintln!("Error saving comparisons: {}", e);
             }
         });
 
@@ -84,6 +83,10 @@ fn handle_event(event: Event, app: &Arc<Mutex<AppState>>) {
 
         check_and_run!(&hotkeys.toggle_help, {
             app.show_help = !app.show_help;
+        });
+
+        check_and_run!(&hotkeys.toggle_loading, {
+            app.toggle_igt_pause();
         });
 
         check_and_run!(&hotkeys.reload_all, {

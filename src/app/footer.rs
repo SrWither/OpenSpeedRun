@@ -1,3 +1,5 @@
+use crate::core::split::{COMPARISON_BEST_SEGMENTS, COMPARISON_PERSONAL_BEST};
+use crate::core::timer::TimerState;
 use crate::{app::state::AppState, config::layout::LayoutConfig};
 use chrono::Duration;
 use eframe::egui::{self, Color32, RichText};
@@ -26,56 +28,59 @@ impl AppState {
         let pb_positive_color = Color32::from_hex(&colors.pb_positive).unwrap_or(Color32::GREEN);
         let pb_negative_color = Color32::from_hex(&colors.pb_negative).unwrap_or(Color32::RED);
 
+        let method = self.run.timing_method;
+        let selected_comparison = self.run.selected_comparison.clone();
+
         let sum_of_bests = self
             .run
             .splits
             .iter()
-            .filter_map(|s| s.gold_time)
+            .filter_map(|s| s.comparison_time(COMPARISON_BEST_SEGMENTS, method))
             .fold(Duration::zero(), |acc, d| acc + d);
 
         let current_time = if self.current_split > 0 {
             self.splits_display
                 .get(self.current_split - 1)
-                .and_then(|s| s.last_time)
+                .and_then(|s| s.last_time_for(method))
                 .unwrap_or(Duration::zero())
         } else {
             Duration::zero()
         };
 
-        let remaining_gold: Duration = self
+        let remaining_best: Duration = self
             .run
             .splits
             .iter()
             .skip(self.current_split)
-            .filter_map(|s| s.gold_time)
+            .filter_map(|s| s.comparison_time(COMPARISON_BEST_SEGMENTS, method))
             .sum();
 
-        let best_possible_time = current_time + remaining_gold;
+        let best_possible_time = current_time + remaining_best;
 
         let pb_time: Option<Duration> = self
             .run
             .splits
             .iter()
-            .map(|s| s.pb_time)
+            .map(|s| s.comparison_time(COMPARISON_PERSONAL_BEST, method))
             .collect::<Option<Vec<_>>>()
             .map(|times| times.into_iter().sum());
 
         let previous_split_relative = if self.current_split == 1 {
             self.splits_display
                 .get(0)
-                .and_then(|s| s.last_time)
+                .and_then(|s| s.last_time_for(method))
                 .unwrap_or(Duration::zero())
         } else if self.current_split > 1 {
             let current = self
                 .splits_display
                 .get(self.current_split - 1)
-                .and_then(|s| s.last_time)
+                .and_then(|s| s.last_time_for(method))
                 .unwrap_or(Duration::zero());
 
             let previous = self
                 .splits_display
                 .get(self.current_split - 2)
-                .and_then(|s| s.last_time)
+                .and_then(|s| s.last_time_for(method))
                 .unwrap_or(Duration::zero());
 
             current - previous
@@ -83,20 +88,16 @@ impl AppState {
             Duration::zero()
         };
 
-        let previous_segment_pb = self
+        let previous_segment_comparison = self
             .splits_display
             .get(self.current_split.saturating_sub(1))
-            .and_then(|s| s.pb_time)
+            .and_then(|s| s.comparison_time(&selected_comparison, method))
             .unwrap_or(Duration::zero());
 
-        let previous_segment_gold = self
-            .splits_display
-            .get(self.current_split.saturating_sub(1))
-            .and_then(|s| s.gold_time)
-            .unwrap_or(Duration::zero());
-
-        let delta_vs_pb = previous_split_relative - previous_segment_pb;
-        let delta_vs_gold = previous_split_relative - previous_segment_gold;
+        let delta_vs_selected = previous_split_relative - previous_segment_comparison;
+        // "Best Segments" gets the gold color scheme, everything else (PB,
+        // Average, Median, custom) gets the PB one.
+        let is_gold_style = selected_comparison == COMPARISON_BEST_SEGMENTS;
 
         let format_dur = |dur: Duration| -> String {
             self.format_duration(dur, 0) // no signos
@@ -179,42 +180,58 @@ impl AppState {
                             });
                         }
 
-                        let (delta_text, delta_icon, delta_value, delta_color) =
-                            if self.run.gold_split {
-                                (
-                                    "Prev Gold Segment",
-                                    egui_phosphor::regular::STAR,
-                                    delta_vs_gold,
-                                    if delta_vs_gold < Duration::zero() {
-                                        gold_positive_color
-                                    } else {
-                                        gold_negative_color
-                                    },
-                                )
-                            } else {
-                                (
-                                    "Prev PB Segment",
-                                    egui_phosphor::regular::ARROW_LINE_UP,
-                                    delta_vs_pb,
-                                    if delta_vs_pb < Duration::zero() {
-                                        pb_positive_color
-                                    } else {
-                                        pb_negative_color
-                                    },
-                                )
-                            };
+                        let (delta_icon, delta_color) = if is_gold_style {
+                            (
+                                egui_phosphor::regular::STAR,
+                                if delta_vs_selected < Duration::zero() {
+                                    gold_positive_color
+                                } else {
+                                    gold_negative_color
+                                },
+                            )
+                        } else {
+                            (
+                                egui_phosphor::regular::ARROW_LINE_UP,
+                                if delta_vs_selected < Duration::zero() {
+                                    pb_positive_color
+                                } else {
+                                    pb_negative_color
+                                },
+                            )
+                        };
 
                         if self.current_split > 0 {
                             ui.horizontal(|ui| {
                                 ui.add_space(8.0);
                                 ui.label(
                                     RichText::new(format!(
-                                        "{} {}: {}",
+                                        "{} Prev {} Segment: {}",
                                         delta_icon,
-                                        delta_text,
-                                        format_diff(delta_value)
+                                        selected_comparison,
+                                        format_diff(delta_vs_selected)
                                     ))
                                     .color(delta_color)
+                                    .size(font_sizes.info),
+                                );
+                            });
+                        }
+
+                        if self.igt_timer.state != TimerState::NotStarted {
+                            ui.horizontal(|ui| {
+                                ui.add_space(8.0);
+                                let loading_suffix = if self.igt_timer.is_paused() {
+                                    format!(" {}", egui_phosphor::regular::HOURGLASS)
+                                } else {
+                                    String::new()
+                                };
+                                ui.label(
+                                    RichText::new(format!(
+                                        "{} Game Time: {}{}",
+                                        egui_phosphor::regular::GAME_CONTROLLER,
+                                        format_dur(self.igt_timer.current_time()),
+                                        loading_suffix
+                                    ))
+                                    .color(info_color)
                                     .size(font_sizes.info),
                                 );
                             });

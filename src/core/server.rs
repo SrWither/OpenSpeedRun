@@ -50,19 +50,17 @@ pub async fn listen_for_commands(app: Arc<Mutex<AppState>>, tx: Sender<UICommand
                         let mut app = app.lock().unwrap();
                         match cmd {
                             "split" => app.split(),
-                            "start" => {
-                                let offset = app.run.start_offset.unwrap_or(0);
-                                app.timer.start_with_offset(offset);
-                            }
-                            "pause" => app.timer.pause(),
+                            "start" => app.start_timers(),
+                            "pause" => app.pause_timers(),
                             "reset" => app.reset_splits(),
                             "savepb" => {
-                                if let Err(e) = app.save_pb() {
-                                    eprintln!("Error saving PB: {}", e);
+                                if let Err(e) = app.save_comparisons() {
+                                    eprintln!("Error saving comparisons: {}", e);
                                 }
                             }
                             "undolastsplit" => app.undo_split(),
                             "loadbackup" => app.undo_pb(),
+                            "toggleloading" => app.toggle_igt_pause(),
                             "nextpage" => {
                                 let total_splits = app.run.splits.len();
                                 let total_pages =

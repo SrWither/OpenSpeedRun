@@ -2,7 +2,9 @@ use chrono::Duration;
 use eframe::egui;
 use egui::{Context, RichText, Sense, TextureHandle};
 use image::GenericImageView;
-use openspeedrun::core::split::{Run, Split};
+use openspeedrun::core::split::{
+    COMPARISON_BEST_SEGMENTS, COMPARISON_PERSONAL_BEST, Run, RunVariable, Split, TimingMethod,
+};
 use rfd::FileDialog;
 use std::collections::HashMap;
 use std::fs;
@@ -29,6 +31,72 @@ fn format_duration(duration: chrono::Duration) -> String {
         format!("{:02}:{:02}:{:02}.{:03}", hours, minutes, seconds, millis)
     } else {
         format!("{:02}:{:02}.{:03}", minutes, seconds, millis)
+    }
+}
+
+/// h/m/s/ms `DragValue` row + Reset button for editing an `Option<Duration>`.
+/// Returns whether `value` changed.
+fn edit_duration(ui: &mut egui::Ui, id_salt: &str, value: &mut Option<Duration>) -> bool {
+    let (mut hours, mut minutes, mut seconds, mut millis) = (0u32, 0u32, 0u32, 0u32);
+    if let Some(dur) = value {
+        let total_millis = dur.num_milliseconds();
+        if total_millis >= 0 {
+            let total_millis = total_millis as u32;
+            hours = total_millis / 3_600_000;
+            let rem = total_millis % 3_600_000;
+            minutes = rem / 60_000;
+            let rem = rem % 60_000;
+            seconds = rem / 1_000;
+            millis = rem % 1_000;
+        }
+    }
+
+    let mut changed = false;
+    let mut reset = false;
+
+    ui.push_id(id_salt, |ui| {
+        changed |= ui
+            .add(egui::DragValue::new(&mut hours).range(0..=99))
+            .changed();
+        ui.label("h");
+
+        changed |= ui
+            .add(egui::DragValue::new(&mut minutes).range(0..=59))
+            .changed();
+        ui.label("m");
+
+        changed |= ui
+            .add(egui::DragValue::new(&mut seconds).range(0..=59))
+            .changed();
+        ui.label("s");
+
+        changed |= ui
+            .add(egui::DragValue::new(&mut millis).range(0..=999))
+            .changed();
+        ui.label("ms");
+
+        if ui.button("Reset").clicked() {
+            reset = true;
+        }
+    });
+
+    if reset {
+        *value = None;
+        true
+    } else if changed {
+        let total_millis = (hours as i64) * 3_600_000
+            + (minutes as i64) * 60_000
+            + (seconds as i64) * 1_000
+            + (millis as i64);
+
+        *value = if total_millis == 0 {
+            None
+        } else {
+            Some(Duration::milliseconds(total_millis))
+        };
+        true
+    } else {
+        false
     }
 }
 
@@ -127,8 +195,74 @@ impl SplitEditor {
         });
 
         ui.horizontal(|ui| {
-            ui.label("Gold split:");
-            ui.checkbox(&mut self.run.gold_split, "");
+            ui.label("Timing method:");
+            egui::ComboBox::from_id_salt("timing_method")
+                .selected_text(match self.run.timing_method {
+                    TimingMethod::RealTime => "Real Time",
+                    TimingMethod::GameTime => "Game Time",
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.run.timing_method, TimingMethod::RealTime, "Real Time");
+                    ui.selectable_value(&mut self.run.timing_method, TimingMethod::GameTime, "Game Time");
+                });
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Compare against:");
+            let comparison_names = self.run.comparison_names();
+            egui::ComboBox::from_id_salt("selected_comparison")
+                .selected_text(self.run.selected_comparison.clone())
+                .show_ui(ui, |ui| {
+                    for name in &comparison_names {
+                        ui.selectable_value(
+                            &mut self.run.selected_comparison,
+                            name.clone(),
+                            name,
+                        );
+                    }
+                });
+        });
+
+        ui.separator();
+        ui.collapsing("Category metadata", |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Platform:");
+                let mut platform = self.run.metadata.platform.clone().unwrap_or_default();
+                if ui.text_edit_singleline(&mut platform).changed() {
+                    self.run.metadata.platform =
+                        if platform.is_empty() { None } else { Some(platform) };
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Region:");
+                let mut region = self.run.metadata.region.clone().unwrap_or_default();
+                if ui.text_edit_singleline(&mut region).changed() {
+                    self.run.metadata.region =
+                        if region.is_empty() { None } else { Some(region) };
+                }
+            });
+
+            ui.label("Variables:");
+            let mut variable_to_remove = None;
+            for (i, variable) in self.run.metadata.variables.iter_mut().enumerate() {
+                ui.horizontal(|ui| {
+                    ui.text_edit_singleline(&mut variable.name);
+                    ui.label("=");
+                    ui.text_edit_singleline(&mut variable.value);
+                    if ui
+                        .button(RichText::new(egui_phosphor::regular::TRASH))
+                        .clicked()
+                    {
+                        variable_to_remove = Some(i);
+                    }
+                });
+            }
+            if let Some(i) = variable_to_remove {
+                self.run.metadata.variables.remove(i);
+            }
+            if ui.button("Add variable").clicked() {
+                self.run.metadata.variables.push(RunVariable::default());
+            }
         });
 
         ui.separator();
@@ -136,12 +270,7 @@ impl SplitEditor {
             if ui.button("Add split").clicked() {
                 self.run.splits.push(Split {
                     name: "New split".to_string(),
-                    pb_time: None,
-                    last_time: None,
-                    icon_path: None,
-                    gold_time: None,
-                    gold_history: Vec::new(),
-                    pb_history: Vec::new(),
+                    ..Split::default()
                 });
             }
 
@@ -273,125 +402,52 @@ impl SplitEditor {
 
                     ui.add_space(10.0);
 
-                    // PB Time
+                    // Personal Best / Best Segments (Real Time)
                     ui.horizontal(|ui| {
-                        ui.label("PB Time");
-
-                        let (mut hours, mut minutes, mut seconds, mut millis) =
-                            (0u32, 0u32, 0u32, 0u32);
-                        if let Some(dur) = split.pb_time {
-                            let total_millis = dur.num_milliseconds();
-                            if total_millis >= 0 {
-                                let total_millis = total_millis as u32;
-                                hours = total_millis / 3_600_000;
-                                let rem = total_millis % 3_600_000;
-                                minutes = rem / 60_000;
-                                let rem = rem % 60_000;
-                                seconds = rem / 1_000;
-                                millis = rem % 1_000;
-                            }
-                        }
-
-                        let mut changed = false;
-                        changed |= ui
-                            .add(egui::DragValue::new(&mut hours).range(0..=99))
-                            .changed();
-                        ui.label("h");
-
-                        changed |= ui
-                            .add(egui::DragValue::new(&mut minutes).range(0..=59))
-                            .changed();
-                        ui.label("m");
-
-                        changed |= ui
-                            .add(egui::DragValue::new(&mut seconds).range(0..=59))
-                            .changed();
-                        ui.label("s");
-
-                        changed |= ui
-                            .add(egui::DragValue::new(&mut millis).range(0..=999))
-                            .changed();
-                        ui.label("ms");
-
-                        if changed {
-                            let total_millis = (hours as i64) * 3_600_000
-                                + (minutes as i64) * 60_000
-                                + (seconds as i64) * 1_000
-                                + (millis as i64);
-
-                            split.pb_time = if total_millis == 0 {
-                                None
-                            } else {
-                                Some(Duration::milliseconds(total_millis))
-                            };
-
-                            split_changed = true;
-                        }
-
-                        if ui.button("Reset PB").clicked() {
-                            split.pb_time = None;
+                        ui.label("Personal Best");
+                        let pb = split
+                            .comparisons
+                            .entry(COMPARISON_PERSONAL_BEST.to_string())
+                            .or_default();
+                        if edit_duration(ui, &format!("pb_real_{i}"), &mut pb.real_time) {
                             split_changed = true;
                         }
                     });
 
                     ui.add_space(10.0);
 
-                    // Gold Time
                     ui.horizontal(|ui| {
-                        ui.label("Gold Time");
+                        ui.label("Best Segments");
+                        let best = split
+                            .comparisons
+                            .entry(COMPARISON_BEST_SEGMENTS.to_string())
+                            .or_default();
+                        if edit_duration(ui, &format!("best_real_{i}"), &mut best.real_time) {
+                            split_changed = true;
+                        }
+                    });
 
-                        let (mut hours, mut minutes, mut seconds, mut millis) =
-                            (0u32, 0u32, 0u32, 0u32);
-                        if let Some(dur) = split.gold_time {
-                            let total_millis = dur.num_milliseconds();
-                            if total_millis >= 0 {
-                                let total_millis = total_millis as u32;
-                                hours = total_millis / 3_600_000;
-                                let rem = total_millis % 3_600_000;
-                                minutes = rem / 60_000;
-                                let rem = rem % 60_000;
-                                seconds = rem / 1_000;
-                                millis = rem % 1_000;
+                    ui.collapsing("Game Time (advanced)", |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("Personal Best");
+                            let pb = split
+                                .comparisons
+                                .entry(COMPARISON_PERSONAL_BEST.to_string())
+                                .or_default();
+                            if edit_duration(ui, &format!("pb_game_{i}"), &mut pb.game_time) {
+                                split_changed = true;
                             }
-                        }
-
-                        let mut changed = false;
-                        changed |= ui
-                            .add(egui::DragValue::new(&mut hours).range(0..=99))
-                            .changed();
-                        ui.label("h");
-
-                        changed |= ui
-                            .add(egui::DragValue::new(&mut minutes).range(0..=59))
-                            .changed();
-                        ui.label("m");
-
-                        changed |= ui
-                            .add(egui::DragValue::new(&mut seconds).range(0..=59))
-                            .changed();
-                        ui.label("s");
-
-                        changed |= ui
-                            .add(egui::DragValue::new(&mut millis).range(0..=999))
-                            .changed();
-                        ui.label("ms");
-
-                        if changed {
-                            let total_millis = (hours as i64) * 3_600_000
-                                + (minutes as i64) * 60_000
-                                + (seconds as i64) * 1_000
-                                + (millis as i64);
-
-                            split.gold_time = if total_millis == 0 {
-                                None
-                            } else {
-                                Some(Duration::milliseconds(total_millis))
-                            };
-                        }
-
-                        if ui.button("Reset Gold").clicked() {
-                            split.gold_time = None;
-                        }
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Best Segments");
+                            let best = split
+                                .comparisons
+                                .entry(COMPARISON_BEST_SEGMENTS.to_string())
+                                .or_default();
+                            if edit_duration(ui, &format!("best_game_{i}"), &mut best.game_time) {
+                                split_changed = true;
+                            }
+                        });
                     });
 
                     ui.separator();
@@ -483,10 +539,14 @@ impl SplitEditor {
                         egui::Color32::WHITE,
                     );
 
-                    let secondary_text = if let Some(pb) = split.pb_time {
+                    let secondary_text = if let Some(pb) =
+                        split.comparison_time(COMPARISON_PERSONAL_BEST, TimingMethod::RealTime)
+                    {
                         format!("PB: {}", format_duration(pb))
-                    } else if let Some(gold) = split.gold_time {
-                        format!("Gold: {}", format_duration(gold))
+                    } else if let Some(best) =
+                        split.comparison_time(COMPARISON_BEST_SEGMENTS, TimingMethod::RealTime)
+                    {
+                        format!("Best: {}", format_duration(best))
                     } else {
                         "No time set".to_string()
                     };

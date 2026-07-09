@@ -11,13 +11,20 @@ use crate::config::load::{AppConfig, config_base_dir};
 use crate::config::shaders::ShaderBackground;
 #[cfg(unix)]
 use crate::core::server::UICommand;
-use crate::core::split::{AttemptHistoryEntry, Run, SegmentHistoryEntry, Split};
+use crate::core::split::{
+    AttemptHistoryEntry, COMPARISON_BEST_SEGMENTS, COMPARISON_PERSONAL_BEST, Run,
+    SegmentHistoryEntry, Split, TimingMethod,
+};
 use crate::core::timer::{Timer, TimerState};
 #[cfg(windows)]
 use crate::core::winserver::UICommand;
 
 pub struct AppState {
     pub timer: Timer,
+    /// Independent game-time clock, paused/resumed by `toggle_igt_pause`
+    /// (there's no autosplitter, so this is manual — same as LiveSplit's
+    /// manual game-time mode).
+    pub igt_timer: Timer,
     pub run: Run,
     pub layout: LayoutConfig,
     pub current_split: usize,
@@ -59,6 +66,7 @@ impl Default for AppState {
 
         Self {
             timer: Timer::new(),
+            igt_timer: Timer::new(),
             run,
             layout,
             current_split: 0,
@@ -92,11 +100,27 @@ impl AppState {
         }
     }
 
-    fn start_run(&mut self) {
-        self.splits_backup = self.run.splits.clone();
+    /// Starts (or resumes, if paused) both the RTA and IGT clocks together
+    /// — the only place that should ever call `Timer::start_with_offset`,
+    /// so the two clocks can't drift out of sync by one being started
+    /// without the other. Safe to call from any timer state.
+    pub fn start_timers(&mut self) {
         let offset = self.run.start_offset.unwrap_or(0);
         self.timer.start_with_offset(offset);
+        self.igt_timer.start_with_offset(offset);
+    }
+
+    fn start_run(&mut self) {
+        self.splits_backup = self.run.splits.clone();
+        self.start_timers();
         self.current_split = 0;
+    }
+
+    /// Pauses both clocks together (the whole run is on hold, as opposed to
+    /// `toggle_igt_pause`, which only stops the IGT clock for a load).
+    pub fn pause_timers(&mut self) {
+        self.timer.pause();
+        self.igt_timer.pause();
     }
 
     fn record_split(&mut self) {
@@ -104,54 +128,77 @@ impl AppState {
         if now < Duration::zero() {
             return;
         }
+        let now_game = self.igt_timer.current_time();
 
         if let Some(split) = self.splits_display.get_mut(self.current_split) {
             split.last_time = Some(now);
+            split.last_time_game = Some(now_game);
         }
 
         self.current_split += 1;
 
         if self.current_split >= self.splits_display.len() {
-            self.timer.pause();
+            self.pause_timers();
         }
 
         self.update_page();
         self.save_history();
-        self.check_auto_update_pb();
+        self.update_comparisons();
+    }
+
+    /// Toggles the IGT clock only, representing "a load is happening" —
+    /// there's no autosplitter, so this is driven by a hotkey.
+    pub fn toggle_igt_pause(&mut self) {
+        if self.timer.state != TimerState::Running {
+            return;
+        }
+        if self.igt_timer.is_running() {
+            self.igt_timer.pause();
+        } else if self.igt_timer.is_paused() {
+            self.igt_timer.start_with_offset(0);
+        }
     }
 
     fn save_history(&mut self) {
         if self.current_split >= self.splits_display.len() {
             self.run.attempts += 1;
 
-            let total_time = self.splits_display.last().and_then(|s| s.last_time);
-
-            let ingame_time = total_time;
+            let real_time = self.splits_display.last().and_then(|s| s.last_time);
+            let game_time = self.splits_display.last().and_then(|s| s.last_time_game);
 
             self.run.attempt_history.push(AttemptHistoryEntry {
                 run_index: self.run.attempts,
-                total_time,
-                ingame_time,
+                real_time,
+                game_time,
                 ended: true,
                 date: Some(Utc::now()),
             });
 
-            let pb_total_time: Duration = self.run.splits.iter().filter_map(|s| s.pb_time).sum();
+            let method = self.run.timing_method;
+            let pb_total_time: Option<Duration> = self
+                .run
+                .splits
+                .iter()
+                .map(|s| s.comparison_time(COMPARISON_PERSONAL_BEST, method))
+                .collect::<Option<Vec<_>>>()
+                .map(|times| times.into_iter().fold(Duration::zero(), |a, b| a + b));
 
-            println!("Current PB total time: {:?}", pb_total_time);
-            println!("Current total time: {:?}", total_time);
+            let current_total = match method {
+                TimingMethod::RealTime => real_time,
+                TimingMethod::GameTime => game_time,
+            };
 
-            let is_new_pb = match total_time {
-                Some(current) if pb_total_time.num_milliseconds() > 0 => current < pb_total_time,
-                Some(_) => true,
-                None => false,
+            let is_new_pb = match (current_total, pb_total_time) {
+                (Some(current), Some(existing)) => current < existing,
+                (Some(_), None) => true,
+                (None, _) => false,
             };
 
             if is_new_pb {
                 self.run.pb_history.push(AttemptHistoryEntry {
                     run_index: self.run.attempts,
-                    total_time,
-                    ingame_time,
+                    real_time,
+                    game_time,
                     ended: true,
                     date: Some(Utc::now()),
                 });
@@ -169,65 +216,94 @@ impl AppState {
         self.current_page = next_page.min(max_page);
     }
 
-    fn check_auto_update_pb(&mut self) {
-        if self.run.gold_split {
-            for i in 0..self.splits_display.len() {
-                let current = &self.splits_display[i];
+    /// Records this attempt's segment times into history, updates the
+    /// "Best Segments" comparison (always tracked, regardless of what's
+    /// currently selected for display), and — on a finished run that beats
+    /// the current "Personal Best" — updates that comparison too.
+    fn update_comparisons(&mut self) {
+        let method = self.run.timing_method;
 
-                if let Some(current_time) = current.last_time {
-                    let prev_time = if i == 0 {
+        // Only the split that was *just* recorded gets a new history entry
+        // — every earlier split in this attempt still has `last_time` set
+        // too (it's only cleared once the whole run finishes), so looping
+        // over all of them here would re-log each one on every subsequent
+        // split.
+        if let Some(i) = self.current_split.checked_sub(1) {
+            let current = &self.splits_display[i];
+            if let Some(current_time) = current.last_time {
+                let prev_time = if i == 0 {
+                    Duration::zero()
+                } else {
+                    self.splits_display[i - 1]
+                        .last_time
+                        .unwrap_or(Duration::zero())
+                };
+                let relative_real = current_time - prev_time;
+
+                let relative_game = current.last_time_game.map(|current_game| {
+                    let prev_game = if i == 0 {
                         Duration::zero()
                     } else {
                         self.splits_display[i - 1]
-                            .last_time
+                            .last_time_game
                             .unwrap_or(Duration::zero())
                     };
+                    current_game - prev_game
+                });
 
-                    let relative = current_time - prev_time;
-                    let target = &mut self.run.splits[i];
+                let target = &mut self.run.splits[i];
 
-                    let is_new_gold = match target.gold_time {
-                        Some(gold) => relative < gold,
-                        None => true,
-                    };
+                target.segment_history.push(SegmentHistoryEntry {
+                    run_index: self.run.attempts,
+                    real_time: Some(relative_real),
+                    game_time: relative_game,
+                });
 
-                    if is_new_gold {
-                        target.gold_time = Some(relative);
-                        target.gold_history.push(SegmentHistoryEntry {
-                            run_index: self.run.attempts,
-                            time: Some(relative),
-                        });
+                let best = target
+                    .comparisons
+                    .entry(COMPARISON_BEST_SEGMENTS.to_string())
+                    .or_default();
+
+                if best.real_time.is_none_or(|gold| relative_real < gold) {
+                    best.real_time = Some(relative_real);
+                }
+                if let Some(relative_game) = relative_game {
+                    if best.game_time.is_none_or(|gold| relative_game < gold) {
+                        best.game_time = Some(relative_game);
                     }
                 }
             }
-
-            self.save_gold_only().unwrap_or_else(|e| {
-                eprintln!("Error saving gold splits: {}", e);
-            });
         }
 
-        if self.current_split != self.run.splits.len() {
-            return;
-        }
+        if self.current_split == self.run.splits.len() {
+            let current_total = match method {
+                TimingMethod::RealTime => self.splits_display.last().and_then(|s| s.last_time),
+                TimingMethod::GameTime => {
+                    self.splits_display.last().and_then(|s| s.last_time_game)
+                }
+            };
 
-        let current_total = self
-            .splits_display
-            .last()
-            .and_then(|s| s.last_time)
-            .unwrap_or(Duration::MAX);
+            let existing_pb_total = self
+                .run
+                .splits
+                .iter()
+                .map(|s| s.comparison_time(COMPARISON_PERSONAL_BEST, method))
+                .collect::<Option<Vec<_>>>()
+                .map(|times| times.into_iter().fold(Duration::zero(), |a, b| a + b));
 
-        let pb_total: Duration = self.run.splits.iter().filter_map(|s| s.pb_time).sum();
+            let is_new_pb = match (current_total, existing_pb_total) {
+                (Some(current), Some(existing)) => current < existing,
+                (Some(_), None) => true,
+                (None, _) => false,
+            };
 
-        let is_new_pb = if pb_total.num_milliseconds() > 0 {
-            current_total < pb_total
-        } else {
-            true
-        };
+            if is_new_pb && self.run.auto_update_pb {
+                for i in 0..self.splits_display.len() {
+                    let current = &self.splits_display[i];
+                    let Some(current_time) = current.last_time else {
+                        continue;
+                    };
 
-        if is_new_pb {
-            for i in 0..self.splits_display.len() {
-                let current = &self.splits_display[i];
-                if let Some(current_time) = current.last_time {
                     let prev_time = if i == 0 {
                         Duration::zero()
                     } else {
@@ -235,45 +311,52 @@ impl AppState {
                             .last_time
                             .unwrap_or(Duration::zero())
                     };
+                    let relative_real = current_time - prev_time;
 
-                    let relative = current_time - prev_time;
+                    let relative_game = current.last_time_game.map(|current_game| {
+                        let prev_game = if i == 0 {
+                            Duration::zero()
+                        } else {
+                            self.splits_display[i - 1]
+                                .last_time_game
+                                .unwrap_or(Duration::zero())
+                        };
+                        current_game - prev_game
+                    });
 
                     let split = &mut self.run.splits[i];
-                    split.pb_time = Some(relative);
-
-                    split.pb_history.push(SegmentHistoryEntry {
-                        run_index: self.run.attempts,
-                        time: Some(relative),
-                    });
+                    let pb = split
+                        .comparisons
+                        .entry(COMPARISON_PERSONAL_BEST.to_string())
+                        .or_default();
+                    pb.real_time = Some(relative_real);
+                    pb.game_time = relative_game;
                 }
             }
-        }
 
-        for split in self.run.splits.iter_mut() {
-            split.last_time = None;
-        }
-
-        if self.run.auto_update_pb {
-            if let Err(e) = self.save_pb() {
-                eprintln!("Error saving PB: {}", e);
+            for split in self.run.splits.iter_mut() {
+                split.last_time = None;
+                split.last_time_game = None;
             }
+        }
+
+        if let Err(e) = self.save_comparisons() {
+            eprintln!("Error saving comparisons: {}", e);
         }
     }
 
     pub fn reset_splits(&mut self) {
-        if self.current_split == self.run.splits.len() {
-            for (snapshot, real) in self.splits_display.iter_mut().zip(&self.run.splits) {
-                snapshot.pb_time = real.pb_time;
-                snapshot.last_time = None;
-            }
-        } else {
-            for snapshot in &mut self.splits_display {
-                snapshot.last_time = None;
-            }
+        // `sync_splits` below reloads `splits_display` from disk wholesale,
+        // so there's nothing to selectively preserve here — just clear the
+        // in-progress attempt times.
+        for snapshot in &mut self.splits_display {
+            snapshot.last_time = None;
+            snapshot.last_time_game = None;
         }
 
         self.current_split = 0;
         self.timer.reset();
+        self.igt_timer.reset();
         self.sync_splits();
     }
 
@@ -284,14 +367,14 @@ impl AppState {
             if let Some(backup) = self.splits_backup.get(self.current_split) {
                 if let Some(display_split) = self.splits_display.get_mut(self.current_split) {
                     display_split.last_time = None;
-                    display_split.pb_time = backup.pb_time;
-                    display_split.gold_time = backup.gold_time;
+                    display_split.last_time_game = None;
+                    display_split.comparisons = backup.comparisons.clone();
                 }
 
                 if let Some(run_split) = self.run.splits.get_mut(self.current_split) {
                     run_split.last_time = None;
-                    run_split.pb_time = backup.pb_time;
-                    run_split.gold_time = backup.gold_time;
+                    run_split.last_time_game = None;
+                    run_split.comparisons = backup.comparisons.clone();
                 }
             }
 
@@ -302,6 +385,7 @@ impl AppState {
 
             for split in saved_run.splits.iter_mut() {
                 split.last_time = None;
+                split.last_time_game = None;
             }
 
             if let Err(e) = saved_run.save_to_file(path.to_str().unwrap()) {
@@ -317,38 +401,22 @@ impl AppState {
         self.splits_display = run.splits.clone();
     }
 
-    pub fn save_pb(&mut self) -> std::io::Result<()> {
-        if self.current_split == self.run.splits.len() {
-            let path = self.split_base_path.join("split.json");
-
-            let mut saved_run = Run::load_from_file(path.to_str().unwrap())?;
-
-            for (saved_split, current_split) in
-                saved_run.splits.iter_mut().zip(self.run.splits.iter())
-            {
-                saved_split.pb_time = current_split.pb_time.clone();
-                saved_split.pb_history = current_split.pb_history.clone();
-            }
-
-            return saved_run.save_to_file(path.to_str().unwrap());
-        }
-
-        Ok(())
-    }
-
     pub fn save(&mut self) -> std::io::Result<()> {
         let path = self.split_base_path.join("split.json");
         return self.run.save_to_file(path.to_str().unwrap());
     }
 
-    fn save_gold_only(&mut self) -> std::io::Result<()> {
+    /// Merges this attempt's comparisons/segment history into the on-disk
+    /// run (a read-modify-write against the file, since other fields there
+    /// — attempt history, metadata, etc. — may have moved on independently).
+    pub fn save_comparisons(&mut self) -> std::io::Result<()> {
         let path = self.split_base_path.join("split.json");
         let mut saved_run = Run::load_from_file(path.to_str().unwrap())?;
 
         for (saved_split, current_split) in saved_run.splits.iter_mut().zip(self.run.splits.iter())
         {
-            saved_split.gold_time = current_split.gold_time.clone();
-            saved_split.gold_history = current_split.gold_history.clone();
+            saved_split.comparisons = current_split.comparisons.clone();
+            saved_split.segment_history = current_split.segment_history.clone();
         }
 
         saved_run.save_to_file(path.to_str().unwrap())

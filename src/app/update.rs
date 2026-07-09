@@ -17,11 +17,10 @@ impl AppState {
         let total_pages = (total_splits + self.splits_per_page - 1) / self.splits_per_page;
 
         if ctx.input(|i| i.key_pressed(egui::Key::Space)) {
-            let offset = self.run.start_offset.unwrap_or(0);
-            self.timer.start_with_offset(offset);
+            self.start_timers();
         }
         if ctx.input(|i| i.key_pressed(egui::Key::P)) {
-            self.timer.pause();
+            self.pause_timers();
         }
         if ctx.input(|i| i.key_pressed(egui::Key::R)) {
             self.timer.reset();
@@ -31,8 +30,8 @@ impl AppState {
             self.split();
         }
         if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-            if let Err(e) = self.save_pb() {
-                eprintln!("Error saving PB: {}", e);
+            if let Err(e) = self.save_comparisons() {
+                eprintln!("Error saving comparisons: {}", e);
             }
         }
         if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::D)) {
@@ -41,6 +40,10 @@ impl AppState {
 
         if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Z)) {
             self.undo_split();
+        }
+
+        if ctx.input(|i| i.key_pressed(egui::Key::L)) {
+            self.toggle_igt_pause();
         }
 
         if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {

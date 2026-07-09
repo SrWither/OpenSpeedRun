@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use openspeedrun::Run;
+use openspeedrun::core::split::TimingMethod;
 
 use crate::send_message;
 
@@ -85,8 +86,8 @@ impl History {
                         .show(ui, |ui| {
                             ui.label("Attempt #");
                             ui.label("Date");
-                            ui.label("Total Time");
-                            ui.label("Ingame Time");
+                            ui.label("Real Time");
+                            ui.label("Game Time");
                             ui.label("Ended");
                             ui.label("Is PB");
                             ui.end_row();
@@ -99,17 +100,17 @@ impl History {
                                     .unwrap_or_else(|| "-".to_string());
                                 ui.label(date_str);
 
-                                let total_time_str = attempt
-                                    .total_time
+                                let real_time_str = attempt
+                                    .real_time
                                     .map(format_duration)
                                     .unwrap_or_else(|| "-".to_string());
-                                ui.label(total_time_str);
+                                ui.label(real_time_str);
 
-                                let ingame_time_str = attempt
-                                    .ingame_time
+                                let game_time_str = attempt
+                                    .game_time
                                     .map(format_duration)
                                     .unwrap_or_else(|| "-".to_string());
-                                ui.label(ingame_time_str);
+                                ui.label(game_time_str);
 
                                 ui.label(if attempt.ended { "Yes" } else { "No" });
 
@@ -143,8 +144,8 @@ impl History {
                         .show(ui, |ui| {
                             ui.label("PB Attempt #");
                             ui.label("Date");
-                            ui.label("Total Time");
-                            ui.label("Ingame Time");
+                            ui.label("Real Time");
+                            ui.label("Game Time");
                             ui.label("Ended");
                             ui.end_row();
 
@@ -158,12 +159,12 @@ impl History {
                                 ui.label(date_str);
 
                                 ui.label(
-                                    pb.total_time
+                                    pb.real_time
                                         .map(format_duration)
                                         .unwrap_or_else(|| "-".to_string()),
                                 );
                                 ui.label(
-                                    pb.ingame_time
+                                    pb.game_time
                                         .map(format_duration)
                                         .unwrap_or_else(|| "-".to_string()),
                                 );
@@ -186,41 +187,39 @@ impl History {
                         ui.group(|ui| {
                             ui.label(format!("Split #{}: {}", i + 1, split.name));
 
-                            Grid::new(format!("split_{}_gold", i))
+                            ui.horizontal(|ui| {
+                                let pb = split
+                                    .comparison_time("Personal Best", TimingMethod::RealTime)
+                                    .map(format_duration)
+                                    .unwrap_or_else(|| "-".to_string());
+                                let best = split
+                                    .comparison_time("Best Segments", TimingMethod::RealTime)
+                                    .map(format_duration)
+                                    .unwrap_or_else(|| "-".to_string());
+                                ui.label(format!("Personal Best: {pb}"));
+                                ui.label(format!("Best Segments: {best}"));
+                            });
+
+                            Grid::new(format!("split_{}_history", i))
                                 .striped(true)
                                 .min_col_width(100.0)
                                 .show(ui, |ui| {
-                                    ui.label("Gold History (Run #)");
-                                    ui.label("Time");
+                                    ui.label("Run #");
+                                    ui.label("Real Time");
+                                    ui.label("Game Time");
                                     ui.end_row();
 
-                                    for entry in &split.gold_history {
+                                    for entry in &split.segment_history {
                                         ui.label(entry.run_index.to_string());
                                         ui.label(
                                             entry
-                                                .time
+                                                .real_time
                                                 .map(format_duration)
                                                 .unwrap_or_else(|| "-".to_string()),
                                         );
-                                        ui.end_row();
-                                    }
-                                });
-
-                            ui.separator();
-
-                            Grid::new(format!("split_{}_pb", i))
-                                .striped(true)
-                                .min_col_width(100.0)
-                                .show(ui, |ui| {
-                                    ui.label("PB History (Run #)");
-                                    ui.label("Time");
-                                    ui.end_row();
-
-                                    for entry in &split.pb_history {
-                                        ui.label(entry.run_index.to_string());
                                         ui.label(
                                             entry
-                                                .time
+                                                .game_time
                                                 .map(format_duration)
                                                 .unwrap_or_else(|| "-".to_string()),
                                         );
@@ -253,8 +252,7 @@ impl History {
                             self.run.pb_history.clear();
                             self.run.attempts = 0;
                             for split in &mut self.run.splits {
-                                split.pb_history.clear();
-                                split.gold_history.clear();
+                                split.segment_history.clear();
                             }
 
                             let _ = self.run.save_to_file(self.run_path.to_str().unwrap());
