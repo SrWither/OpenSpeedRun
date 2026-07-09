@@ -4,6 +4,82 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
+const TIME_NAMES: &[&str] = &["u_time", "time", "iTime"];
+const RESOLUTION_NAMES: &[&str] = &["u_resolution", "resolution", "iResolution"];
+const MOUSE_NAMES: &[&str] = &["u_mouse", "mouse", "iMouse"];
+const DATE_NAMES: &[&str] = &["u_date", "date", "iDate"];
+const DELTA_TIME_NAMES: &[&str] = &["deltaTime", "u_deltaTime", "iTimeDelta"];
+const TEXTURE_NAMES: &[&str] = &["u_texture", "iChannel0", "image"];
+const CURRENT_SPLIT_NAMES: &[&str] = &["current_split", "u_current_split", "iCurrentSplit"];
+const TOTAL_SPLITS_NAMES: &[&str] = &["total_splits", "u_total_splits", "iTotalSplits"];
+const ELAPSED_TIME_NAMES: &[&str] = &["elapsed_time", "u_elapsed_time", "iElapsedTime"];
+const ELAPSED_SPLIT_TIME_NAMES: &[&str] =
+    &["elapsed_split_time", "u_elapsed_split_time", "iElapsedSplitTime"];
+
+/// Documents a uniform a shader may declare, under any of its accepted names.
+pub struct UniformDoc {
+    /// Accepted spellings for this uniform; any one of them is picked up.
+    pub names: &'static [&'static str],
+    pub glsl_type: &'static str,
+    pub description: &'static str,
+}
+
+/// Reference list of every uniform `ShaderBackground` will bind, shown to
+/// users in the shader editor. Kept next to `ShaderUniforms` so the two
+/// can't drift apart.
+pub const UNIFORM_DOCS: &[UniformDoc] = &[
+    UniformDoc {
+        names: TIME_NAMES,
+        glsl_type: "float",
+        description: "Seconds elapsed since the shader started.",
+    },
+    UniformDoc {
+        names: RESOLUTION_NAMES,
+        glsl_type: "vec2",
+        description: "Size of the render surface, in pixels.",
+    },
+    UniformDoc {
+        names: MOUSE_NAMES,
+        glsl_type: "vec2",
+        description: "Mouse position. Currently always (0, 0).",
+    },
+    UniformDoc {
+        names: DATE_NAMES,
+        glsl_type: "vec4",
+        description: "(year, month, day, seconds since midnight).",
+    },
+    UniformDoc {
+        names: DELTA_TIME_NAMES,
+        glsl_type: "float",
+        description: "Seconds since the previous frame.",
+    },
+    UniformDoc {
+        names: TEXTURE_NAMES,
+        glsl_type: "sampler2D",
+        description: "Background image texture, when enabled in the theme.",
+    },
+    UniformDoc {
+        names: CURRENT_SPLIT_NAMES,
+        glsl_type: "int",
+        description: "Index of the current split.",
+    },
+    UniformDoc {
+        names: TOTAL_SPLITS_NAMES,
+        glsl_type: "int",
+        description: "Total number of splits in the run.",
+    },
+    UniformDoc {
+        names: ELAPSED_TIME_NAMES,
+        glsl_type: "float",
+        description: "Total elapsed run time, in seconds.",
+    },
+    UniformDoc {
+        names: ELAPSED_SPLIT_TIME_NAMES,
+        glsl_type: "float",
+        description: "Elapsed time in the current split, in seconds.",
+    },
+];
+
 struct ShaderUniforms {
     time: Option<glow::UniformLocation>,
     resolution: Option<glow::UniformLocation>,
@@ -15,6 +91,47 @@ struct ShaderUniforms {
     total_splits: Option<glow::UniformLocation>,
     elapsed_time: Option<glow::UniformLocation>,
     elapsed_split_time: Option<glow::UniformLocation>,
+}
+
+impl ShaderUniforms {
+    fn resolve(gl: &glow::Context, program: glow::NativeProgram) -> Self {
+        Self {
+            time: ShaderBackground::get_uniform_location_any(gl, program, TIME_NAMES),
+            resolution: ShaderBackground::get_uniform_location_any(
+                gl,
+                program,
+                RESOLUTION_NAMES,
+            ),
+            mouse: ShaderBackground::get_uniform_location_any(gl, program, MOUSE_NAMES),
+            date: ShaderBackground::get_uniform_location_any(gl, program, DATE_NAMES),
+            delta_time: ShaderBackground::get_uniform_location_any(
+                gl,
+                program,
+                DELTA_TIME_NAMES,
+            ),
+            texture: ShaderBackground::get_uniform_location_any(gl, program, TEXTURE_NAMES),
+            current_split: ShaderBackground::get_uniform_location_any(
+                gl,
+                program,
+                CURRENT_SPLIT_NAMES,
+            ),
+            total_splits: ShaderBackground::get_uniform_location_any(
+                gl,
+                program,
+                TOTAL_SPLITS_NAMES,
+            ),
+            elapsed_time: ShaderBackground::get_uniform_location_any(
+                gl,
+                program,
+                ELAPSED_TIME_NAMES,
+            ),
+            elapsed_split_time: ShaderBackground::get_uniform_location_any(
+                gl,
+                program,
+                ELAPSED_SPLIT_TIME_NAMES,
+            ),
+        }
+    }
 }
 
 pub struct ShaderBackground {
@@ -46,14 +163,15 @@ impl ShaderBackground {
         let fragment_shader_src = fs::read_to_string(&shader_path).ok()?;
         let vertex_shader_src = fs::read_to_string(&vertex_shader_path).ok()?;
 
-        let (program, vao, uniforms) =
-            match Self::init_gl(&gl, &fragment_shader_src, &vertex_shader_src) {
-                Ok(result) => result,
-                Err(e) => {
-                    eprintln!("⚠ Failed to initialize shader '{shader_path}':\n{e}");
-                    return None;
-                }
-            };
+        let (program, vao) = match Self::init_gl(&gl, &fragment_shader_src, &vertex_shader_src) {
+            Ok(result) => result,
+            Err(e) => {
+                eprintln!("⚠ Failed to initialize shader '{shader_path}':\n{e}");
+                return None;
+            }
+        };
+
+        let uniforms = ShaderUniforms::resolve(&gl, program);
 
         Some(Self {
             gl,
@@ -65,34 +183,16 @@ impl ShaderBackground {
         })
     }
 
-    /// Compiles a shader, returning its info log on failure instead of panicking.
-    unsafe fn compile_shader(
-        gl: &glow::Context,
-        kind: u32,
-        src: &str,
-    ) -> Result<glow::NativeShader, String> {
-        unsafe {
-            let shader = gl
-                .create_shader(kind)
-                .map_err(|e| format!("Failed to create shader: {e}"))?;
-            gl.shader_source(shader, src);
-            gl.compile_shader(shader);
-
-            if gl.get_shader_compile_status(shader) {
-                Ok(shader)
-            } else {
-                let log = gl.get_shader_info_log(shader);
-                gl.delete_shader(shader);
-                Err(log)
-            }
-        }
-    }
-
-    fn init_gl(
+    /// Compiles and links a fragment/vertex shader pair without setting up
+    /// any GPU resources beyond the program, so it can be used purely to
+    /// validate shader source (e.g. from the shader editor).
+    ///
+    /// The caller is responsible for deleting the returned program.
+    pub fn compile_and_link(
         gl: &glow::Context,
         fragment_shader_src: &str,
         vertex_shader_src: &str,
-    ) -> Result<(glow::NativeProgram, glow::NativeVertexArray, ShaderUniforms), String> {
+    ) -> Result<glow::NativeProgram, String> {
         unsafe {
             let vs = Self::compile_shader(gl, glow::VERTEX_SHADER, vertex_shader_src)
                 .map_err(|log| format!("Vertex shader failed to compile:\n{log}"))?;
@@ -123,6 +223,54 @@ impl ShaderBackground {
                 gl.delete_program(program);
                 return Err(format!("Shader program failed to link:\n{log}"));
             }
+
+            Ok(program)
+        }
+    }
+
+    /// Tries to compile and link a fragment/vertex shader pair, reporting
+    /// the compiler's error log on failure. Used by the shader editor to
+    /// validate shaders without needing to run the main app.
+    pub fn validate(
+        gl: &glow::Context,
+        fragment_shader_src: &str,
+        vertex_shader_src: &str,
+    ) -> Result<(), String> {
+        let program = Self::compile_and_link(gl, fragment_shader_src, vertex_shader_src)?;
+        unsafe { gl.delete_program(program) };
+        Ok(())
+    }
+
+    /// Compiles a shader, returning its info log on failure instead of panicking.
+    unsafe fn compile_shader(
+        gl: &glow::Context,
+        kind: u32,
+        src: &str,
+    ) -> Result<glow::NativeShader, String> {
+        unsafe {
+            let shader = gl
+                .create_shader(kind)
+                .map_err(|e| format!("Failed to create shader: {e}"))?;
+            gl.shader_source(shader, src);
+            gl.compile_shader(shader);
+
+            if gl.get_shader_compile_status(shader) {
+                Ok(shader)
+            } else {
+                let log = gl.get_shader_info_log(shader);
+                gl.delete_shader(shader);
+                Err(log)
+            }
+        }
+    }
+
+    fn init_gl(
+        gl: &glow::Context,
+        fragment_shader_src: &str,
+        vertex_shader_src: &str,
+    ) -> Result<(glow::NativeProgram, glow::NativeVertexArray), String> {
+        unsafe {
+            let program = Self::compile_and_link(gl, fragment_shader_src, vertex_shader_src)?;
 
             let vao = gl.create_vertex_array().map_err(|e| {
                 gl.delete_program(program);
@@ -157,64 +305,14 @@ impl ShaderBackground {
 
             gl.bind_vertex_array(None);
 
-            // Uniform locations only need to be looked up once, right after linking.
-            let uniforms = ShaderUniforms {
-                time: Self::get_uniform_location_any(gl, program, &["u_time", "time", "iTime"]),
-                resolution: Self::get_uniform_location_any(
-                    gl,
-                    program,
-                    &["u_resolution", "resolution", "iResolution"],
-                ),
-                mouse: Self::get_uniform_location_any(
-                    gl,
-                    program,
-                    &["u_mouse", "mouse", "iMouse"],
-                ),
-                date: Self::get_uniform_location_any(gl, program, &["u_date", "date", "iDate"]),
-                delta_time: Self::get_uniform_location_any(
-                    gl,
-                    program,
-                    &["deltaTime", "u_deltaTime", "iTimeDelta"],
-                ),
-                texture: Self::get_uniform_location_any(
-                    gl,
-                    program,
-                    &["u_texture", "iChannel0", "image"],
-                ),
-                current_split: Self::get_uniform_location_any(
-                    gl,
-                    program,
-                    &["current_split", "u_current_split", "iCurrentSplit"],
-                ),
-                total_splits: Self::get_uniform_location_any(
-                    gl,
-                    program,
-                    &["total_splits", "u_total_splits", "iTotalSplits"],
-                ),
-                elapsed_time: Self::get_uniform_location_any(
-                    gl,
-                    program,
-                    &["elapsed_time", "u_elapsed_time", "iElapsedTime"],
-                ),
-                elapsed_split_time: Self::get_uniform_location_any(
-                    gl,
-                    program,
-                    &[
-                        "elapsed_split_time",
-                        "u_elapsed_split_time",
-                        "iElapsedSplitTime",
-                    ],
-                ),
-            };
-
-            Ok((program, vao, uniforms))
+            Ok((program, vao))
         }
     }
 
-    fn get_uniform_location_any<'a>(
+    fn get_uniform_location_any(
         gl: &glow::Context,
         program: glow::NativeProgram,
-        names: &[&'a str],
+        names: &[&str],
     ) -> Option<glow::UniformLocation> {
         for name in names {
             if let Some(loc) = unsafe { gl.get_uniform_location(program, name) } {

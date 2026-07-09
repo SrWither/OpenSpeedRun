@@ -7,8 +7,10 @@ mod theme_editor;
 use std::fs;
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
+use std::sync::Arc;
 
 use eframe::egui;
+use eframe::glow;
 use egui::{Color32, RichText, ViewportBuilder};
 use openspeedrun::{
     LayoutConfig, Run,
@@ -37,10 +39,11 @@ pub struct ConfigApp {
     is_creating_theme: bool,
     show_delete_confirm: bool,
     item_to_delete: Option<(String, bool)>,
+    gl: Option<Arc<glow::Context>>,
 }
 
 impl ConfigApp {
-    pub fn new() -> Self {
+    pub fn new(gl: Option<Arc<glow::Context>>) -> Self {
         let base = config_base_dir();
         fs::create_dir_all(base.join("splits")).ok();
         fs::create_dir_all(base.join("themes")).ok();
@@ -95,7 +98,10 @@ impl ConfigApp {
         let shader_editor = selected_theme.as_ref().map(|t| {
             let path = config_base_dir().join("themes").join(format!("{t}.json"));
             let layout = LayoutConfig::load_or_default(path.to_str().unwrap());
-            ShaderEditor::new(base.join("shaders").join(&layout.colors.shader_path))
+            ShaderEditor::new(
+                base.join("shaders").join(&layout.colors.shader_path),
+                gl.clone(),
+            )
         });
 
         let history = selected_split.as_ref().map(|s| {
@@ -120,6 +126,7 @@ impl ConfigApp {
             is_creating_theme: false,
             show_delete_confirm: false,
             item_to_delete: None,
+            gl,
         }
     }
 
@@ -344,7 +351,8 @@ impl eframe::App for ConfigApp {
                                 .map_or(true, |e| e.path != new_path);
 
                             if needs_reload {
-                                self.shader_editor = Some(ShaderEditor::new(new_path));
+                                self.shader_editor =
+                                    Some(ShaderEditor::new(new_path, self.gl.clone()));
                             }
                         }
 
@@ -579,11 +587,12 @@ pub fn send_message(msg: &str) {
 
 fn main() -> eframe::Result<()> {
     let mut options = eframe::NativeOptions::default();
+    options.renderer = eframe::Renderer::Glow;
     options.viewport = ViewportBuilder::default().with_inner_size(egui::vec2(850.0, 650.0));
 
     eframe::run_native(
         "OpenSpeedRun Config",
         options,
-        Box::new(|_cc| Ok(Box::new(ConfigApp::new()))),
+        Box::new(|cc| Ok(Box::new(ConfigApp::new(cc.gl.clone())))),
     )
 }
