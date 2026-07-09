@@ -3,7 +3,8 @@ use eframe::egui::{self, Color32, RichText};
 use egui::{Sense, ViewportCommand};
 
 impl AppState {
-    pub fn draw_header(&self, ctx: &egui::Context) {
+    pub fn draw_header(&self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
         let LayoutConfig {
             font_sizes,
             colors,
@@ -24,7 +25,7 @@ impl AppState {
 
         egui::Panel::top("header")
             .frame(egui::Frame::default().fill(bg_color))
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 ui.add_space(10.0);
                 if !options.titlebar {
                     ui.horizontal(|ui| {

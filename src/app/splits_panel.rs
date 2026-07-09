@@ -3,7 +3,8 @@ use chrono::Duration;
 use eframe::egui::{self, Color32, RichText};
 
 impl AppState {
-    pub fn draw_splits_panel(&mut self, ctx: &egui::Context) {
+    pub fn draw_splits_panel(&mut self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
         let LayoutConfig {
             colors,
             font_sizes,
@@ -31,7 +32,7 @@ impl AppState {
 
         egui::CentralPanel::default()
             .frame(egui::Frame::default().fill(bg_color))
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 if options.show_splits {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         let total_splits = self.run.splits.len();
@@ -68,7 +69,7 @@ impl AppState {
                                 let texture = split
                                     .icon_path
                                     .as_ref()
-                                    .and_then(|path| self.get_or_load_texture(ctx, path));
+                                    .and_then(|path| self.get_or_load_texture(&ctx, path));
 
                                 if let Some(tex) = texture {
                                     ui.add(egui::Image::new(&tex).max_width(20.0));

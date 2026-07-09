@@ -60,15 +60,15 @@ impl AppState {
         }
     }
 
-    pub fn draw_ui(&mut self, ctx: &egui::Context) {
-        self.draw_header(ctx);
+    pub fn draw_ui(&mut self, ui: &mut egui::Ui) {
+        self.draw_header(ui);
         if self.layout.options.show_footer {
-            self.draw_footer(ctx);
+            self.draw_footer(ui);
         }
         if self.layout.options.show_body {
-            self.draw_splits_panel(ctx);
+            self.draw_splits_panel(ui);
         }
-        self.draw_help_window(ctx);
+        self.draw_help_window(ui.ctx());
     }
 }
 
@@ -193,23 +193,25 @@ impl AppWrapper {
         }
     }
 
-    fn draw_ui_and_misc(&self, ctx: &egui::Context, app: &mut AppState) {
-        app.handle_input(ctx);
-        app.draw_ui(ctx);
+    fn draw_ui_and_misc(&self, ui: &mut egui::Ui, app: &mut AppState) {
+        app.handle_input(ui.ctx());
+        app.draw_ui(ui);
 
         if !app.layout.options.titlebar {
-            draw_resize_borders(ctx);
+            draw_resize_borders(ui.ctx());
         }
     }
 }
 
 impl eframe::App for AppWrapper {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_commands();
         let mut app = self.app_state.lock().unwrap();
 
-        let _ = self.prepare_background(ctx, &mut app);
-        self.load_fonts_if_needed(ctx, &mut app);
+        let ctx = ui.ctx().clone();
+
+        let _ = self.prepare_background(&ctx, &mut app);
+        self.load_fonts_if_needed(&ctx, &mut app);
 
         let elapsed = app.start_time.elapsed().as_secs_f32();
         let delta_time = elapsed - app.last_elapsed;
@@ -230,9 +232,9 @@ impl eframe::App for AppWrapper {
 
         let elapsed_split_time = elapsed_time - last_split_time;
 
-        self.apply_transparency_if_needed(ctx, &mut app);
+        self.apply_transparency_if_needed(&ctx, &mut app);
         self.render_shader_if_enabled(
-            ctx,
+            &ctx,
             &mut app,
             elapsed,
             delta_time,
@@ -241,12 +243,8 @@ impl eframe::App for AppWrapper {
             elapsed_time,
             elapsed_split_time,
         );
-        self.draw_ui_and_misc(ctx, &mut app);
+        self.draw_ui_and_misc(ui, &mut app);
 
         ctx.request_repaint();
-    }
-
-    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        
     }
 }

@@ -3,7 +3,7 @@ use chrono::Duration;
 use eframe::egui::{self, Color32, RichText};
 
 impl AppState {
-    pub fn draw_footer(&self, ctx: &egui::Context) {
+    pub fn draw_footer(&self, ui: &mut egui::Ui) {
         let LayoutConfig {
             font_sizes,
             colors,
@@ -113,7 +113,7 @@ impl AppState {
                 stroke: egui::Stroke::NONE,
                 ..Default::default()
             })
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 let rect = ui.max_rect();
                 let top = rect.top();
                 let left = rect.left();

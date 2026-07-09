@@ -14,7 +14,7 @@ enum ResizeEdge {
 
 pub fn draw_resize_borders(ctx: &Context) {
     let margin = 8.0;
-    let rect = ctx.screen_rect();
+    let rect = ctx.content_rect();
 
     Area::new("resize_layer".into())
         .order(Order::Foreground)

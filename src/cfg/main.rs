@@ -225,7 +225,9 @@ impl ConfigApp {
 }
 
 impl eframe::App for ConfigApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+        let ctx = &ctx;
         // Name input popup
         if self.show_name_input {
             egui::Window::new(if self.is_creating_theme {
@@ -278,7 +280,7 @@ impl eframe::App for ConfigApp {
         }
 
         // Top Tabs
-        egui::TopBottomPanel::top("tabs").show(ctx, |ui| {
+        egui::Panel::top("tabs").show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 if ui.selectable_label(self.tab == 0, "Selector").clicked() {
                     self.tab = 0;
@@ -301,7 +303,7 @@ impl eframe::App for ConfigApp {
         });
 
         // Central content with scroll
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::ScrollArea::vertical()
                 .auto_shrink([false; 2])
                 .show(ui, |ui| match self.tab {
@@ -377,10 +379,6 @@ impl eframe::App for ConfigApp {
                     _ => {}
                 });
         });
-    }
-
-    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        
     }
 }
 
