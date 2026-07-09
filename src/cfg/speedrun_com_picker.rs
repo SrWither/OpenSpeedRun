@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use eframe::egui;
+use openspeedrun::core::split::Split;
 use openspeedrun::speedrun_com::{self, Category, Game, Variable};
+use openspeedrun::therun_gg;
 
 /// What the user picked, handed back to the caller (`SplitEditor`) to apply
 /// to its own `Run` — this struct doesn't touch `SplitEditor` directly, the
@@ -14,6 +16,9 @@ pub struct PickerResult {
     /// (variable name, chosen value label) pairs, ready to become
     /// `RunVariable`s.
     pub variables: Vec<(String, String)>,
+    /// Real splits (names + comparisons + history) fetched from therun.gg's
+    /// record holder for this category, if the user opted into that.
+    pub splits: Option<Vec<Split>>,
 }
 
 /// A search → game → category → variables wizard backed by the public
@@ -31,6 +36,14 @@ pub struct SpeedrunComPicker {
     /// variable id -> chosen value label (or absent if skipped/not yet set)
     chosen_values: HashMap<String, String>,
     status: Option<String>,
+    /// Categories therun.gg actually tracks for the selected game — loaded
+    /// on demand so the user can see (and pick from) what's really there
+    /// instead of us guessing a name match against speedrun.com.
+    therun_categories: Vec<therun_gg::AvailableCategory>,
+    therun_categories_status: Option<String>,
+    /// Real splits fetched from therun.gg for a chosen therun.gg category.
+    fetched_splits: Option<Vec<Split>>,
+    splits_status: Option<String>,
 }
 
 impl Default for SpeedrunComPicker {
@@ -45,6 +58,10 @@ impl Default for SpeedrunComPicker {
             variables: Vec::new(),
             chosen_values: HashMap::new(),
             status: None,
+            therun_categories: Vec::new(),
+            therun_categories_status: None,
+            fetched_splits: None,
+            splits_status: None,
         }
     }
 }
@@ -56,12 +73,58 @@ impl SpeedrunComPicker {
         self.selected_category = None;
         self.variables.clear();
         self.chosen_values.clear();
+        self.reset_therun();
     }
 
     fn reset_from_category(&mut self) {
         self.selected_category = None;
         self.variables.clear();
         self.chosen_values.clear();
+        self.reset_therun();
+    }
+
+    fn reset_therun(&mut self) {
+        self.therun_categories.clear();
+        self.therun_categories_status = None;
+        self.fetched_splits = None;
+        self.splits_status = None;
+    }
+
+    /// Loads what therun.gg actually tracks for this game, so the user can
+    /// see and pick from real options instead of us guessing a match
+    /// against speedrun.com's category name (the two sites don't always
+    /// agree on naming or even track the same subcategories).
+    fn load_therun_categories(&mut self, game: &Game) {
+        self.fetched_splits = None;
+        self.splits_status = None;
+        match therun_gg::list_categories(&game.abbreviation) {
+            Ok(categories) if categories.is_empty() => {
+                self.therun_categories.clear();
+                self.therun_categories_status =
+                    Some("therun.gg has no tracked categories for this game.".to_string());
+            }
+            Ok(categories) => {
+                self.therun_categories = categories;
+                self.therun_categories_status = None;
+            }
+            Err(e) => {
+                self.therun_categories.clear();
+                self.therun_categories_status = Some(format!("Failed to load therun.gg categories: {e}"));
+            }
+        }
+    }
+
+    fn fetch_splits(&mut self, game: &Game, category_slug: &str) {
+        match therun_gg::fetch_record_splits(&game.abbreviation, category_slug) {
+            Ok(splits) => {
+                self.splits_status = Some(format!("Fetched {} real splits from therun.gg.", splits.len()));
+                self.fetched_splits = Some(splits);
+            }
+            Err(e) => {
+                self.splits_status = Some(format!("Could not fetch real splits: {e}"));
+                self.fetched_splits = None;
+            }
+        }
     }
 
     fn search(&mut self) {
@@ -90,6 +153,7 @@ impl SpeedrunComPicker {
     }
 
     fn pick_category(&mut self, category: Category) {
+        self.reset_therun();
         match speedrun_com::variables(&category.id) {
             Ok(variables) => {
                 self.chosen_values.clear();
@@ -132,6 +196,14 @@ impl SpeedrunComPicker {
                         self.search();
                     }
                 });
+                ui.label(
+                    egui::RichText::new(
+                        "Tip: speedrun.com's search is picky about punctuation — try the exact \
+                         title (e.g. \"Super Mario Bros. 3\", with the period) if nothing shows up.",
+                    )
+                    .small()
+                    .weak(),
+                );
 
                 if !self.games.is_empty() && self.selected_game.is_none() {
                     ui.separator();
@@ -173,6 +245,48 @@ impl SpeedrunComPicker {
                                 self.reset_from_category();
                             }
                         });
+
+                        ui.separator();
+                        ui.label(
+                            egui::RichText::new(
+                                "Optional: therun.gg tracks real splits (names, PB, best segments, \
+                                 history) uploaded by runners via LiveSplit. speedrun.com and \
+                                 therun.gg don't always agree on category names, so pick from what's \
+                                 actually there instead of guessing.",
+                            )
+                            .small()
+                            .weak(),
+                        );
+                        if ui.button("Check therun.gg for this game").clicked() {
+                            self.load_therun_categories(&game);
+                        }
+                        if let Some(status) = &self.therun_categories_status {
+                            ui.label(status);
+                        }
+
+                        if !self.therun_categories.is_empty() {
+                            let mut clicked_slug = None;
+                            egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
+                                for cat in &self.therun_categories {
+                                    let label = format!(
+                                        "{}  —  {} runner{} tracked",
+                                        cat.display_name,
+                                        cat.runner_count,
+                                        if cat.runner_count == 1 { "" } else { "s" }
+                                    );
+                                    if ui.button(label).clicked() {
+                                        clicked_slug = Some(cat.slug.clone());
+                                    }
+                                }
+                            });
+                            if let Some(slug) = clicked_slug {
+                                self.fetch_splits(&game, &slug);
+                            }
+                        }
+
+                        if let Some(splits_status) = &self.splits_status {
+                            ui.label(splits_status);
+                        }
 
                         if !self.variables.is_empty() {
                             ui.separator();
@@ -224,6 +338,7 @@ impl SpeedrunComPicker {
                                         self.chosen_values.get(&v.id).map(|val| (v.name.clone(), val.clone()))
                                     })
                                     .collect(),
+                                splits: self.fetched_splits.clone(),
                             });
                             self.open = false;
                         }

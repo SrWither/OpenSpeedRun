@@ -369,8 +369,17 @@ impl SplitEditor {
                     self.run.metadata.variables.push(RunVariable { name, value });
                 }
             }
-            self.import_export_status =
-                Some("Filled from speedrun.com. \"Save all\" to keep it.".to_string());
+
+            let message = if let Some(splits) = picked.splits {
+                let split_count = splits.len();
+                self.run.splits = splits;
+                format!(
+                    "Filled from speedrun.com, with {split_count} real splits from therun.gg. \"Save all\" to keep it."
+                )
+            } else {
+                "Filled from speedrun.com. \"Save all\" to keep it.".to_string()
+            };
+            self.import_export_status = Some(message);
         }
 
         ui.separator();

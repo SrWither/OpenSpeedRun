@@ -106,7 +106,7 @@ pub fn search_games(query: &str) -> Result<Vec<Game>, String> {
         return Ok(Vec::new());
     }
     let url = format!(
-        "{BASE_URL}/games?name={}&max=20",
+        "{BASE_URL}/games?name={}&max=200",
         urlencode(query.trim())
     );
     let envelope: Envelope<Vec<RawGame>> = get_json(&url)?;
