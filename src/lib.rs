@@ -1,4 +1,5 @@
 pub mod app;
+pub mod autosplitter;
 pub mod config;
 pub mod core;
 pub mod formats;

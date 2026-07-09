@@ -15,6 +15,10 @@ path = "src/cli/main.rs"
 name = "openspeedrun-cfg"
 path = "src/cfg/main.rs"
 
+[[bin]]
+name = "openspeedrun-autosplitter"
+path = "src/autosplitter/main.rs"
+
 [lib]
 name = "openspeedrun"
 path = "src/lib.rs"

@@ -16,11 +16,12 @@
 
 ## Binaries
 
-OpenSpeedRun provides 3 executables:
+OpenSpeedRun provides 4 executables:
 
 - `openspeedrun`: the main GUI speedrun timer
 - `openspeedrun-cli`: a command-line tool to control the timer externally (e.g., split, reset, pause), available only for Unix.
 - `openspeedrun-cfg`: configuration GUI to manage themes and splits
+- `openspeedrun-autosplitter`: a headless autosplitter (see [Autosplitting](#autosplitting) below), available only for Unix.
 
 ## 📦 Install from Releases
 
@@ -52,7 +53,7 @@ Precompiled binaries are available for **Windows**, **Linux**, and **macOS** in 
 > 💡 You may need to make the binaries executable:
 >
 > ```bash
-> chmod +x openspeedrun openspeedrun-cfg openspeedrun-cli
+> chmod +x openspeedrun openspeedrun-cfg openspeedrun-cli openspeedrun-autosplitter
 > ```
 
 #### AUR
@@ -123,6 +124,90 @@ openspeedrun-cli split
 ```
 
 This enables full control (start, pause, reset, split) without relying on the GUI, ensuring compatibility and flexibility in any environment.
+
+## Autosplitting
+
+`openspeedrun-autosplitter` watches a value in memory and turns it into `start`/`split`/`reset`/`pause` commands, sent over the same control socket as `openspeedrun-cli`. It supports two targets with very different privilege requirements — pick RetroArch whenever the game is emulated.
+
+If neither fits your case (a game with its own scripting/mod support, say), nothing stops you from writing your own watcher that shells out to `openspeedrun-cli` or connects to the same control socket directly — that's the integration point, not `openspeedrun-autosplitter` itself.
+
+### Emulators (RetroArch) — no elevated privileges
+
+RetroArch (and compatible libretro cores) expose a plaintext, opt-in UDP protocol built for exactly this, so reading emulated RAM needs no special permissions at all.
+
+**Setup:**
+
+1. In RetroArch, enable `Settings → Network → Network Commands` (this opens its UDP command port, `55355` by default).
+2. Create `autosplitter.json` next to your run's `split.json`:
+   ```json
+   {
+     "target": { "kind": "retroarch" },
+     "poll_interval_ms": 50,
+     "watches": [
+       {
+         "name": "room_id",
+         "address": "0x7E0020",
+         "value_type": "u8",
+         "condition": { "kind": "changed" },
+         "action": "split"
+       }
+     ]
+   }
+   ```
+3. Run it: `openspeedrun-autosplitter path/to/autosplitter.json`
+
+### Native games (advanced, opt-in) — reads process memory
+
+Autosplitting a native/unmodified game requires reading its process memory directly, via `/proc/<pid>/mem`. **This is a real reduction in process isolation, not a formality**: on Linux, reading another process's memory needs ptrace access to it, which by default (Yama's `ptrace_scope`) only your process's own children get. To use this you must do one of:
+
+- Relax it for your whole session: `echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope` (resets on reboot; lets *any* of your processes ptrace *any other*, not just this pairing).
+- Or grant just this one binary the capability instead (narrower): `sudo setcap cap_sys_ptrace=ep $(command -v openspeedrun-autosplitter)`.
+
+Nothing in the config format defaults you into this — it only activates if you explicitly write `"kind": "process_memory"`.
+
+```json
+{
+  "target": { "kind": "process_memory", "process_name": "game.bin" },
+  "poll_interval_ms": 33,
+  "watches": [
+    {
+      "name": "room_id",
+      "address": "0x4A9F00",
+      "module": "game.bin",
+      "pointer_path": ["0x18", "0x10"],
+      "value_type": "u32",
+      "condition": { "kind": "changed" },
+      "action": "split"
+    }
+  ]
+}
+```
+
+- `process_name` / `module`: matched against `/proc/<pid>/comm` (truncated to 15 bytes by the kernel) and the `/proc/<pid>/exe` symlink's file name.
+- `address`: an offset from `module`'s load base (ASLR-safe) if `module` is set, otherwise an absolute address.
+- `pointer_path` (optional): ASL-style multi-level pointer chase — `address` is read as a pointer, each offset in turn is added and re-read as a pointer, and the last offset lands on the actual value. Omit it if `address` already points straight at the value.
+- `openspeedrun-autosplitter` waits for `process_name` to appear if it isn't running yet, and goes back to waiting if the process exits mid-run (e.g. a crash) — no need to restart the watcher between attempts.
+
+Finding the right `address`/`pointer_path` values is manual work regardless of tool (RetroArch's own cheat search, GDB, a community RAM map, etc.) — that part isn't something this project can do for you.
+
+#### Finding `process_name`
+
+```bash
+pgrep -la .                 # list every running process with its full name
+ps aux | grep -i <game>     # or filter for something you recognize
+cat /proc/<pid>/comm        # confirm the exact string this project matches against
+```
+
+Match against whatever `/proc/<pid>/comm` actually shows, not the executable's full file name — the kernel truncates `comm` to 15 bytes, so `my_real_game.x86_64` shows up as `my_real_game.x8`.
+
+Two caveats worth knowing before you build a config around this:
+
+- **Steam games via Proton/Wine**: the process Linux sees may be `wine64`/`wineserver` rather than the original `.exe`'s name, and offsets written for a native Windows autosplitter may not line up the same way once mapped through Wine. Unverified — hasn't been tested against a real Proton game.
+- **Emulators run standalone (e.g. plain FCEUX, not through RetroArch)**: `process_memory` *can* attach to the emulator's own process, but you'd be reading the emulator's internal memory layout, not the emulated console's RAM at its documented address. Community RAM maps (datacrystal, etc.) assume the console's own address space — which is exactly what RetroArch's `READ_CORE_MEMORY` gives you for free, but a raw ptrace attach to FCEUX does not. You'd have to locate the RAM buffer yourself with a memory scanner (`scanmem`/`GameConqueror`), it's likely behind a pointer (so you'd need `pointer_path` too), and the offset isn't guaranteed stable across FCEUX versions. If the emulator has a RetroArch core (FCEUmm, for NES), prefer that over attaching to the standalone emulator directly.
+
+### Watch format (both targets)
+
+Each `watch` reads a value as `value_type` (`u8`/`u16`/`u32`/`u64`/`i8`/`i16`/`i32`/`i64`, `endian` defaults to `little`), and fires `action` (`start`/`split`/`reset`/`pause`) the moment `condition` transitions into true — never on the first sample read (there's no way to tell a genuine transition from wherever the value happened to be when it attached), and never again on every subsequent sample while it continues to hold. Condition kinds: `equals`/`not_equals`/`greater_than`/`less_than` (each take a `value`), plus `increased`/`decreased`/`changed` (compare against the previous sample, no `value` needed).
 
 ## Hotkeys
 

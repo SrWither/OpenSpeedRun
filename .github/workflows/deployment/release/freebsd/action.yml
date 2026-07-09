@@ -20,7 +20,8 @@ runs:
           zip -j openspeedrun-freebsd-x86_64.zip \
             target/release/openspeedrun \
             target/release/openspeedrun-cfg \
-            target/release/openspeedrun-cli
+            target/release/openspeedrun-cli \
+            target/release/openspeedrun-autosplitter
           mkdir -p builds
           mv openspeedrun-freebsd-x86_64.zip builds/
           cargo clean

@@ -25,7 +25,7 @@ runs:
       - name: Create ZIP (Posix)
         shell: bash
         run: |
-          zip -j openspeedrun-linux-gnu-x86_64.zip target/x86_64-unknown-linux-gnu/release/openspeedrun target/x86_64-unknown-linux-gnu/release/openspeedrun-cfg target/x86_64-unknown-linux-gnu/release/openspeedrun-cli
+          zip -j openspeedrun-linux-gnu-x86_64.zip target/x86_64-unknown-linux-gnu/release/openspeedrun target/x86_64-unknown-linux-gnu/release/openspeedrun-cfg target/x86_64-unknown-linux-gnu/release/openspeedrun-cli target/x86_64-unknown-linux-gnu/release/openspeedrun-autosplitter
           mkdir -p builds
           mv openspeedrun-linux-gnu-x86_64.zip builds/
 

@@ -19,7 +19,7 @@ runs:
       - name: Create ZIP (macOS)
         shell: bash
         run: |
-          zip -j openspeedrun-darwin-x86_64.zip target/x86_64-apple-darwin/release/openspeedrun target/x86_64-apple-darwin/release/openspeedrun-cfg target/x86_64-apple-darwin/release/openspeedrun-cli
+          zip -j openspeedrun-darwin-x86_64.zip target/x86_64-apple-darwin/release/openspeedrun target/x86_64-apple-darwin/release/openspeedrun-cfg target/x86_64-apple-darwin/release/openspeedrun-cli target/x86_64-apple-darwin/release/openspeedrun-autosplitter
           mkdir -p builds
           mv openspeedrun-darwin-x86_64.zip builds/
 
