@@ -551,7 +551,7 @@ impl ConfigApp {
 #[cfg(unix)]
 pub fn send_message(msg: &str) {
     println!("Sending message: {}", msg);
-    if let Ok(mut stream) = UnixStream::connect("/tmp/openspeedrun.sock") {
+    if let Ok(mut stream) = UnixStream::connect(openspeedrun::core::socket_path()) {
         use std::io::Write;
         let msg = format!("{msg}\n");
         if let Err(e) = stream.write_all(msg.as_bytes()) {

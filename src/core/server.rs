@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::os::unix::fs::PermissionsExt;
 use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncBufReadExt, BufReader};
 #[cfg(unix)]
@@ -7,6 +7,7 @@ use tokio::net::UnixListener;
 use std::sync::mpsc::Sender;
 
 use crate::app::AppState;
+use crate::core::socket_path;
 
 #[derive(Debug)]
 pub enum UICommand {
@@ -14,15 +15,21 @@ pub enum UICommand {
 }
 
 pub async fn listen_for_commands(app: Arc<Mutex<AppState>>, tx: Sender<UICommand>) {
-    let socket_path = "/tmp/openspeedrun.sock";
+    let socket_path = socket_path();
 
-    if Path::new(socket_path).exists() {
-        std::fs::remove_file(socket_path).expect("Failed to remove existing socket file");
+    if socket_path.exists() {
+        std::fs::remove_file(&socket_path).expect("Failed to remove existing socket file");
     }
 
-    let listener = UnixListener::bind(socket_path).expect("Failed to bind to socket");
+    let listener = UnixListener::bind(&socket_path).expect("Failed to bind to socket");
 
-    println!("Listening for commands on {}", socket_path);
+    // Unix sockets otherwise inherit permissions from umask, which can leave
+    // them connectable by other local users — restrict to owner-only so a
+    // shared-path fallback (see `socket_path`) can't be used to send
+    // start/split/reset commands to someone else's timer.
+    let _ = std::fs::set_permissions(&socket_path, std::fs::Permissions::from_mode(0o600));
+
+    println!("Listening for commands on {}", socket_path.display());
 
     loop {
         match listener.accept().await {

@@ -6,7 +6,7 @@ use std::process;
 
 #[cfg(unix)]
 fn main() {
-    let socket_path = "/tmp/openspeedrun.sock";
+    let socket_path = openspeedrun::core::socket_path();
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
