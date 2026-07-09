@@ -472,8 +472,8 @@ impl SplitEditor {
                         }
                     }
 
-                    let title_font = egui::TextStyle::Heading.resolve(&ctx.style());
-                    let subtitle_font = egui::TextStyle::Body.resolve(&ctx.style());
+                    let title_font = egui::TextStyle::Heading.resolve(&ctx.global_style());
+                    let subtitle_font = egui::TextStyle::Body.resolve(&ctx.global_style());
 
                     painter.text(
                         egui::pos2(x, y + 4.0),
