@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use openspeedrun::Run;
-use openspeedrun::core::split::TimingMethod;
+use openspeedrun::core::split::{
+    COMPARISON_BEST_SEGMENTS, COMPARISON_PERSONAL_BEST, ComparisonTime, TimingMethod,
+};
 
 use crate::send_message;
 use crate::style;
@@ -74,7 +76,6 @@ impl History {
             .stroke(egui::Stroke::new(1.0, style::ERROR));
             if ui.add(clear_button).clicked() {
                 self.confirm_clear = true;
-                send_message("reloadrun");
             }
         });
 
@@ -253,7 +254,10 @@ impl History {
                 .resizable(false)
                 .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
                 .show(ctx, |ui| {
-                    ui.label("Are you sure you want to clear all attempt and PB history?");
+                    ui.label(
+                        "Are you sure you want to clear all attempt and PB history? \
+                        This also resets each split's Personal Best and Best Segment times.",
+                    );
                     ui.horizontal(|ui| {
                         if ui.button("Cancel").clicked() {
                             self.confirm_clear = false;
@@ -267,9 +271,20 @@ impl History {
                             self.run.attempts = 0;
                             for split in &mut self.run.splits {
                                 split.segment_history.clear();
+                                split.last_time = None;
+                                split.last_time_game = None;
+                                split.comparisons.insert(
+                                    COMPARISON_PERSONAL_BEST.to_string(),
+                                    ComparisonTime::default(),
+                                );
+                                split.comparisons.insert(
+                                    COMPARISON_BEST_SEGMENTS.to_string(),
+                                    ComparisonTime::default(),
+                                );
                             }
 
                             let _ = self.run.save_to_file(self.run_path.to_str().unwrap());
+                            send_message("reloadrun");
                             self.confirm_clear = false;
                         }
                     });
