@@ -79,6 +79,48 @@ impl History {
             }
         });
 
+        if self.confirm_clear {
+            egui::Window::new("Confirm Clear History")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .show(ctx, |ui| {
+                    ui.label(
+                        "Are you sure you want to clear all attempt and PB history? \
+                        This also resets each split's Personal Best and Best Segment times.",
+                    );
+                    ui.horizontal(|ui| {
+                        if ui.button("Cancel").clicked() {
+                            self.confirm_clear = false;
+                        }
+                        if ui
+                            .button(RichText::new("Yes, clear").color(style::ERROR))
+                            .clicked()
+                        {
+                            self.run.attempt_history.clear();
+                            self.run.pb_history.clear();
+                            self.run.attempts = 0;
+                            for split in &mut self.run.splits {
+                                split.segment_history.clear();
+                                split.last_time = None;
+                                split.last_time_game = None;
+                                split.comparisons.insert(
+                                    COMPARISON_PERSONAL_BEST.to_string(),
+                                    ComparisonTime::default(),
+                                );
+                                split.comparisons.insert(
+                                    COMPARISON_BEST_SEGMENTS.to_string(),
+                                    ComparisonTime::default(),
+                                );
+                            }
+
+                            self.persist_and_reload();
+                            self.confirm_clear = false;
+                        }
+                    });
+                });
+        }
+
         ui.separator();
 
         match self.active_tab {
@@ -87,6 +129,7 @@ impl History {
                     ui.label("No attempts recorded yet.");
                     return;
                 }
+                let mut delete_index: Option<u32> = None;
                 style::section_card(ui, "Attempts", egui_phosphor::regular::LIST, |ui| {
                     ScrollArea::vertical().show(ui, |ui| {
                         Grid::new("attempt_history_grid")
@@ -99,6 +142,7 @@ impl History {
                                 ui.label("Game Time");
                                 ui.label("Ended");
                                 ui.label("Is PB");
+                                ui.label("");
                                 ui.end_row();
 
                                 for attempt in &self.run.attempt_history {
@@ -135,11 +179,28 @@ impl History {
                                     };
                                     ui.label(pb_text);
 
+                                    if ui
+                                        .small_button(
+                                            RichText::new(egui_phosphor::regular::TRASH)
+                                                .color(style::ERROR),
+                                        )
+                                        .on_hover_text(
+                                            "Delete this attempt (and its segments) everywhere",
+                                        )
+                                        .clicked()
+                                    {
+                                        delete_index = Some(attempt.run_index);
+                                    }
+
                                     ui.end_row();
                                 }
                             });
                     });
                 });
+
+                if let Some(run_index) = delete_index {
+                    self.delete_attempt(run_index);
+                }
             }
 
             Tab::PbHistory => {
@@ -147,6 +208,7 @@ impl History {
                     ui.label("No PB history available.");
                     return;
                 }
+                let mut delete_index: Option<u32> = None;
                 style::section_card(ui, "PB History", egui_phosphor::regular::TROPHY, |ui| {
                     ScrollArea::vertical().show(ui, |ui| {
                         Grid::new("pb_history_grid")
@@ -158,6 +220,7 @@ impl History {
                                 ui.label("Real Time");
                                 ui.label("Game Time");
                                 ui.label("Ended");
+                                ui.label("");
                                 ui.end_row();
 
                                 for pb in &self.run.pb_history {
@@ -182,11 +245,28 @@ impl History {
 
                                     ui.label(if pb.ended { "Yes" } else { "No" });
 
+                                    if ui
+                                        .small_button(
+                                            RichText::new(egui_phosphor::regular::TRASH)
+                                                .color(style::ERROR),
+                                        )
+                                        .on_hover_text(
+                                            "Remove this entry from the PB log (keeps the attempt and its segments)",
+                                        )
+                                        .clicked()
+                                    {
+                                        delete_index = Some(pb.run_index);
+                                    }
+
                                     ui.end_row();
                                 }
                             });
                     });
                 });
+
+                if let Some(run_index) = delete_index {
+                    self.delete_pb_entry(run_index);
+                }
             }
 
             Tab::SplitHistory => {
@@ -194,6 +274,7 @@ impl History {
                     ui.label("No splits available.");
                     return;
                 }
+                let mut delete_target: Option<(usize, u32)> = None;
                 ScrollArea::vertical().show(ui, |ui| {
                     for (i, split) in self.run.splits.iter().enumerate() {
                         style::section_card(
@@ -221,6 +302,7 @@ impl History {
                                         ui.label("Run #");
                                         ui.label("Real Time");
                                         ui.label("Game Time");
+                                        ui.label("");
                                         ui.end_row();
 
                                         for entry in &split.segment_history {
@@ -237,6 +319,20 @@ impl History {
                                                     .map(format_duration)
                                                     .unwrap_or_else(|| "-".to_string()),
                                             );
+
+                                            if ui
+                                                .small_button(
+                                                    RichText::new(egui_phosphor::regular::TRASH)
+                                                        .color(style::ERROR),
+                                                )
+                                                .on_hover_text(
+                                                    "Delete this split's time for this run only",
+                                                )
+                                                .clicked()
+                                            {
+                                                delete_target = Some((i, entry.run_index));
+                                            }
+
                                             ui.end_row();
                                         }
                                     });
@@ -245,50 +341,48 @@ impl History {
                         ui.add_space(style::SPACE_SM);
                     }
                 });
+
+                if let Some((split_index, run_index)) = delete_target {
+                    self.delete_segment_entry(split_index, run_index);
+                }
             }
         }
+    }
 
-        if self.confirm_clear {
-            egui::Window::new("Confirm Clear History")
-                .collapsible(false)
-                .resizable(false)
-                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-                .show(ctx, |ui| {
-                    ui.label(
-                        "Are you sure you want to clear all attempt and PB history? \
-                        This also resets each split's Personal Best and Best Segment times.",
-                    );
-                    ui.horizontal(|ui| {
-                        if ui.button("Cancel").clicked() {
-                            self.confirm_clear = false;
-                        }
-                        if ui
-                            .button(RichText::new("Yes, clear").color(style::ERROR))
-                            .clicked()
-                        {
-                            self.run.attempt_history.clear();
-                            self.run.pb_history.clear();
-                            self.run.attempts = 0;
-                            for split in &mut self.run.splits {
-                                split.segment_history.clear();
-                                split.last_time = None;
-                                split.last_time_game = None;
-                                split.comparisons.insert(
-                                    COMPARISON_PERSONAL_BEST.to_string(),
-                                    ComparisonTime::default(),
-                                );
-                                split.comparisons.insert(
-                                    COMPARISON_BEST_SEGMENTS.to_string(),
-                                    ComparisonTime::default(),
-                                );
-                            }
+    fn persist_and_reload(&mut self) {
+        let _ = self.run.save_to_file(self.run_path.to_str().unwrap());
+        send_message("reloadrun");
+    }
 
-                            let _ = self.run.save_to_file(self.run_path.to_str().unwrap());
-                            send_message("reloadrun");
-                            self.confirm_clear = false;
-                        }
-                    });
-                });
+    /// Deletes a single attempt everywhere it's referenced (attempt log, PB
+    /// log, every split's segment history), then recomputes Best
+    /// Segments/Personal Best from what remains.
+    fn delete_attempt(&mut self, run_index: u32) {
+        self.run.attempt_history.retain(|a| a.run_index != run_index);
+        self.run.pb_history.retain(|p| p.run_index != run_index);
+        for split in &mut self.run.splits {
+            split.segment_history.retain(|e| e.run_index != run_index);
+            split.recompute_best_segment();
         }
+        self.run.recompute_personal_best();
+        self.persist_and_reload();
+    }
+
+    /// Removes one entry from the PB log only — the underlying attempt and
+    /// its segment times are untouched.
+    fn delete_pb_entry(&mut self, run_index: u32) {
+        self.run.pb_history.retain(|p| p.run_index != run_index);
+        self.persist_and_reload();
+    }
+
+    /// Removes one run's segment time from a single split only, then
+    /// recomputes that split's Best Segment and the run's Personal Best.
+    fn delete_segment_entry(&mut self, split_index: usize, run_index: u32) {
+        if let Some(split) = self.run.splits.get_mut(split_index) {
+            split.segment_history.retain(|e| e.run_index != run_index);
+            split.recompute_best_segment();
+        }
+        self.run.recompute_personal_best();
+        self.persist_and_reload();
     }
 }

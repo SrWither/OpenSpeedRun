@@ -151,10 +151,6 @@ impl SplitEditor {
     }
 
     pub fn ui(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
-        let mut fonts = egui::FontDefinitions::default();
-        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
-
-        ctx.set_fonts(fonts);
 
         ui.horizontal(|ui| {
             let total_width = ui.available_width();

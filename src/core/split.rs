@@ -112,6 +112,21 @@ impl Split {
         }
     }
 
+    /// Recomputes the "Best Segments" comparison from whatever remains in
+    /// `segment_history` — used after deleting an erroneous entry so a
+    /// removed record doesn't linger in `comparisons`.
+    pub fn recompute_best_segment(&mut self) {
+        let best_real = self.segment_history.iter().filter_map(|e| e.real_time).min();
+        let best_game = self.segment_history.iter().filter_map(|e| e.game_time).min();
+
+        let best = self
+            .comparisons
+            .entry(COMPARISON_BEST_SEGMENTS.to_string())
+            .or_default();
+        best.real_time = best_real;
+        best.game_time = best_game;
+    }
+
     fn segment_stat(
         history: &[SegmentHistoryEntry],
         method: TimingMethod,
@@ -239,6 +254,51 @@ impl Run {
             .map(|s| s.comparison_time(name, method))
             .collect::<Option<Vec<_>>>()
             .map(|times| times.into_iter().fold(Duration::zero(), |a, b| a + b))
+    }
+
+    /// Recomputes the "Personal Best" comparison on every split from
+    /// `attempt_history` + each split's `segment_history` — used after
+    /// deleting an erroneous attempt so a removed PB doesn't linger in
+    /// `comparisons`. Only attempts marked `ended` are eligible, and only
+    /// if every split has a recorded segment for that attempt.
+    pub fn recompute_personal_best(&mut self) {
+        let method = self.timing_method;
+
+        let best_run_index = self
+            .attempt_history
+            .iter()
+            .filter(|a| a.ended)
+            .filter_map(|a| {
+                let mut total = Duration::zero();
+                for split in &self.splits {
+                    let segment = split
+                        .segment_history
+                        .iter()
+                        .find(|e| e.run_index == a.run_index)
+                        .and_then(|e| e.get(method))?;
+                    total = total + segment;
+                }
+                Some((a.run_index, total))
+            })
+            .min_by_key(|(_, total)| *total)
+            .map(|(run_index, _)| run_index);
+
+        for split in &mut self.splits {
+            let pb = split
+                .comparisons
+                .entry(COMPARISON_PERSONAL_BEST.to_string())
+                .or_default();
+
+            match best_run_index
+                .and_then(|idx| split.segment_history.iter().find(|e| e.run_index == idx))
+            {
+                Some(entry) => {
+                    pb.real_time = entry.real_time;
+                    pb.game_time = entry.game_time;
+                }
+                None => *pb = ComparisonTime::default(),
+            }
+        }
     }
 
     /// Every comparison name currently in use: the built-ins plus any

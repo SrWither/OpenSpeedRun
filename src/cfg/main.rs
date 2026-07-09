@@ -612,6 +612,11 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(|cc| {
             style::apply_style(&cc.egui_ctx);
+
+            let mut fonts = egui::FontDefinitions::default();
+            egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+            cc.egui_ctx.set_fonts(fonts);
+
             Ok(Box::new(ConfigApp::new(cc.gl.clone())))
         }),
     )
