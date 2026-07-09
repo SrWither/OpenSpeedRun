@@ -71,8 +71,7 @@ pub async fn listen_for_commands(app: Arc<Mutex<AppState>>, tx: Sender<UICommand
                             "cyclecomparison" => app.cycle_comparison(),
                             "nextpage" => {
                                 let total_splits = app.run.splits.len();
-                                let total_pages =
-                                    (total_splits + app.splits_per_page - 1) / app.splits_per_page;
+                                let total_pages = total_splits.div_ceil(app.splits_per_page);
                                 if app.current_page + 1 < total_pages {
                                     app.current_page += 1;
                                 }

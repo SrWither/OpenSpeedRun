@@ -14,6 +14,12 @@ pub struct Timer {
     pub elapsed: Duration,
 }
 
+impl Default for Timer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Timer {
     pub fn new() -> Self {
         Self {

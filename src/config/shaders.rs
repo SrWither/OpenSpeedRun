@@ -405,6 +405,7 @@ impl ShaderBackground {
         None
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn render(
         &self,
         time: f32,

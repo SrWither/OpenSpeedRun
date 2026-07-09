@@ -236,10 +236,10 @@ impl SpeedrunComPicker {
                 Ok(variables) => {
                     self.chosen_values.clear();
                     for v in &variables {
-                        if let Some(default_id) = &v.default {
-                            if let Some(entry) = v.values.iter().find(|val| &val.id == default_id) {
-                                self.chosen_values.insert(v.id.clone(), entry.label.clone());
-                            }
+                        if let Some(default_id) = &v.default
+                            && let Some(entry) = v.values.iter().find(|val| &val.id == default_id)
+                        {
+                            self.chosen_values.insert(v.id.clone(), entry.label.clone());
                         }
                     }
                     self.variables = variables;

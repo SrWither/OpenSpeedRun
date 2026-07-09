@@ -14,28 +14,25 @@ impl AppWrapper {
         if let Ok(entries) = std::fs::read_dir(&fonts_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                    if ext.eq_ignore_ascii_case("ttf") || ext.eq_ignore_ascii_case("otf") {
-                        if let Ok(font_data) = std::fs::read(&path) {
-                            if let Some(font_name) = path.file_stem().and_then(|s| s.to_str()) {
-                                let font_id = font_name.to_string();
-                                fonts.font_data.insert(
-                                    font_id.clone(),
-                                    FontData::from_owned(font_data).into(),
-                                );
-                                fonts
-                                    .families
-                                    .get_mut(&FontFamily::Proportional)
-                                    .unwrap()
-                                    .insert(0, font_id.clone());
-                                fonts
-                                    .families
-                                    .get_mut(&FontFamily::Monospace)
-                                    .unwrap()
-                                    .insert(0, font_id.clone());
-                            }
-                        }
-                    }
+                if let Some(ext) = path.extension().and_then(|e| e.to_str())
+                    && (ext.eq_ignore_ascii_case("ttf") || ext.eq_ignore_ascii_case("otf"))
+                    && let Ok(font_data) = std::fs::read(&path)
+                    && let Some(font_name) = path.file_stem().and_then(|s| s.to_str())
+                {
+                    let font_id = font_name.to_string();
+                    fonts
+                        .font_data
+                        .insert(font_id.clone(), FontData::from_owned(font_data).into());
+                    fonts
+                        .families
+                        .get_mut(&FontFamily::Proportional)
+                        .unwrap()
+                        .insert(0, font_id.clone());
+                    fonts
+                        .families
+                        .get_mut(&FontFamily::Monospace)
+                        .unwrap()
+                        .insert(0, font_id.clone());
                 }
             }
         }

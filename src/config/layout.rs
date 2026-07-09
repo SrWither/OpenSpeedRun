@@ -5,6 +5,7 @@ use std::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct LayoutConfig {
     pub font_sizes: FontSizes,
     pub colors: Colors,
@@ -176,19 +177,6 @@ impl Default for Options {
             enable_shader: false,
             enable_background_image: false,
             window_size: (720, 1280),
-        }
-    }
-}
-
-impl Default for LayoutConfig {
-    fn default() -> Self {
-        Self {
-            font_sizes: FontSizes::default(),
-            colors: Colors::default(),
-            spacings: Spacings::default(),
-            options: Options::default(),
-            #[cfg(windows)]
-            hotkeys: Hotkeys::default(),
         }
     }
 }

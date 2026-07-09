@@ -131,20 +131,20 @@ impl SplitEditor {
         for icon_path in icon_paths {
             if !self.icon_cache.contains_key(icon_path) {
                 let full_path = self.run_path.parent().unwrap().join(icon_path);
-                if full_path.exists() {
-                    if let Ok(image) = image::open(&full_path) {
-                        let size = image.dimensions();
-                        let rgba = image.to_rgba8();
-                        let tex = ctx.load_texture(
-                            icon_path.to_string(),
-                            egui::ColorImage::from_rgba_unmultiplied(
-                                [size.0 as usize, size.1 as usize],
-                                &rgba,
-                            ),
-                            Default::default(),
-                        );
-                        self.icon_cache.insert(icon_path.to_string(), tex);
-                    }
+                if full_path.exists()
+                    && let Ok(image) = image::open(&full_path)
+                {
+                    let size = image.dimensions();
+                    let rgba = image.to_rgba8();
+                    let tex = ctx.load_texture(
+                        icon_path.to_string(),
+                        egui::ColorImage::from_rgba_unmultiplied(
+                            [size.0 as usize, size.1 as usize],
+                            &rgba,
+                        ),
+                        Default::default(),
+                    );
+                    self.icon_cache.insert(icon_path.to_string(), tex);
                 }
             }
         }
@@ -315,8 +315,7 @@ impl SplitEditor {
                         if ui
                             .button(format!("{} Import .lss", egui_phosphor::regular::UPLOAD_SIMPLE))
                             .clicked()
-                        {
-                            if let Some(path) = FileDialog::new().add_filter("LiveSplit", &["lss"]).pick_file() {
+                            && let Some(path) = FileDialog::new().add_filter("LiveSplit", &["lss"]).pick_file() {
                                 let icons_dir = self.run_path.parent().unwrap().join("icons");
                                 self.import_export_status = Some(match lss::import(&path, &icons_dir) {
                                     Ok(result) => {
@@ -329,7 +328,6 @@ impl SplitEditor {
                                     Err(e) => format!("Import failed: {e}"),
                                 });
                             }
-                        }
 
                         if ui
                             .button(format!("{} Export .lss", egui_phosphor::regular::DOWNLOAD_SIMPLE))
@@ -351,15 +349,13 @@ impl SplitEditor {
                         if ui
                             .button(format!("{} Export folder", egui_phosphor::regular::FOLDER_OPEN))
                             .clicked()
-                        {
-                            if let Some(dest) = FileDialog::new().pick_folder() {
+                            && let Some(dest) = FileDialog::new().pick_folder() {
                                 let run_dir = self.run_path.parent().unwrap();
                                 self.import_export_status = Some(match native::export_folder(run_dir, &dest) {
                                     Ok(()) => format!("Exported folder to {}", dest.display()),
                                     Err(e) => format!("Folder export failed: {e}"),
                                 });
                             }
-                        }
 
                         if ui
                             .button(format!(
@@ -367,8 +363,7 @@ impl SplitEditor {
                                 egui_phosphor::regular::FOLDER_SIMPLE_PLUS
                             ))
                             .clicked()
-                        {
-                            if let Some(src) = FileDialog::new().pick_folder() {
+                            && let Some(src) = FileDialog::new().pick_folder() {
                                 let splits_base = crate::config_base_dir().join("splits");
                                 let name = src
                                     .file_name()
@@ -384,7 +379,6 @@ impl SplitEditor {
                                         Err(e) => format!("Folder import failed: {e}"),
                                     });
                             }
-                        }
 
                         if ui
                             .button(format!(
@@ -463,12 +457,12 @@ impl SplitEditor {
                     self.dragging_split_index = Some(i);
                 }
 
-                if response.hovered() && ctx.input(|i| i.pointer.any_released()) {
-                    if let Some(from_index) = self.dragging_split_index {
-                        if from_index != i {
-                            swap_request = Some((from_index, i));
-                        }
-                    }
+                if response.hovered()
+                    && ctx.input(|i| i.pointer.any_released())
+                    && let Some(from_index) = self.dragging_split_index
+                    && from_index != i
+                {
+                    swap_request = Some((from_index, i));
                 }
 
                 let split = &mut self.run.splits[i];
@@ -485,19 +479,17 @@ impl SplitEditor {
                         if ui
                             .button(RichText::new(egui_phosphor::regular::ARROW_UP))
                             .clicked()
+                            && i > 0
                         {
-                            if i > 0 {
-                                swap_request = Some((i, i - 1));
-                            }
+                            swap_request = Some((i, i - 1));
                         }
 
                         if ui
                             .button(RichText::new(egui_phosphor::regular::ARROW_DOWN))
                             .clicked()
+                            && i < splits_len - 1
                         {
-                            if i < splits_len - 1 {
-                                swap_request = Some((i, i + 1));
-                            }
+                            swap_request = Some((i, i + 1));
                         }
 
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -527,21 +519,20 @@ impl SplitEditor {
                             ui.add(egui::Image::new(texture).max_width(20.0));
                         }
 
-                        if ui.button("Change Icon").clicked() {
-                            if let Some(path) = FileDialog::new()
+                        if ui.button("Change Icon").clicked()
+                            && let Some(path) = FileDialog::new()
                                 .add_filter("Image", &["png", "jpg", "jpeg", "bmp", "gif"])
                                 .pick_file()
-                            {
-                                let base_folder = self.run_path.parent().unwrap();
-                                let icons_dir = base_folder.join("icons");
-                                fs::create_dir_all(&icons_dir).ok();
+                        {
+                            let base_folder = self.run_path.parent().unwrap();
+                            let icons_dir = base_folder.join("icons");
+                            fs::create_dir_all(&icons_dir).ok();
 
-                                if let Some(filename) = path.file_name() {
-                                    let dest = icons_dir.join(filename);
-                                    if fs::copy(&path, &dest).is_ok() {
-                                        new_icon_path =
-                                            Some(format!("icons/{}", filename.to_string_lossy()));
-                                    }
+                            if let Some(filename) = path.file_name() {
+                                let dest = icons_dir.join(filename);
+                                if fs::copy(&path, &dest).is_ok() {
+                                    new_icon_path =
+                                        Some(format!("icons/{}", filename.to_string_lossy()));
                                 }
                             }
                         }
@@ -651,82 +642,76 @@ impl SplitEditor {
             }
         });
 
-        if let Some(index) = self.dragging_split_index {
-            if let Some(split) = self.run.splits.get(index) {
-                if let Some(cursor_pos) = ctx.input(|i| i.pointer.hover_pos()) {
-                    let painter = ctx.layer_painter(egui::LayerId::new(
-                        egui::Order::Tooltip,
-                        egui::Id::new("dragging_split_preview"),
-                    ));
+        if let Some(index) = self.dragging_split_index
+            && let Some(split) = self.run.splits.get(index)
+            && let Some(cursor_pos) = ctx.input(|i| i.pointer.hover_pos())
+        {
+            let painter = ctx.layer_painter(egui::LayerId::new(
+                egui::Order::Tooltip,
+                egui::Id::new("dragging_split_preview"),
+            ));
 
-                    let size = egui::vec2(240.0, 56.0);
-                    let offset = egui::vec2(-size.x - 12.0, -size.y / 2.0);
-                    let rect = egui::Rect::from_min_size(cursor_pos + offset, size);
+            let size = egui::vec2(240.0, 56.0);
+            let offset = egui::vec2(-size.x - 12.0, -size.y / 2.0);
+            let rect = egui::Rect::from_min_size(cursor_pos + offset, size);
 
-                    let bg_color = egui::Color32::from_rgba_unmultiplied(27, 28, 33, 230);
-                    painter.rect_filled(rect, egui::CornerRadius::same(10), bg_color);
-                    painter.rect_stroke(
-                        rect,
-                        egui::CornerRadius::same(10),
-                        egui::Stroke::new(1.0, style::ACCENT),
-                        egui::StrokeKind::Outside,
-                    );
+            let bg_color = egui::Color32::from_rgba_unmultiplied(27, 28, 33, 230);
+            painter.rect_filled(rect, egui::CornerRadius::same(10), bg_color);
+            painter.rect_stroke(
+                rect,
+                egui::CornerRadius::same(10),
+                egui::Stroke::new(1.0, style::ACCENT),
+                egui::StrokeKind::Outside,
+            );
 
-                    let mut x = rect.left() + 10.0;
-                    let y = rect.top() + 8.0;
+            let mut x = rect.left() + 10.0;
+            let y = rect.top() + 8.0;
 
-                    if let Some(icon_path) = &split.icon_path {
-                        if let Some(tex) = self.icon_cache.get(icon_path) {
-                            let icon_size = 40.0;
-                            let icon_rect = egui::Rect::from_min_size(
-                                egui::pos2(x, y),
-                                egui::vec2(icon_size, icon_size),
-                            );
-                            painter.add(egui::Shape::image(
-                                tex.id(),
-                                icon_rect,
-                                egui::Rect::from_min_max(
-                                    egui::pos2(0.0, 0.0),
-                                    egui::pos2(1.0, 1.0),
-                                ),
-                                egui::Color32::WHITE,
-                            ));
-                            x += icon_size + 10.0;
-                        }
-                    }
-
-                    let title_font = egui::TextStyle::Heading.resolve(&ctx.global_style());
-                    let subtitle_font = egui::TextStyle::Body.resolve(&ctx.global_style());
-
-                    painter.text(
-                        egui::pos2(x, y + 4.0),
-                        egui::Align2::LEFT_TOP,
-                        &split.name,
-                        title_font.clone(),
-                        egui::Color32::WHITE,
-                    );
-
-                    let secondary_text = if let Some(pb) =
-                        split.comparison_time(COMPARISON_PERSONAL_BEST, TimingMethod::RealTime)
-                    {
-                        format!("PB: {}", format_duration(pb))
-                    } else if let Some(best) =
-                        split.comparison_time(COMPARISON_BEST_SEGMENTS, TimingMethod::RealTime)
-                    {
-                        format!("Best: {}", format_duration(best))
-                    } else {
-                        "No time set".to_string()
-                    };
-
-                    painter.text(
-                        egui::pos2(x, y + 28.0),
-                        egui::Align2::LEFT_TOP,
-                        secondary_text,
-                        subtitle_font,
-                        egui::Color32::GRAY,
-                    );
-                }
+            if let Some(icon_path) = &split.icon_path
+                && let Some(tex) = self.icon_cache.get(icon_path)
+            {
+                let icon_size = 40.0;
+                let icon_rect =
+                    egui::Rect::from_min_size(egui::pos2(x, y), egui::vec2(icon_size, icon_size));
+                painter.add(egui::Shape::image(
+                    tex.id(),
+                    icon_rect,
+                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                    egui::Color32::WHITE,
+                ));
+                x += icon_size + 10.0;
             }
+
+            let title_font = egui::TextStyle::Heading.resolve(&ctx.global_style());
+            let subtitle_font = egui::TextStyle::Body.resolve(&ctx.global_style());
+
+            painter.text(
+                egui::pos2(x, y + 4.0),
+                egui::Align2::LEFT_TOP,
+                &split.name,
+                title_font.clone(),
+                egui::Color32::WHITE,
+            );
+
+            let secondary_text = if let Some(pb) =
+                split.comparison_time(COMPARISON_PERSONAL_BEST, TimingMethod::RealTime)
+            {
+                format!("PB: {}", format_duration(pb))
+            } else if let Some(best) =
+                split.comparison_time(COMPARISON_BEST_SEGMENTS, TimingMethod::RealTime)
+            {
+                format!("Best: {}", format_duration(best))
+            } else {
+                "No time set".to_string()
+            };
+
+            painter.text(
+                egui::pos2(x, y + 28.0),
+                egui::Align2::LEFT_TOP,
+                secondary_text,
+                subtitle_font,
+                egui::Color32::GRAY,
+            );
         }
 
         if ctx.input(|i| i.pointer.any_released()) {

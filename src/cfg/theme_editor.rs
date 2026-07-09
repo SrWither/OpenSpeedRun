@@ -89,23 +89,20 @@ impl ThemeEditor {
                             .text("Info"),
                     );
 
-                    if ui.button("Load Font").clicked() {
-                        if let Some(path) = rfd::FileDialog::new()
+                    if ui.button("Load Font").clicked()
+                        && let Some(path) = rfd::FileDialog::new()
                             .add_filter("Fonts", &["ttf", "otf"])
                             .pick_file()
-                        {
-                            if let Ok(new_path) = copy_font_to_fonts_folder(&path) {
-                                if let Some(file_name) =
-                                    new_path.file_stem().and_then(|n| n.to_str())
-                                {
-                                    self.layout.font_sizes.font = Some(file_name.to_string());
-                                    send_message("reloadtheme");
-                                } else {
-                                    eprintln!("Cannot obtain file name from path: {:?}", new_path);
-                                }
+                    {
+                        if let Ok(new_path) = copy_font_to_fonts_folder(&path) {
+                            if let Some(file_name) = new_path.file_stem().and_then(|n| n.to_str()) {
+                                self.layout.font_sizes.font = Some(file_name.to_string());
+                                send_message("reloadtheme");
                             } else {
-                                eprintln!("Error copying font to fonts folder");
+                                eprintln!("Cannot obtain file name from path: {:?}", new_path);
                             }
+                        } else {
+                            eprintln!("Error copying font to fonts folder");
                         }
                     }
 
@@ -152,27 +149,20 @@ impl ThemeEditor {
                     color_edit(ui, "Info", &mut self.layout.colors.info);
                     ui.add_space(6.0);
                     // open file picker for background image
-                    if ui.button("Load Image").clicked() {
-                        if let Some(path) = rfd::FileDialog::new()
+                    if ui.button("Load Image").clicked()
+                        && let Some(path) = rfd::FileDialog::new()
                             .add_filter("Images", &["png", "jpg", "jpeg", "gif", "webp"])
                             .pick_file()
-                        {
-                            if let Ok(new_path) = copy_image_to_backgrounds_folder(&path) {
-                                if let Some(file_name) =
-                                    new_path.file_name().and_then(|n| n.to_str())
-                                {
-                                    self.layout.colors.background_image =
-                                        Some(file_name.to_string());
-                                    send_message("reloadtheme");
-                                } else {
-                                    eprintln!(
-                                        "Error obtaining file name from path: {:?}",
-                                        new_path
-                                    );
-                                }
+                    {
+                        if let Ok(new_path) = copy_image_to_backgrounds_folder(&path) {
+                            if let Some(file_name) = new_path.file_name().and_then(|n| n.to_str()) {
+                                self.layout.colors.background_image = Some(file_name.to_string());
+                                send_message("reloadtheme");
                             } else {
-                                eprintln!("Error copying image to backgrounds folder");
+                                eprintln!("Error obtaining file name from path: {:?}", new_path);
                             }
+                        } else {
+                            eprintln!("Error copying image to backgrounds folder");
                         }
                     }
 
@@ -183,19 +173,16 @@ impl ThemeEditor {
 
                     if let Ok(entries) = fs::read_dir(&backgrounds_dir) {
                         for entry in entries.flatten() {
-                            if let Ok(file_type) = entry.file_type() {
-                                if file_type.is_file() {
-                                    if let Some(ext) = entry.path().extension() {
-                                        if matches!(
-                                            ext.to_str().unwrap_or("").to_lowercase().as_str(),
-                                            "png" | "jpg" | "jpeg" | "gif" | "webp"
-                                        ) {
-                                            if let Some(file_name) = entry.file_name().to_str() {
-                                                bg_files.push(file_name.to_string());
-                                            }
-                                        }
-                                    }
-                                }
+                            if let Ok(file_type) = entry.file_type()
+                                && file_type.is_file()
+                                && let Some(ext) = entry.path().extension()
+                                && matches!(
+                                    ext.to_str().unwrap_or("").to_lowercase().as_str(),
+                                    "png" | "jpg" | "jpeg" | "gif" | "webp"
+                                )
+                                && let Some(file_name) = entry.file_name().to_str()
+                            {
+                                bg_files.push(file_name.to_string());
                             }
                         }
                     }

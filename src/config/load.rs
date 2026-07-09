@@ -31,14 +31,13 @@ impl AppConfig {
     pub fn load() -> Self {
         let path = config_base_dir().join("config.json");
 
-        if path.exists() {
-            if let Ok(config_str) = std::fs::read_to_string(&path) {
-                if let Ok(config) = serde_json::from_str::<AppConfig>(&config_str) {
-                    Self::ensure_default_split_if_missing(&config);
-                    Self::ensure_default_theme_if_missing(&config);
-                    return config;
-                }
-            }
+        if path.exists()
+            && let Ok(config_str) = std::fs::read_to_string(&path)
+            && let Ok(config) = serde_json::from_str::<AppConfig>(&config_str)
+        {
+            Self::ensure_default_split_if_missing(&config);
+            Self::ensure_default_theme_if_missing(&config);
+            return config;
         }
 
         let default_config = AppConfig::default();
@@ -64,11 +63,11 @@ impl AppConfig {
         let split_path = base_dir.join(relative_dir).join("split.json");
 
         if !split_path.exists() {
-            if let Some(parent) = split_path.parent() {
-                if let Err(e) = std::fs::create_dir_all(parent) {
-                    eprintln!("❌ Failed to create directory for split: {}", e);
-                    return;
-                }
+            if let Some(parent) = split_path.parent()
+                && let Err(e) = std::fs::create_dir_all(parent)
+            {
+                eprintln!("❌ Failed to create directory for split: {}", e);
+                return;
             }
 
             let run = Run::new(

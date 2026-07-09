@@ -318,10 +318,10 @@ impl AppState {
                 if best.real_time.is_none_or(|gold| relative_real < gold) {
                     best.real_time = Some(relative_real);
                 }
-                if let Some(relative_game) = relative_game {
-                    if best.game_time.is_none_or(|gold| relative_game < gold) {
-                        best.game_time = Some(relative_game);
-                    }
+                if let Some(relative_game) = relative_game
+                    && best.game_time.is_none_or(|gold| relative_game < gold)
+                {
+                    best.game_time = Some(relative_game);
                 }
             }
         }
@@ -451,7 +451,7 @@ impl AppState {
 
     pub fn save(&mut self) -> std::io::Result<()> {
         let path = self.split_base_path.join("split.json");
-        return self.run.save_to_file(path.to_str().unwrap());
+        self.run.save_to_file(path.to_str().unwrap())
     }
 
     /// Merges this attempt's comparisons/segment history into the on-disk
@@ -500,15 +500,15 @@ impl AppState {
             };
 
             if let Some(cmp_segment) = self.run.splits[i].comparison_time(comparison, method) {
-                delta = delta + ((actual_total - prev_actual) - cmp_segment);
+                delta += (actual_total - prev_actual) - cmp_segment;
             }
         }
 
-        if let Some(split) = self.run.splits.get(self.current_split) {
-            if let Some(cmp_segment) = split.comparison_time(comparison, method) {
-                let live_segment = Duration::milliseconds((elapsed_split_time * 1000.0) as i64);
-                delta = delta + (live_segment - cmp_segment);
-            }
+        if let Some(split) = self.run.splits.get(self.current_split)
+            && let Some(cmp_segment) = split.comparison_time(comparison, method)
+        {
+            let live_segment = Duration::milliseconds((elapsed_split_time * 1000.0) as i64);
+            delta += live_segment - cmp_segment;
         }
 
         delta.as_seconds_f32()
@@ -570,13 +570,7 @@ impl AppState {
 
     pub fn format_duration(&self, dur: Duration, sign_mode: u8) -> String {
         let sign = match sign_mode {
-            1 => {
-                if dur < Duration::zero() {
-                    "-"
-                } else {
-                    ""
-                }
-            }
+            1 if dur < Duration::zero() => "-",
             2 => {
                 if dur < Duration::zero() {
                     "-"

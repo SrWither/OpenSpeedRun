@@ -21,16 +21,11 @@ pub const BUILTIN_COMPARISONS: &[&str] = &[
     COMPARISON_MEDIAN_SEGMENTS,
 ];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum TimingMethod {
+    #[default]
     RealTime,
     GameTime,
-}
-
-impl Default for TimingMethod {
-    fn default() -> Self {
-        TimingMethod::RealTime
-    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
@@ -153,7 +148,7 @@ impl Split {
         let result = if median {
             millis.sort_unstable();
             let mid = millis.len() / 2;
-            if millis.len() % 2 == 0 {
+            if millis.len().is_multiple_of(2) {
                 (millis[mid - 1] + millis[mid]) / 2
             } else {
                 millis[mid]
@@ -231,10 +226,10 @@ impl Run {
             })
             .collect();
 
-        if let Some(last) = splits.last() {
-            if last.name.trim().is_empty() {
-                splits.last_mut().unwrap().name = "Final Boss".to_string();
-            }
+        if let Some(last) = splits.last()
+            && last.name.trim().is_empty()
+        {
+            splits.last_mut().unwrap().name = "Final Boss".to_string();
         }
 
         Self {
@@ -284,7 +279,7 @@ impl Run {
                         .iter()
                         .find(|e| e.run_index == a.run_index)
                         .and_then(|e| e.get(method))?;
-                    total = total + segment;
+                    total += segment;
                 }
                 Some((a.run_index, total))
             })
@@ -336,10 +331,10 @@ impl Run {
             // Keep the pre-migration file around in case something about
             // the conversion was wrong.
             let backup_path = format!("{path}.bak-v0");
-            if !std::path::Path::new(&backup_path).exists() {
-                if let Err(e) = std::fs::copy(path, &backup_path) {
-                    eprintln!("⚠ Could not back up pre-migration file '{path}': {e}");
-                }
+            if !std::path::Path::new(&backup_path).exists()
+                && let Err(e) = std::fs::copy(path, &backup_path)
+            {
+                eprintln!("⚠ Could not back up pre-migration file '{path}': {e}");
             }
         }
 
@@ -459,6 +454,7 @@ mod legacy {
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     #[serde(default)]
+    #[derive(Default)]
     pub struct LegacySplit {
         #[serde(with = "crate::core::split::duration_millis")]
         pub pb_time: Option<Duration>,
@@ -466,17 +462,6 @@ mod legacy {
         pub gold_time: Option<Duration>,
         pub gold_history: Vec<LegacySegmentHistoryEntry>,
         pub pb_history: Vec<LegacySegmentHistoryEntry>,
-    }
-
-    impl Default for LegacySplit {
-        fn default() -> Self {
-            Self {
-                pb_time: None,
-                gold_time: None,
-                gold_history: Vec::new(),
-                pb_history: Vec::new(),
-            }
-        }
     }
 
     #[derive(Debug, Clone, Default, Serialize, Deserialize)]

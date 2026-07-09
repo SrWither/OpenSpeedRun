@@ -28,24 +28,26 @@ fn default_split_has_builtin_comparison_entries() {
 
 #[test]
 fn average_and_median_segments_are_computed_from_history() {
-    let mut split = Split::default();
-    split.segment_history = vec![
-        SegmentHistoryEntry {
-            run_index: 0,
-            real_time: Some(ms(1000)),
-            game_time: None,
-        },
-        SegmentHistoryEntry {
-            run_index: 1,
-            real_time: Some(ms(2000)),
-            game_time: None,
-        },
-        SegmentHistoryEntry {
-            run_index: 2,
-            real_time: Some(ms(3000)),
-            game_time: None,
-        },
-    ];
+    let split = Split {
+        segment_history: vec![
+            SegmentHistoryEntry {
+                run_index: 0,
+                real_time: Some(ms(1000)),
+                game_time: None,
+            },
+            SegmentHistoryEntry {
+                run_index: 1,
+                real_time: Some(ms(2000)),
+                game_time: None,
+            },
+            SegmentHistoryEntry {
+                run_index: 2,
+                real_time: Some(ms(3000)),
+                game_time: None,
+            },
+        ],
+        ..Default::default()
+    };
 
     assert_eq!(
         split.comparison_time(COMPARISON_AVERAGE_SEGMENTS, TimingMethod::RealTime),
@@ -59,19 +61,21 @@ fn average_and_median_segments_are_computed_from_history() {
 
 #[test]
 fn median_of_an_even_length_history_averages_the_middle_two() {
-    let mut split = Split::default();
-    split.segment_history = vec![
-        SegmentHistoryEntry {
-            run_index: 0,
-            real_time: Some(ms(1000)),
-            game_time: None,
-        },
-        SegmentHistoryEntry {
-            run_index: 1,
-            real_time: Some(ms(2000)),
-            game_time: None,
-        },
-    ];
+    let split = Split {
+        segment_history: vec![
+            SegmentHistoryEntry {
+                run_index: 0,
+                real_time: Some(ms(1000)),
+                game_time: None,
+            },
+            SegmentHistoryEntry {
+                run_index: 1,
+                real_time: Some(ms(2000)),
+                game_time: None,
+            },
+        ],
+        ..Default::default()
+    };
 
     assert_eq!(
         split.comparison_time(COMPARISON_MEDIAN_SEGMENTS, TimingMethod::RealTime),
@@ -94,19 +98,21 @@ fn empty_segment_history_has_no_average_or_median() {
 
 #[test]
 fn recompute_best_segment_picks_the_minimum_and_drops_removed_records() {
-    let mut split = Split::default();
-    split.segment_history = vec![
-        SegmentHistoryEntry {
-            run_index: 0,
-            real_time: Some(ms(5000)),
-            game_time: None,
-        },
-        SegmentHistoryEntry {
-            run_index: 1,
-            real_time: Some(ms(3000)),
-            game_time: None,
-        },
-    ];
+    let mut split = Split {
+        segment_history: vec![
+            SegmentHistoryEntry {
+                run_index: 0,
+                real_time: Some(ms(5000)),
+                game_time: None,
+            },
+            SegmentHistoryEntry {
+                run_index: 1,
+                real_time: Some(ms(3000)),
+                game_time: None,
+            },
+        ],
+        ..Default::default()
+    };
     split.recompute_best_segment();
     assert_eq!(
         split.comparison_time(COMPARISON_BEST_SEGMENTS, TimingMethod::RealTime),

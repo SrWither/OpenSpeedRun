@@ -262,20 +262,20 @@ pub fn import(path: &Path, icons_dir: &Path) -> Result<ImportResult, String> {
 
     if let Some(meta) = root.child("Metadata") {
         let mut metadata = RunMetadata::default();
-        if let Some(id) = meta.child("Run").and_then(|n| n.attr("id")) {
-            if !id.is_empty() {
-                metadata.speedrun_com_category_id = Some(id.to_string());
-            }
+        if let Some(id) = meta.child("Run").and_then(|n| n.attr("id"))
+            && !id.is_empty()
+        {
+            metadata.speedrun_com_category_id = Some(id.to_string());
         }
-        if let Some(platform) = meta.child("Platform").map(XmlNode::text_trim) {
-            if !platform.is_empty() {
-                metadata.platform = Some(platform.to_string());
-            }
+        if let Some(platform) = meta.child("Platform").map(XmlNode::text_trim)
+            && !platform.is_empty()
+        {
+            metadata.platform = Some(platform.to_string());
         }
-        if let Some(region) = meta.child("Region").map(XmlNode::text_trim) {
-            if !region.is_empty() {
-                metadata.region = Some(region.to_string());
-            }
+        if let Some(region) = meta.child("Region").map(XmlNode::text_trim)
+            && !region.is_empty()
+        {
+            metadata.region = Some(region.to_string());
         }
         // The `<Variables>` container was split into `<SpeedrunComVariables>`
         // + `<CustomVariables>` in LiveSplit 1.8 (confirmed against a real
@@ -337,10 +337,10 @@ pub fn import(path: &Path, icons_dir: &Path) -> Result<ImportResult, String> {
 
             if let Some(icon_node) = seg.child("Icon") {
                 let cdata = icon_node.text_trim();
-                if !cdata.is_empty() {
-                    if let Some(icon_path) = extract_icon(cdata, icons_dir, i) {
-                        split.icon_path = Some(icon_path);
-                    }
+                if !cdata.is_empty()
+                    && let Some(icon_path) = extract_icon(cdata, icons_dir, i)
+                {
+                    split.icon_path = Some(icon_path);
                 }
             }
 

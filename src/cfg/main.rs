@@ -262,30 +262,30 @@ impl eframe::App for ConfigApp {
         }
 
         // Delete confirmation popup
-        if self.show_delete_confirm {
-            if let Some((name, is_theme)) = &self.item_to_delete {
-                let name = name.clone();
-                let is_theme = *is_theme;
-                egui::Window::new("Confirm Deletion")
-                    .collapsible(false)
-                    .resizable(false)
-                    .show(ctx, |ui| {
-                        ui.label(format!(
-                            "Are you sure you want to delete {} '{}'?",
-                            if is_theme { "the theme" } else { "the split" },
-                            name
-                        ));
+        if self.show_delete_confirm
+            && let Some((name, is_theme)) = &self.item_to_delete
+        {
+            let name = name.clone();
+            let is_theme = *is_theme;
+            egui::Window::new("Confirm Deletion")
+                .collapsible(false)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    ui.label(format!(
+                        "Are you sure you want to delete {} '{}'?",
+                        if is_theme { "the theme" } else { "the split" },
+                        name
+                    ));
 
-                        ui.horizontal(|ui| {
-                            if ui.button("Cancel").clicked() {
-                                self.show_delete_confirm = false;
-                            }
-                            if ui.button("Delete").clicked() {
-                                self.delete_item();
-                            }
-                        });
+                    ui.horizontal(|ui| {
+                        if ui.button("Cancel").clicked() {
+                            self.show_delete_confirm = false;
+                        }
+                        if ui.button("Delete").clicked() {
+                            self.delete_item();
+                        }
                     });
-            }
+                });
         }
 
         // Top Tabs
@@ -337,7 +337,7 @@ impl eframe::App for ConfigApp {
                     let needs_reload = self
                         .shader_editor
                         .as_ref()
-                        .map_or(true, |e| e.path != new_path);
+                        .is_none_or(|e| e.path != new_path);
 
                     if needs_reload {
                         self.shader_editor = Some(ShaderEditor::new(new_path, self.gl.clone()));
@@ -457,10 +457,9 @@ impl ConfigApp {
                 if ui
                     .button(format!("{} Delete Theme", egui_phosphor::regular::TRASH))
                     .clicked()
+                    && let Some(theme) = &self.selected_theme
                 {
-                    if let Some(theme) = &self.selected_theme {
-                        self.show_delete_confirmation(theme.clone(), true);
-                    }
+                    self.show_delete_confirmation(theme.clone(), true);
                 }
             });
         });
@@ -508,10 +507,9 @@ impl ConfigApp {
                 if ui
                     .button(format!("{} Delete Split", egui_phosphor::regular::TRASH))
                     .clicked()
+                    && let Some(split) = &self.selected_split
                 {
-                    if let Some(split) = &self.selected_split {
-                        self.show_delete_confirmation(split.clone(), false);
-                    }
+                    self.show_delete_confirmation(split.clone(), false);
                 }
             });
         });
@@ -598,11 +596,13 @@ pub fn send_message(msg: &str) {
 }
 
 fn main() -> eframe::Result<()> {
-    let mut options = eframe::NativeOptions::default();
-    options.renderer = eframe::Renderer::Glow;
-    options.viewport = ViewportBuilder::default()
-        .with_inner_size(egui::vec2(1360.0, 720.0))
-        .with_min_inner_size(egui::vec2(1360.0, 720.0));
+    let options = eframe::NativeOptions {
+        renderer: eframe::Renderer::Glow,
+        viewport: ViewportBuilder::default()
+            .with_inner_size(egui::vec2(1360.0, 720.0))
+            .with_min_inner_size(egui::vec2(1360.0, 720.0)),
+        ..Default::default()
+    };
 
     eframe::run_native(
         "OpenSpeedRun Config",

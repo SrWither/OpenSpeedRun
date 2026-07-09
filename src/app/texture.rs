@@ -37,10 +37,9 @@ impl AppState {
 
         if let (Some(current_name), Some(tex)) =
             (&self.background_image_name, &self.background_image)
+            && current_name == image_name
         {
-            if current_name == image_name {
-                return Some(tex.clone());
-            }
+            return Some(tex.clone());
         }
 
         let full_path = config_base_dir().join("backgrounds").join(image_name);
@@ -49,25 +48,22 @@ impl AppState {
             return None;
         }
 
-        let (rgba, size) = match Self::load_image_rgba(&full_path) {
-            Some(data) => data,
-            None => return None,
-        };
+        let (rgba, size) = Self::load_image_rgba(&full_path)?;
 
         let texture = Self::create_egui_texture(ctx, "background_image", &rgba, size);
         self.background_image = Some(texture.clone());
         self.background_image_name = Some(image_name.clone());
 
-        if let Some(gl) = &self.gl {
-            if let Some(native_tex) = Self::create_gl_texture(&**gl, &rgba, size) {
-                let replace = match self.background_gl_texture {
-                    Some(existing) => existing != native_tex,
-                    None => true,
-                };
+        if let Some(gl) = &self.gl
+            && let Some(native_tex) = Self::create_gl_texture(gl, &rgba, size)
+        {
+            let replace = match self.background_gl_texture {
+                Some(existing) => existing != native_tex,
+                None => true,
+            };
 
-                if replace {
-                    self.background_gl_texture = Some(native_tex);
-                }
+            if replace {
+                self.background_gl_texture = Some(native_tex);
             }
         }
 

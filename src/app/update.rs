@@ -15,7 +15,7 @@ use egui::Color32;
 impl AppState {
     pub fn handle_input(&mut self, ctx: &egui::Context) {
         let total_splits = self.run.splits.len();
-        let total_pages = (total_splits + self.splits_per_page - 1) / self.splits_per_page;
+        let total_pages = total_splits.div_ceil(self.splits_per_page);
 
         if ctx.input(|i| i.key_pressed(egui::Key::Space)) {
             self.start_timers();
@@ -30,10 +30,10 @@ impl AppState {
         if ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
             self.split();
         }
-        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-            if let Err(e) = self.save_comparisons() {
-                eprintln!("Error saving comparisons: {}", e);
-            }
+        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S))
+            && let Err(e) = self.save_comparisons()
+        {
+            eprintln!("Error saving comparisons: {}", e);
         }
         if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::D)) {
             self.undo_pb();
@@ -51,16 +51,14 @@ impl AppState {
             self.cycle_comparison();
         }
 
-        if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
-            if self.current_page > 0 {
-                self.current_page -= 1;
-            }
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) && self.current_page > 0 {
+            self.current_page -= 1;
         }
 
-        if ctx.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
-            if self.current_page + 1 < total_pages {
-                self.current_page += 1;
-            }
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowRight))
+            && self.current_page + 1 < total_pages
+        {
+            self.current_page += 1;
         }
 
         if ctx.input(|i| i.key_pressed(egui::Key::H)) {
@@ -121,17 +119,17 @@ impl AppWrapper {
         if app.layout.options.enable_shader || app.layout.options.enable_background_image {
             let tex = app.get_or_load_background_image(ctx);
 
-            if app.layout.options.enable_background_image {
-                if let Some(tex) = &tex {
-                    let screen_rect = ctx.content_rect();
-                    let painter = ctx.layer_painter(egui::LayerId::background());
-                    painter.image(
-                        tex.id(),
-                        screen_rect,
-                        egui::Rect::from_min_max([0.0, 0.0].into(), [1.0, 1.0].into()),
-                        egui::Color32::WHITE,
-                    );
-                }
+            if app.layout.options.enable_background_image
+                && let Some(tex) = &tex
+            {
+                let screen_rect = ctx.content_rect();
+                let painter = ctx.layer_painter(egui::LayerId::background());
+                painter.image(
+                    tex.id(),
+                    screen_rect,
+                    egui::Rect::from_min_max([0.0, 0.0].into(), [1.0, 1.0].into()),
+                    egui::Color32::WHITE,
+                );
             }
 
             tex
@@ -160,6 +158,7 @@ impl AppWrapper {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn render_shader_if_enabled(
         &self,
         ctx: &egui::Context,
@@ -180,42 +179,42 @@ impl AppWrapper {
         best_possible_time: f32,
         pb_time: f32,
     ) {
-        if app.layout.options.enable_shader {
-            if let Some(shader) = &mut app.shader {
-                let screen = ctx.content_rect();
-                let scale = ctx.native_pixels_per_point().unwrap_or(1.0);
-                let (w, h) = (screen.width() * scale, screen.height() * scale);
+        if app.layout.options.enable_shader
+            && let Some(shader) = &mut app.shader
+        {
+            let screen = ctx.content_rect();
+            let scale = ctx.native_pixels_per_point().unwrap_or(1.0);
+            let (w, h) = (screen.width() * scale, screen.height() * scale);
 
-                let now = chrono::Local::now();
-                let date = (
-                    now.year(),
-                    now.month() as i32,
-                    now.day() as i32,
-                    (now.hour() * 3600 + now.minute() * 60 + now.second()) as f32,
-                );
+            let now = chrono::Local::now();
+            let date = (
+                now.year(),
+                now.month() as i32,
+                now.day() as i32,
+                (now.hour() * 3600 + now.minute() * 60 + now.second()) as f32,
+            );
 
-                shader.render(
-                    elapsed,
-                    w,
-                    h,
-                    date,
-                    delta_time,
-                    app.background_gl_texture.as_ref(),
-                    current_split,
-                    total_splits,
-                    elapsed_time,
-                    elapsed_split_time,
-                    timer_state,
-                    attempt_count,
-                    is_gold_split,
-                    is_new_pb,
-                    igt_time,
-                    igt_paused,
-                    live_delta,
-                    best_possible_time,
-                    pb_time,
-                );
-            }
+            shader.render(
+                elapsed,
+                w,
+                h,
+                date,
+                delta_time,
+                app.background_gl_texture.as_ref(),
+                current_split,
+                total_splits,
+                elapsed_time,
+                elapsed_split_time,
+                timer_state,
+                attempt_count,
+                is_gold_split,
+                is_new_pb,
+                igt_time,
+                igt_paused,
+                live_delta,
+                best_possible_time,
+                pb_time,
+            );
         }
     }
 
@@ -247,15 +246,14 @@ impl eframe::App for AppWrapper {
         let total_splits = app.run.splits.len() as i32;
         let elapsed_time = app.timer.current_time().as_seconds_f32();
 
-        let last_split_time =
-            if app.current_split > 0 && (app.current_split as usize) < app.run.splits.len() {
-                app.splits_display[app.current_split - 1]
-                    .last_time
-                    .map(|t| t.as_seconds_f32())
-                    .unwrap_or(0.0)
-            } else {
-                0.0
-            };
+        let last_split_time = if app.current_split > 0 && app.current_split < app.run.splits.len() {
+            app.splits_display[app.current_split - 1]
+                .last_time
+                .map(|t| t.as_seconds_f32())
+                .unwrap_or(0.0)
+        } else {
+            0.0
+        };
 
         let elapsed_split_time = elapsed_time - last_split_time;
 

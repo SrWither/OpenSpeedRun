@@ -130,31 +130,29 @@ impl AppState {
 
                                             if let Some(comparison) =
                                                 split.comparison_time(&selected_comparison, method)
+                                                && comparison.num_milliseconds() > 0
                                             {
-                                                if comparison.num_milliseconds() > 0 {
-                                                    let diff = relative - comparison;
-                                                    if !is_gold_style || diff != Duration::zero() {
-                                                        let diff_text =
-                                                            self.format_duration(diff, 2);
+                                                let diff = relative - comparison;
+                                                if !is_gold_style || diff != Duration::zero() {
+                                                    let diff_text = self.format_duration(diff, 2);
 
-                                                        let diff_color = if is_gold_style {
-                                                            if diff < Duration::zero() {
-                                                                gold_positive_color
-                                                            } else {
-                                                                gold_negative_color
-                                                            }
-                                                        } else if diff < Duration::zero() {
-                                                            pb_positive_color
+                                                    let diff_color = if is_gold_style {
+                                                        if diff < Duration::zero() {
+                                                            gold_positive_color
                                                         } else {
-                                                            pb_negative_color
-                                                        };
+                                                            gold_negative_color
+                                                        }
+                                                    } else if diff < Duration::zero() {
+                                                        pb_positive_color
+                                                    } else {
+                                                        pb_negative_color
+                                                    };
 
-                                                        ui.label(
-                                                            RichText::new(diff_text)
-                                                                .size(font_sizes.split_gold)
-                                                                .color(diff_color),
-                                                        );
-                                                    }
+                                                    ui.label(
+                                                        RichText::new(diff_text)
+                                                            .size(font_sizes.split_gold)
+                                                            .color(diff_color),
+                                                    );
                                                 }
                                             }
                                             // Show relative time if applicable
@@ -190,29 +188,27 @@ impl AppState {
 
                                             if let Some(comparison) =
                                                 split.comparison_time(&selected_comparison, method)
+                                                && comparison.num_milliseconds() > 0
                                             {
-                                                if comparison.num_milliseconds() > 0 {
-                                                    let diff = live_relative - comparison;
-                                                    if diff >= -threshold {
-                                                        let diff_text =
-                                                            self.format_duration(diff, 2);
-                                                        let diff_color = if is_gold_style {
-                                                            if diff < Duration::zero() {
-                                                                gold_positive_color
-                                                            } else {
-                                                                gold_negative_color
-                                                            }
-                                                        } else if diff < Duration::zero() {
-                                                            pb_positive_color
+                                                let diff = live_relative - comparison;
+                                                if diff >= -threshold {
+                                                    let diff_text = self.format_duration(diff, 2);
+                                                    let diff_color = if is_gold_style {
+                                                        if diff < Duration::zero() {
+                                                            gold_positive_color
                                                         } else {
-                                                            pb_negative_color
-                                                        };
-                                                        ui.label(
-                                                            RichText::new(diff_text)
-                                                                .size(font_sizes.split_gold)
-                                                                .color(diff_color),
-                                                        );
-                                                    }
+                                                            gold_negative_color
+                                                        }
+                                                    } else if diff < Duration::zero() {
+                                                        pb_positive_color
+                                                    } else {
+                                                        pb_negative_color
+                                                    };
+                                                    ui.label(
+                                                        RichText::new(diff_text)
+                                                            .size(font_sizes.split_gold)
+                                                            .color(diff_color),
+                                                    );
                                                 }
                                             }
                                         } else {

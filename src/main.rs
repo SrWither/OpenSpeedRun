@@ -48,11 +48,13 @@ fn main() -> eframe::Result<()> {
     let titlebar = layout.options.titlebar;
     let window_size = layout.options.window_size;
 
-    let mut options = NativeOptions::default();
-    options.renderer = eframe::Renderer::Glow;
-    options.viewport = ViewportBuilder::default()
-        .with_decorations(titlebar)
-        .with_inner_size(egui::vec2(window_size.0 as f32, window_size.1 as f32));
+    let options = NativeOptions {
+        renderer: eframe::Renderer::Glow,
+        viewport: ViewportBuilder::default()
+            .with_decorations(titlebar)
+            .with_inner_size(egui::vec2(window_size.0 as f32, window_size.1 as f32)),
+        ..Default::default()
+    };
 
     eframe::run_native(
         "OpenSpeedRun",

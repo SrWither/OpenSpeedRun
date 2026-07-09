@@ -98,7 +98,7 @@ fn export_then_import_round_trips_core_fields() {
 
     assert_eq!(imported.attempt_history.len(), 1);
     assert_eq!(imported.attempt_history[0].run_index, 0);
-    assert_eq!(imported.attempt_history[0].ended, true);
+    assert!(imported.attempt_history[0].ended);
     assert_eq!(
         imported.attempt_history[0].real_time,
         run.attempt_history[0].real_time

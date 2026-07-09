@@ -66,7 +66,7 @@ impl AppState {
 
         let previous_split_relative = if self.current_split == 1 {
             self.splits_display
-                .get(0)
+                .first()
                 .and_then(|s| s.last_time_for(method))
                 .unwrap_or(Duration::zero())
         } else if self.current_split > 1 {

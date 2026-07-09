@@ -24,10 +24,10 @@ pub fn load_syntax_set() -> &'static SyntaxSet {
 }
 
 pub fn load_theme_set() -> &'static ThemeSet {
-    THEME_SET.get_or_init(|| ThemeSet::load_defaults())
+    THEME_SET.get_or_init(ThemeSet::load_defaults)
 }
 
-pub fn find_glsl_syntax<'a>(ps: &'a SyntaxSet) -> &'a SyntaxReference {
+pub fn find_glsl_syntax(ps: &SyntaxSet) -> &SyntaxReference {
     ps.find_syntax_by_extension("glsl")
         .unwrap_or_else(|| ps.find_syntax_plain_text())
 }
@@ -52,7 +52,7 @@ pub fn highlight_glsl_lines<'a>(
         let ranges = h
             .highlight_line(line, ps)
             .expect("Failed to highlight line");
-        out.extend(ranges.into_iter().map(|(style, text)| (style, text)));
+        out.extend(ranges);
     }
 
     out
@@ -76,7 +76,7 @@ impl SyntaxSetBuilderExt for SyntaxSetBuilder {
             if file
                 .path()
                 .extension()
-                .map_or(false, |e| e == "sublime-syntax")
+                .is_some_and(|e| e == "sublime-syntax")
             {
                 let content = file.contents_utf8().unwrap_or_default();
 
