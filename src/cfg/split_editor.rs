@@ -5,6 +5,7 @@ use image::GenericImageView;
 use openspeedrun::core::split::{
     COMPARISON_BEST_SEGMENTS, COMPARISON_PERSONAL_BEST, Run, RunVariable, Split, TimingMethod,
 };
+use openspeedrun::formats::{lss, native};
 use rfd::FileDialog;
 use std::collections::HashMap;
 use std::fs;
@@ -18,6 +19,7 @@ pub struct SplitEditor {
     icon_selection_index: Option<usize>,
     icon_cache: HashMap<String, TextureHandle>,
     dragging_split_index: Option<usize>,
+    import_export_status: Option<String>,
 }
 
 fn format_duration(duration: chrono::Duration) -> String {
@@ -110,6 +112,7 @@ impl SplitEditor {
             icon_selection_index: None,
             icon_cache: HashMap::new(),
             dragging_split_index: None,
+            import_export_status: None,
         }
     }
 
@@ -281,6 +284,69 @@ impl SplitEditor {
                 send_message("reloadrun");
             }
         });
+
+        ui.horizontal(|ui| {
+            if ui.button("Import .lss").clicked() {
+                if let Some(path) = FileDialog::new().add_filter("LiveSplit", &["lss"]).pick_file() {
+                    let icons_dir = self.run_path.parent().unwrap().join("icons");
+                    self.import_export_status = Some(match lss::import(&path, &icons_dir) {
+                        Ok(run) => {
+                            self.run = run;
+                            "Imported from LiveSplit. Review it, then \"Save all\" to keep it.".to_string()
+                        }
+                        Err(e) => format!("Import failed: {e}"),
+                    });
+                }
+            }
+
+            if ui.button("Export .lss").clicked() {
+                let default_name = format!("{}.lss", self.run.title);
+                if let Some(path) = FileDialog::new()
+                    .set_file_name(&default_name)
+                    .add_filter("LiveSplit", &["lss"])
+                    .save_file()
+                {
+                    self.import_export_status = Some(match lss::export(&self.run, &path) {
+                        Ok(()) => format!("Exported to {}", path.display()),
+                        Err(e) => format!("Export failed: {e}"),
+                    });
+                }
+            }
+
+            if ui.button("Export folder").clicked() {
+                if let Some(dest) = FileDialog::new().pick_folder() {
+                    let run_dir = self.run_path.parent().unwrap();
+                    self.import_export_status = Some(match native::export_folder(run_dir, &dest) {
+                        Ok(()) => format!("Exported folder to {}", dest.display()),
+                        Err(e) => format!("Folder export failed: {e}"),
+                    });
+                }
+            }
+
+            if ui.button("Import folder").clicked() {
+                if let Some(src) = FileDialog::new().pick_folder() {
+                    let splits_base = crate::config_base_dir().join("splits");
+                    let name = src
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("imported")
+                        .to_string();
+                    self.import_export_status =
+                        Some(match native::import_folder(&src, &splits_base, &name) {
+                            Ok(dest) => format!(
+                                "Imported to {}. Reopen the Selector tab to see it.",
+                                dest.display()
+                            ),
+                            Err(e) => format!("Folder import failed: {e}"),
+                        });
+                }
+            }
+        });
+
+        if let Some(status) = &self.import_export_status {
+            ui.label(status);
+        }
+
         ui.separator();
 
         self.load_textures(ctx);

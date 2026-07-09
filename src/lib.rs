@@ -1,6 +1,7 @@
 pub mod app;
 pub mod config;
 pub mod core;
+pub mod formats;
 
 pub use app::state::{AppState, AppWrapper};
 pub use config::{layout::LayoutConfig, load::AppConfig, load::config_base_dir};

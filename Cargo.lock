@@ -2900,6 +2900,7 @@ dependencies = [
  "image",
  "include_dir",
  "named_pipe",
+ "quick-xml 0.41.0",
  "rdev",
  "rfd",
  "serde",
