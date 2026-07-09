@@ -1,10 +1,10 @@
 use chrono::{DateTime, Duration, Utc};
+use openspeedrun::Run;
 use openspeedrun::core::split::{
     AttemptHistoryEntry, COMPARISON_BEST_SEGMENTS, COMPARISON_PERSONAL_BEST, RunVariable,
     SegmentHistoryEntry, TimingMethod,
 };
 use openspeedrun::formats::lss;
-use openspeedrun::Run;
 
 fn ms(n: i64) -> Duration {
     Duration::milliseconds(n)
@@ -22,7 +22,10 @@ fn sample_run() -> Run {
     run.attempts = 2;
     run.metadata.platform = Some("PC".to_string());
     run.metadata.region = Some("NTSC".to_string());
-    run.metadata.variables.push(RunVariable { name: "Ruleset".to_string(), value: "Glitchless".to_string() });
+    run.metadata.variables.push(RunVariable {
+        name: "Ruleset".to_string(),
+        value: "Glitchless".to_string(),
+    });
 
     run.attempt_history.push(AttemptHistoryEntry {
         run_index: 0,
@@ -32,13 +35,37 @@ fn sample_run() -> Run {
         date: Some(whole_second_now()),
     });
 
-    run.splits[0].comparisons.get_mut(COMPARISON_PERSONAL_BEST).unwrap().real_time = Some(ms(30_000));
-    run.splits[0].comparisons.get_mut(COMPARISON_BEST_SEGMENTS).unwrap().real_time = Some(ms(28_000));
-    run.splits[0].segment_history.push(SegmentHistoryEntry { run_index: 0, real_time: Some(ms(30_000)), game_time: None });
+    run.splits[0]
+        .comparisons
+        .get_mut(COMPARISON_PERSONAL_BEST)
+        .unwrap()
+        .real_time = Some(ms(30_000));
+    run.splits[0]
+        .comparisons
+        .get_mut(COMPARISON_BEST_SEGMENTS)
+        .unwrap()
+        .real_time = Some(ms(28_000));
+    run.splits[0].segment_history.push(SegmentHistoryEntry {
+        run_index: 0,
+        real_time: Some(ms(30_000)),
+        game_time: None,
+    });
 
-    run.splits[1].comparisons.get_mut(COMPARISON_PERSONAL_BEST).unwrap().real_time = Some(ms(90_000));
-    run.splits[1].comparisons.get_mut(COMPARISON_BEST_SEGMENTS).unwrap().real_time = Some(ms(58_000));
-    run.splits[1].segment_history.push(SegmentHistoryEntry { run_index: 0, real_time: Some(ms(60_000)), game_time: None });
+    run.splits[1]
+        .comparisons
+        .get_mut(COMPARISON_PERSONAL_BEST)
+        .unwrap()
+        .real_time = Some(ms(90_000));
+    run.splits[1]
+        .comparisons
+        .get_mut(COMPARISON_BEST_SEGMENTS)
+        .unwrap()
+        .real_time = Some(ms(58_000));
+    run.splits[1].segment_history.push(SegmentHistoryEntry {
+        run_index: 0,
+        real_time: Some(ms(60_000)),
+        game_time: None,
+    });
 
     run
 }
@@ -72,8 +99,14 @@ fn export_then_import_round_trips_core_fields() {
     assert_eq!(imported.attempt_history.len(), 1);
     assert_eq!(imported.attempt_history[0].run_index, 0);
     assert_eq!(imported.attempt_history[0].ended, true);
-    assert_eq!(imported.attempt_history[0].real_time, run.attempt_history[0].real_time);
-    assert_eq!(imported.attempt_history[0].date, run.attempt_history[0].date);
+    assert_eq!(
+        imported.attempt_history[0].real_time,
+        run.attempt_history[0].real_time
+    );
+    assert_eq!(
+        imported.attempt_history[0].date,
+        run.attempt_history[0].date
+    );
 
     assert_eq!(imported.splits.len(), run.splits.len());
     for (original, round_tripped) in run.splits.iter().zip(imported.splits.iter()) {
@@ -90,8 +123,14 @@ fn export_then_import_round_trips_core_fields() {
             "Best Segments mismatch for split {}",
             original.name
         );
-        assert_eq!(round_tripped.segment_history.len(), original.segment_history.len());
-        assert_eq!(round_tripped.segment_history[0].real_time, original.segment_history[0].real_time);
+        assert_eq!(
+            round_tripped.segment_history.len(),
+            original.segment_history.len()
+        );
+        assert_eq!(
+            round_tripped.segment_history[0].real_time,
+            original.segment_history[0].real_time
+        );
     }
 
     std::fs::remove_dir_all(&dir).ok();

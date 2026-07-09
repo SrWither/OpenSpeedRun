@@ -103,8 +103,7 @@ impl ShaderEditor {
             return;
         };
 
-        self.check_status = match ShaderBackground::validate(gl, &self.code_frag, &self.code_vert)
-        {
+        self.check_status = match ShaderBackground::validate(gl, &self.code_frag, &self.code_vert) {
             Ok(()) => CheckStatus::Ok,
             Err(e) => CheckStatus::Error(e),
         };
@@ -115,55 +114,57 @@ impl ShaderEditor {
         let syntax_set = syntax::load_syntax_set();
         let theme = syntax::get_theme("base16-eighties.dark");
 
-        let mut layouter_frag = move |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| {
-            let highlighted = syntax::highlight_glsl_lines(text.as_str(), syntax_set, theme);
-            let mut job = egui::text::LayoutJob::default();
-            job.wrap.max_width = wrap_width;
+        let mut layouter_frag =
+            move |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| {
+                let highlighted = syntax::highlight_glsl_lines(text.as_str(), syntax_set, theme);
+                let mut job = egui::text::LayoutJob::default();
+                job.wrap.max_width = wrap_width;
 
-            for (style, segment) in highlighted {
-                let color = egui::Color32::from_rgb(
-                    style.foreground.r,
-                    style.foreground.g,
-                    style.foreground.b,
-                );
-                job.append(
-                    segment,
-                    0.0,
-                    egui::TextFormat {
-                        font_id: egui::FontId::monospace(14.0),
-                        color,
-                        ..Default::default()
-                    },
-                );
-            }
+                for (style, segment) in highlighted {
+                    let color = egui::Color32::from_rgb(
+                        style.foreground.r,
+                        style.foreground.g,
+                        style.foreground.b,
+                    );
+                    job.append(
+                        segment,
+                        0.0,
+                        egui::TextFormat {
+                            font_id: egui::FontId::monospace(14.0),
+                            color,
+                            ..Default::default()
+                        },
+                    );
+                }
 
-            ui.fonts_mut(|f| f.layout_job(job))
-        };
+                ui.fonts_mut(|f| f.layout_job(job))
+            };
 
-        let mut layouter_vert = move |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| {
-            let highlighted = syntax::highlight_glsl_lines(text.as_str(), syntax_set, theme);
-            let mut job = egui::text::LayoutJob::default();
-            job.wrap.max_width = wrap_width;
+        let mut layouter_vert =
+            move |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| {
+                let highlighted = syntax::highlight_glsl_lines(text.as_str(), syntax_set, theme);
+                let mut job = egui::text::LayoutJob::default();
+                job.wrap.max_width = wrap_width;
 
-            for (style, segment) in highlighted {
-                let color = egui::Color32::from_rgb(
-                    style.foreground.r,
-                    style.foreground.g,
-                    style.foreground.b,
-                );
-                job.append(
-                    segment,
-                    0.0,
-                    egui::TextFormat {
-                        font_id: egui::FontId::monospace(14.0),
-                        color,
-                        ..Default::default()
-                    },
-                );
-            }
+                for (style, segment) in highlighted {
+                    let color = egui::Color32::from_rgb(
+                        style.foreground.r,
+                        style.foreground.g,
+                        style.foreground.b,
+                    );
+                    job.append(
+                        segment,
+                        0.0,
+                        egui::TextFormat {
+                            font_id: egui::FontId::monospace(14.0),
+                            color,
+                            ..Default::default()
+                        },
+                    );
+                }
 
-            ui.fonts_mut(|f| f.layout_job(job))
-        };
+                ui.fonts_mut(|f| f.layout_job(job))
+            };
 
         ui.horizontal(|ui| {
             if ui
@@ -173,12 +174,10 @@ impl ShaderEditor {
                 self.new_shader_name.clear();
                 self.show_new_popup = true;
             }
-            let save_button = egui::Button::new(format!(
-                "{} Save Both",
-                egui_phosphor::regular::FLOPPY_DISK
-            ))
-            .fill(style::ACCENT_BG)
-            .stroke(egui::Stroke::new(1.0, style::ACCENT));
+            let save_button =
+                egui::Button::new(format!("{} Save Both", egui_phosphor::regular::FLOPPY_DISK))
+                    .fill(style::ACCENT_BG)
+                    .stroke(egui::Stroke::new(1.0, style::ACCENT));
             if ui.add(save_button).clicked() {
                 let path_vert = self.path.with_extension(format!(
                     "{}{}",
@@ -291,9 +290,7 @@ impl ShaderEditor {
                             ui.end_row();
 
                             for doc in UNIFORM_DOCS {
-                                ui.label(
-                                    RichText::new(doc.names.join(" / ")).monospace(),
-                                );
+                                ui.label(RichText::new(doc.names.join(" / ")).monospace());
                                 ui.label(RichText::new(doc.glsl_type).monospace());
                                 ui.label(doc.description);
                                 ui.end_row();

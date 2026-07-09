@@ -293,10 +293,7 @@ impl eframe::App for ConfigApp {
             .frame(egui::Frame {
                 fill: style::BG_ELEVATED,
                 stroke: egui::Stroke::new(1.0, style::BORDER_SUBTLE),
-                inner_margin: egui::Margin::symmetric(
-                    style::SPACE_MD as i8,
-                    style::SPACE_SM as i8,
-                ),
+                inner_margin: egui::Margin::symmetric(style::SPACE_MD as i8, style::SPACE_SM as i8),
                 ..Default::default()
             })
             .show_inside(ui, |ui| {

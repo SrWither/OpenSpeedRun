@@ -190,7 +190,10 @@ impl AppState {
     /// the config app's split editor.
     pub fn cycle_comparison(&mut self) {
         let names = self.run.comparison_names();
-        let Some(current_index) = names.iter().position(|n| n == &self.run.selected_comparison) else {
+        let Some(current_index) = names
+            .iter()
+            .position(|n| n == &self.run.selected_comparison)
+        else {
             return;
         };
         let next_index = (current_index + 1) % names.len();
@@ -307,8 +310,9 @@ impl AppState {
 
                 self.last_segment_is_gold = match method {
                     TimingMethod::RealTime => prev_best.is_none_or(|gold| relative_real < gold),
-                    TimingMethod::GameTime => relative_game
-                        .is_some_and(|rg| prev_best.is_none_or(|gold| rg < gold)),
+                    TimingMethod::GameTime => {
+                        relative_game.is_some_and(|rg| prev_best.is_none_or(|gold| rg < gold))
+                    }
                 };
 
                 if best.real_time.is_none_or(|gold| relative_real < gold) {
@@ -325,9 +329,7 @@ impl AppState {
         if self.current_split == self.run.splits.len() {
             let current_total = match method {
                 TimingMethod::RealTime => self.splits_display.last().and_then(|s| s.last_time),
-                TimingMethod::GameTime => {
-                    self.splits_display.last().and_then(|s| s.last_time_game)
-                }
+                TimingMethod::GameTime => self.splits_display.last().and_then(|s| s.last_time_game),
             };
 
             let existing_pb_total = self.run.comparison_total(COMPARISON_PERSONAL_BEST, method);

@@ -31,7 +31,11 @@ pub fn export_folder(run_dir: &Path, dest_dir: &Path) -> std::io::Result<()> {
 /// Copies a previously-exported run folder (`split.json` + `icons/`) from
 /// `src_dir` into `splits_base_dir/name`, refusing to overwrite an existing
 /// run with that name. Returns the new run's directory.
-pub fn import_folder(src_dir: &Path, splits_base_dir: &Path, name: &str) -> std::io::Result<PathBuf> {
+pub fn import_folder(
+    src_dir: &Path,
+    splits_base_dir: &Path,
+    name: &str,
+) -> std::io::Result<PathBuf> {
     let dest_dir = splits_base_dir.join(name);
     if dest_dir.exists() {
         return Err(std::io::Error::new(

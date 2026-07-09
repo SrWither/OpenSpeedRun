@@ -168,8 +168,10 @@ pub struct AvailableCategory {
 /// find a real user with a run for this exact game display name, then
 /// reads the correct slug off their `originalRun`.
 fn resolve_game_slug(game_display_name: &str) -> Result<String, String> {
-    let search: SearchResponse =
-        get_json(&format!("{API_BASE}/search?q={}", urlencode(game_display_name)))?;
+    let search: SearchResponse = get_json(&format!(
+        "{API_BASE}/search?q={}",
+        urlencode(game_display_name)
+    ))?;
 
     let matching_user = search
         .runs
@@ -181,23 +183,34 @@ fn resolve_game_slug(game_display_name: &str) -> Result<String, String> {
 
     user_runs
         .iter()
-        .find(|r| r.game.as_deref().is_some_and(|g| g.eq_ignore_ascii_case(game_display_name)))
+        .find(|r| {
+            r.game
+                .as_deref()
+                .is_some_and(|g| g.eq_ignore_ascii_case(game_display_name))
+        })
         .and_then(|r| r.original_run.as_deref())
         .and_then(|orig| orig.split('#').next())
         .map(str::to_string)
-        .ok_or_else(|| format!("therun.gg's data for \"{game_display_name}\" has no usable identifier"))
+        .ok_or_else(|| {
+            format!("therun.gg's data for \"{game_display_name}\" has no usable identifier")
+        })
 }
 
 /// Tries `game_slug_guess` (normally speedrun.com's `abbreviation`) first,
 /// falling back to `resolve_game_slug` if that doesn't resolve. Returns the
 /// slug that actually worked, so the caller can reuse it directly for
 /// `fetch_record_splits` without re-resolving.
-fn fetch_game(game_slug_guess: &str, game_display_name: &str) -> Result<(GameResponse, String), String> {
+fn fetch_game(
+    game_slug_guess: &str,
+    game_display_name: &str,
+) -> Result<(GameResponse, String), String> {
     match get_json::<GameResponse>(&format!("{API_BASE}/games/{game_slug_guess}")) {
         Ok(game) => Ok((game, game_slug_guess.to_string())),
         Err(guess_error) => {
             let resolved_slug = resolve_game_slug(game_display_name).map_err(|resolve_error| {
-                format!("Guessed slug \"{game_slug_guess}\" failed ({guess_error}); {resolve_error}")
+                format!(
+                    "Guessed slug \"{game_slug_guess}\" failed ({guess_error}); {resolve_error}"
+                )
             })?;
             let game: GameResponse = get_json(&format!("{API_BASE}/games/{resolved_slug}"))?;
             Ok((game, resolved_slug))
@@ -209,7 +222,9 @@ fn urlencode(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for byte in s.bytes() {
         match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(byte as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char)
+            }
             b' ' => out.push('+'),
             _ => out.push_str(&format!("%{byte:02X}")),
         }
@@ -258,7 +273,9 @@ pub fn fetch_record_splits(game_slug: &str, category_slug: &str) -> Result<Vec<S
         .ok_or_else(|| format!("Category \"{category_slug}\" no longer found on therun.gg"))?;
 
     if category.pb_leaderboard.is_empty() {
-        return Err(format!("No runs recorded for \"{category_slug}\" on therun.gg"));
+        return Err(format!(
+            "No runs recorded for \"{category_slug}\" on therun.gg"
+        ));
     }
 
     let original_run = format!("{game_slug}#{}", category.category_name);
@@ -273,7 +290,10 @@ pub fn fetch_record_splits(game_slug: &str, category_slug: &str) -> Result<Vec<S
     // yields the richest data (most total segment history), instead of
     // stopping at the first one that merely doesn't error.
     let richness = |splits: &[Split]| -> (usize, usize) {
-        (splits.len(), splits.iter().map(|s| s.segment_history.len()).sum())
+        (
+            splits.len(),
+            splits.iter().map(|s| s.segment_history.len()).sum(),
+        )
     };
 
     for entry in category.pb_leaderboard.iter().take(5) {
@@ -327,7 +347,9 @@ fn try_fetch_from_user(username: &str, original_run_prefix: &str) -> Result<Vec<
     let history: HistoryFile = get_json(&format!("{HISTORY_BASE}/{history_filename}"))?;
 
     if history.splits.is_empty() {
-        return Err(format!("{username}'s history file for {original_run_prefix} has no splits"));
+        return Err(format!(
+            "{username}'s history file for {original_run_prefix} has no splits"
+        ));
     }
 
     // `total.bestAchievedTime` is cumulative time-from-start (same shape as
@@ -350,7 +372,10 @@ fn try_fetch_from_user(username: &str, original_run_prefix: &str) -> Result<Vec<
                 .and_then(ms_to_duration);
             comparisons.insert(
                 COMPARISON_BEST_SEGMENTS.to_string(),
-                ComparisonTime { real_time: best_segment, game_time: None },
+                ComparisonTime {
+                    real_time: best_segment,
+                    game_time: None,
+                },
             );
 
             let cumulative_pb = s
@@ -365,7 +390,10 @@ fn try_fetch_from_user(username: &str, original_run_prefix: &str) -> Result<Vec<
             }
             comparisons.insert(
                 COMPARISON_PERSONAL_BEST.to_string(),
-                ComparisonTime { real_time: relative_pb, game_time: None },
+                ComparisonTime {
+                    real_time: relative_pb,
+                    game_time: None,
+                },
             );
 
             let segment_history = s
@@ -373,7 +401,10 @@ fn try_fetch_from_user(username: &str, original_run_prefix: &str) -> Result<Vec<
                 .iter()
                 .enumerate()
                 .filter_map(|(i, v)| {
-                    let real_time = v.as_ref().and_then(FlexNum::as_ms).and_then(ms_to_duration)?;
+                    let real_time = v
+                        .as_ref()
+                        .and_then(FlexNum::as_ms)
+                        .and_then(ms_to_duration)?;
                     Some(SegmentHistoryEntry {
                         run_index: i as u32,
                         real_time: Some(real_time),

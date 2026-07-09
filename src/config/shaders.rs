@@ -13,8 +13,11 @@ const TEXTURE_NAMES: &[&str] = &["u_texture", "iChannel0", "image"];
 const CURRENT_SPLIT_NAMES: &[&str] = &["current_split", "u_current_split", "iCurrentSplit"];
 const TOTAL_SPLITS_NAMES: &[&str] = &["total_splits", "u_total_splits", "iTotalSplits"];
 const ELAPSED_TIME_NAMES: &[&str] = &["elapsed_time", "u_elapsed_time", "iElapsedTime"];
-const ELAPSED_SPLIT_TIME_NAMES: &[&str] =
-    &["elapsed_split_time", "u_elapsed_split_time", "iElapsedSplitTime"];
+const ELAPSED_SPLIT_TIME_NAMES: &[&str] = &[
+    "elapsed_split_time",
+    "u_elapsed_split_time",
+    "iElapsedSplitTime",
+];
 const TIMER_STATE_NAMES: &[&str] = &["timer_state", "u_timer_state", "iTimerState"];
 const ATTEMPT_COUNT_NAMES: &[&str] = &["attempt_count", "u_attempt_count", "iAttemptCount"];
 const IS_GOLD_SPLIT_NAMES: &[&str] = &["is_gold_split", "u_is_gold_split", "iGoldSplit"];
@@ -22,8 +25,11 @@ const IS_NEW_PB_NAMES: &[&str] = &["is_new_pb", "u_is_new_pb", "iNewPB"];
 const IGT_TIME_NAMES: &[&str] = &["igt_time", "u_igt_time", "iGameTime"];
 const IGT_PAUSED_NAMES: &[&str] = &["igt_paused", "u_igt_paused", "iGameTimePaused"];
 const LIVE_DELTA_NAMES: &[&str] = &["live_delta", "u_live_delta", "iLiveDelta"];
-const BEST_POSSIBLE_TIME_NAMES: &[&str] =
-    &["best_possible_time", "u_best_possible_time", "iBestPossibleTime"];
+const BEST_POSSIBLE_TIME_NAMES: &[&str] = &[
+    "best_possible_time",
+    "u_best_possible_time",
+    "iBestPossibleTime",
+];
 const PB_TIME_NAMES: &[&str] = &["pb_time", "u_pb_time", "iPBTime"];
 
 /// Documents a uniform a shader may declare, under any of its accepted names.
@@ -161,18 +167,10 @@ impl ShaderUniforms {
     fn resolve(gl: &glow::Context, program: glow::NativeProgram) -> Self {
         Self {
             time: ShaderBackground::get_uniform_location_any(gl, program, TIME_NAMES),
-            resolution: ShaderBackground::get_uniform_location_any(
-                gl,
-                program,
-                RESOLUTION_NAMES,
-            ),
+            resolution: ShaderBackground::get_uniform_location_any(gl, program, RESOLUTION_NAMES),
             mouse: ShaderBackground::get_uniform_location_any(gl, program, MOUSE_NAMES),
             date: ShaderBackground::get_uniform_location_any(gl, program, DATE_NAMES),
-            delta_time: ShaderBackground::get_uniform_location_any(
-                gl,
-                program,
-                DELTA_TIME_NAMES,
-            ),
+            delta_time: ShaderBackground::get_uniform_location_any(gl, program, DELTA_TIME_NAMES),
             texture: ShaderBackground::get_uniform_location_any(gl, program, TEXTURE_NAMES),
             current_split: ShaderBackground::get_uniform_location_any(
                 gl,
@@ -194,11 +192,7 @@ impl ShaderUniforms {
                 program,
                 ELAPSED_SPLIT_TIME_NAMES,
             ),
-            timer_state: ShaderBackground::get_uniform_location_any(
-                gl,
-                program,
-                TIMER_STATE_NAMES,
-            ),
+            timer_state: ShaderBackground::get_uniform_location_any(gl, program, TIMER_STATE_NAMES),
             attempt_count: ShaderBackground::get_uniform_location_any(
                 gl,
                 program,
@@ -211,11 +205,7 @@ impl ShaderUniforms {
             ),
             is_new_pb: ShaderBackground::get_uniform_location_any(gl, program, IS_NEW_PB_NAMES),
             igt_time: ShaderBackground::get_uniform_location_any(gl, program, IGT_TIME_NAMES),
-            igt_paused: ShaderBackground::get_uniform_location_any(
-                gl,
-                program,
-                IGT_PAUSED_NAMES,
-            ),
+            igt_paused: ShaderBackground::get_uniform_location_any(gl, program, IGT_PAUSED_NAMES),
             live_delta: ShaderBackground::get_uniform_location_any(gl, program, LIVE_DELTA_NAMES),
             best_possible_time: ShaderBackground::get_uniform_location_any(
                 gl,
@@ -450,7 +440,13 @@ impl ShaderBackground {
             gl.uniform_2_f32(u.mouse.as_ref(), 0.0, 0.0);
 
             let (year, month, day, seconds) = date;
-            gl.uniform_4_f32(u.date.as_ref(), year as f32, month as f32, day as f32, seconds);
+            gl.uniform_4_f32(
+                u.date.as_ref(),
+                year as f32,
+                month as f32,
+                day as f32,
+                seconds,
+            );
 
             gl.uniform_1_f32(u.delta_time.as_ref(), delta_time);
 

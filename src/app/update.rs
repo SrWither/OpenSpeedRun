@@ -3,9 +3,9 @@ use crate::app::resize::draw_resize_borders;
 use crate::app::state::AppState;
 use crate::config::load::config_base_dir;
 use crate::config::shaders::ShaderBackground;
-use crate::core::timer::TimerState;
 #[cfg(unix)]
 use crate::core::server::UICommand;
+use crate::core::timer::TimerState;
 #[cfg(windows)]
 use crate::core::winserver::UICommand;
 use chrono::{Datelike, Timelike};
@@ -247,14 +247,15 @@ impl eframe::App for AppWrapper {
         let total_splits = app.run.splits.len() as i32;
         let elapsed_time = app.timer.current_time().as_seconds_f32();
 
-        let last_split_time = if app.current_split > 0 && (app.current_split as usize) < app.run.splits.len() {
-            app.splits_display[app.current_split - 1]
-                .last_time
-                .map(|t| t.as_seconds_f32())
-                .unwrap_or(0.0)
-        } else {
-            0.0
-        };
+        let last_split_time =
+            if app.current_split > 0 && (app.current_split as usize) < app.run.splits.len() {
+                app.splits_display[app.current_split - 1]
+                    .last_time
+                    .map(|t| t.as_seconds_f32())
+                    .unwrap_or(0.0)
+            } else {
+                0.0
+            };
 
         let elapsed_split_time = elapsed_time - last_split_time;
 

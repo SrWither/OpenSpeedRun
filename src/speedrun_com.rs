@@ -105,10 +105,7 @@ pub fn search_games(query: &str) -> Result<Vec<Game>, String> {
     if query.trim().is_empty() {
         return Ok(Vec::new());
     }
-    let url = format!(
-        "{BASE_URL}/games?name={}&max=200",
-        urlencode(query.trim())
-    );
+    let url = format!("{BASE_URL}/games?name={}&max=200", urlencode(query.trim()));
     let envelope: Envelope<Vec<RawGame>> = get_json(&url)?;
     Ok(envelope
         .data
@@ -151,7 +148,10 @@ pub fn variables(category_id: &str) -> Result<Vec<Variable>, String> {
                 .values
                 .values
                 .into_iter()
-                .map(|(id, entry)| VariableValue { id, label: entry.label })
+                .map(|(id, entry)| VariableValue {
+                    id,
+                    label: entry.label,
+                })
                 .collect(),
         })
         .collect())

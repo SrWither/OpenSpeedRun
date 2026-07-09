@@ -151,7 +151,6 @@ impl SplitEditor {
     }
 
     pub fn ui(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
-
         ui.horizontal(|ui| {
             let total_width = ui.available_width();
             let edit_width = (total_width - style::SPACE_MD) * 0.42;
@@ -412,10 +411,19 @@ impl SplitEditor {
             self.run.metadata.speedrun_com_game_id = Some(picked.speedrun_com_game_id);
             self.run.metadata.speedrun_com_category_id = Some(picked.speedrun_com_category_id);
             for (name, value) in picked.variables {
-                if let Some(existing) = self.run.metadata.variables.iter_mut().find(|v| v.name == name) {
+                if let Some(existing) = self
+                    .run
+                    .metadata
+                    .variables
+                    .iter_mut()
+                    .find(|v| v.name == name)
+                {
                     existing.value = value;
                 } else {
-                    self.run.metadata.variables.push(RunVariable { name, value });
+                    self.run
+                        .metadata
+                        .variables
+                        .push(RunVariable { name, value });
                 }
             }
 
@@ -580,27 +588,28 @@ impl SplitEditor {
                     egui::CollapsingHeader::new("Game Time (advanced)")
                         .id_salt(("game_time_advanced", i))
                         .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label("Personal Best");
-                            let pb = split
-                                .comparisons
-                                .entry(COMPARISON_PERSONAL_BEST.to_string())
-                                .or_default();
-                            if edit_duration(ui, &format!("pb_game_{i}"), &mut pb.game_time) {
-                                split_changed = true;
-                            }
+                            ui.horizontal(|ui| {
+                                ui.label("Personal Best");
+                                let pb = split
+                                    .comparisons
+                                    .entry(COMPARISON_PERSONAL_BEST.to_string())
+                                    .or_default();
+                                if edit_duration(ui, &format!("pb_game_{i}"), &mut pb.game_time) {
+                                    split_changed = true;
+                                }
+                            });
+                            ui.horizontal(|ui| {
+                                ui.label("Best Segments");
+                                let best = split
+                                    .comparisons
+                                    .entry(COMPARISON_BEST_SEGMENTS.to_string())
+                                    .or_default();
+                                if edit_duration(ui, &format!("best_game_{i}"), &mut best.game_time)
+                                {
+                                    split_changed = true;
+                                }
+                            });
                         });
-                        ui.horizontal(|ui| {
-                            ui.label("Best Segments");
-                            let best = split
-                                .comparisons
-                                .entry(COMPARISON_BEST_SEGMENTS.to_string())
-                                .or_default();
-                            if edit_duration(ui, &format!("best_game_{i}"), &mut best.game_time) {
-                                split_changed = true;
-                            }
-                        });
-                    });
 
                     ui.separator();
 

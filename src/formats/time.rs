@@ -32,7 +32,11 @@ pub fn parse_dotnet_timespan(raw: &str) -> Option<Duration> {
     }
 
     let total_millis = ((hours * 60 + minutes) * 60 + seconds) * 1000 + millis;
-    let total_millis = if negative { -total_millis } else { total_millis };
+    let total_millis = if negative {
+        -total_millis
+    } else {
+        total_millis
+    };
     Some(Duration::milliseconds(total_millis))
 }
 

@@ -50,7 +50,10 @@ struct XmlNode {
 
 impl XmlNode {
     fn attr(&self, name: &str) -> Option<&str> {
-        self.attrs.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str())
+        self.attrs
+            .iter()
+            .find(|(k, _)| k == name)
+            .map(|(_, v)| v.as_str())
     }
 
     fn child(&self, name: &str) -> Option<&XmlNode> {
@@ -66,7 +69,8 @@ impl XmlNode {
     }
 
     fn child_time(&self, name: &str) -> Option<Duration> {
-        self.child(name).and_then(|n| parse_dotnet_timespan(n.text_trim()))
+        self.child(name)
+            .and_then(|n| parse_dotnet_timespan(n.text_trim()))
     }
 }
 
@@ -82,9 +86,12 @@ fn parse_xml_tree(xml: &str) -> Result<XmlNode, String> {
     }];
 
     loop {
-        let event = reader
-            .read_event()
-            .map_err(|e| format!("XML parse error at position {}: {e}", reader.buffer_position()))?;
+        let event = reader.read_event().map_err(|e| {
+            format!(
+                "XML parse error at position {}: {e}",
+                reader.buffer_position()
+            )
+        })?;
 
         match event {
             Event::Start(e) => {
@@ -101,7 +108,12 @@ fn parse_xml_tree(xml: &str) -> Result<XmlNode, String> {
                         (key, value)
                     })
                     .collect();
-                stack.push(XmlNode { name, attrs, children: Vec::new(), text: String::new() });
+                stack.push(XmlNode {
+                    name,
+                    attrs,
+                    children: Vec::new(),
+                    text: String::new(),
+                });
             }
             Event::Empty(e) => {
                 let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
@@ -121,10 +133,17 @@ fn parse_xml_tree(xml: &str) -> Result<XmlNode, String> {
                     .last_mut()
                     .ok_or("Unbalanced XML tags")?
                     .children
-                    .push(XmlNode { name, attrs, children: Vec::new(), text: String::new() });
+                    .push(XmlNode {
+                        name,
+                        attrs,
+                        children: Vec::new(),
+                        text: String::new(),
+                    });
             }
             Event::End(_) => {
-                let node = stack.pop().ok_or("Unbalanced XML tags (extra closing tag)")?;
+                let node = stack
+                    .pop()
+                    .ok_or("Unbalanced XML tags (extra closing tag)")?;
                 stack
                     .last_mut()
                     .ok_or("Unbalanced XML tags")?
@@ -199,12 +218,18 @@ pub fn import(path: &Path, icons_dir: &Path) -> Result<ImportResult, String> {
     let root = parse_xml_tree(xml)?;
 
     if root.name != "Run" {
-        return Err(format!("Expected a <Run> root element, found <{}>", root.name));
+        return Err(format!(
+            "Expected a <Run> root element, found <{}>",
+            root.name
+        ));
     }
 
     let source_version = root.attr("version").map(str::to_string);
 
-    let game_name = root.child("GameName").map(|n| n.text_trim().to_string()).unwrap_or_default();
+    let game_name = root
+        .child("GameName")
+        .map(|n| n.text_trim().to_string())
+        .unwrap_or_default();
     let category_name = root
         .child("CategoryName")
         .map(|n| n.text_trim().to_string())
@@ -214,7 +239,11 @@ pub fn import(path: &Path, icons_dir: &Path) -> Result<ImportResult, String> {
         .child("Segments")
         .map(|segs| {
             segs.children_named("Segment")
-                .map(|s| s.child("Name").map(|n| n.text_trim().to_string()).unwrap_or_default())
+                .map(|s| {
+                    s.child("Name")
+                        .map(|n| n.text_trim().to_string())
+                        .unwrap_or_default()
+                })
                 .collect()
         })
         .unwrap_or_default();
@@ -302,7 +331,9 @@ pub fn import(path: &Path, icons_dir: &Path) -> Result<ImportResult, String> {
         let mut cumulative: BTreeMap<String, (Duration, Duration)> = BTreeMap::new();
 
         for (i, seg) in segs.children_named("Segment").enumerate() {
-            let Some(split) = run.splits.get_mut(i) else { break };
+            let Some(split) = run.splits.get_mut(i) else {
+                break;
+            };
 
             if let Some(icon_node) = seg.child("Icon") {
                 let cdata = icon_node.text_trim();
@@ -315,12 +346,16 @@ pub fn import(path: &Path, icons_dir: &Path) -> Result<ImportResult, String> {
 
             if let Some(split_times) = seg.child("SplitTimes") {
                 for st in split_times.children_named("SplitTime") {
-                    let Some(name) = st.attr("name") else { continue };
+                    let Some(name) = st.attr("name") else {
+                        continue;
+                    };
                     let cum_real = st.child_time("RealTime");
                     let cum_game = st.child_time("GameTime");
 
-                    let (prev_real, prev_game) =
-                        cumulative.get(name).copied().unwrap_or((Duration::zero(), Duration::zero()));
+                    let (prev_real, prev_game) = cumulative
+                        .get(name)
+                        .copied()
+                        .unwrap_or((Duration::zero(), Duration::zero()));
 
                     let rel_real = cum_real.map(|c| c - prev_real);
                     let rel_game = cum_game.map(|c| c - prev_game);
@@ -337,7 +372,10 @@ pub fn import(path: &Path, icons_dir: &Path) -> Result<ImportResult, String> {
             }
 
             if let Some(best) = seg.child("BestSegmentTime") {
-                let entry = split.comparisons.entry(COMPARISON_BEST_SEGMENTS.to_string()).or_default();
+                let entry = split
+                    .comparisons
+                    .entry(COMPARISON_BEST_SEGMENTS.to_string())
+                    .or_default();
                 entry.real_time = best.child_time("RealTime");
                 entry.game_time = best.child_time("GameTime");
             }
@@ -353,13 +391,20 @@ pub fn import(path: &Path, icons_dir: &Path) -> Result<ImportResult, String> {
                     if real_time.is_none() && game_time.is_none() {
                         continue; // self-closing <Time id="N" />: no data for that attempt
                     }
-                    split.segment_history.push(SegmentHistoryEntry { run_index, real_time, game_time });
+                    split.segment_history.push(SegmentHistoryEntry {
+                        run_index,
+                        real_time,
+                        game_time,
+                    });
                 }
             }
         }
     }
 
-    Ok(ImportResult { run, source_version })
+    Ok(ImportResult {
+        run,
+        source_version,
+    })
 }
 
 /// LiveSplit embeds icons as a `.NET BinaryFormatter`-serialized
@@ -409,7 +454,10 @@ fn base64_decode(input: &str) -> Option<Vec<u8>> {
         for (i, &b) in chunk.iter().enumerate() {
             buf[i] = if b == b'=' { 0 } else { value(b)? };
         }
-        let n = ((buf[0] as u32) << 18) | ((buf[1] as u32) << 12) | ((buf[2] as u32) << 6) | (buf[3] as u32);
+        let n = ((buf[0] as u32) << 18)
+            | ((buf[1] as u32) << 12)
+            | ((buf[2] as u32) << 6)
+            | (buf[3] as u32);
         out.push((n >> 16) as u8);
         if pad < 2 {
             out.push((n >> 8) as u8);
@@ -438,13 +486,24 @@ fn build_xml(run: &Run) -> String {
     out.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     out.push_str("<Run version=\"1.7.0\">\n");
     out.push_str("  <GameIcon />\n");
-    out.push_str(&format!("  <GameName>{}</GameName>\n", xml_escape(&run.title)));
-    out.push_str(&format!("  <CategoryName>{}</CategoryName>\n", xml_escape(&run.category)));
+    out.push_str(&format!(
+        "  <GameName>{}</GameName>\n",
+        xml_escape(&run.title)
+    ));
+    out.push_str(&format!(
+        "  <CategoryName>{}</CategoryName>\n",
+        xml_escape(&run.category)
+    ));
 
     out.push_str("  <Metadata>\n");
     out.push_str(&format!(
         "    <Run id=\"{}\" />\n",
-        xml_escape(run.metadata.speedrun_com_category_id.as_deref().unwrap_or(""))
+        xml_escape(
+            run.metadata
+                .speedrun_com_category_id
+                .as_deref()
+                .unwrap_or("")
+        )
     ));
     out.push_str(&format!(
         "    <Platform usesEmulator=\"False\">{}</Platform>\n",
@@ -470,7 +529,10 @@ fn build_xml(run: &Run) -> String {
         "  <Offset>{}</Offset>\n",
         format_dotnet_timespan(Duration::seconds(offset_seconds))
     ));
-    out.push_str(&format!("  <AttemptCount>{}</AttemptCount>\n", run.attempts));
+    out.push_str(&format!(
+        "  <AttemptCount>{}</AttemptCount>\n",
+        run.attempts
+    ));
 
     out.push_str("  <AttemptHistory>\n");
     for attempt in &run.attempt_history {
@@ -485,10 +547,16 @@ fn build_xml(run: &Run) -> String {
                 attempt.run_index
             ));
             if let Some(rt) = attempt.real_time {
-                out.push_str(&format!("      <RealTime>{}</RealTime>\n", format_dotnet_timespan(rt)));
+                out.push_str(&format!(
+                    "      <RealTime>{}</RealTime>\n",
+                    format_dotnet_timespan(rt)
+                ));
             }
             if let Some(gt) = attempt.game_time {
-                out.push_str(&format!("      <GameTime>{}</GameTime>\n", format_dotnet_timespan(gt)));
+                out.push_str(&format!(
+                    "      <GameTime>{}</GameTime>\n",
+                    format_dotnet_timespan(gt)
+                ));
             }
             out.push_str("    </Attempt>\n");
         } else {
@@ -518,31 +586,51 @@ fn build_xml(run: &Run) -> String {
                 continue;
             }
 
-            let (prev_real, prev_game) =
-                cumulative.get(name).copied().unwrap_or((Duration::zero(), Duration::zero()));
+            let (prev_real, prev_game) = cumulative
+                .get(name)
+                .copied()
+                .unwrap_or((Duration::zero(), Duration::zero()));
             let cum_real = cmp.real_time.map(|r| prev_real + r);
             let cum_game = cmp.game_time.map(|g| prev_game + g);
 
-            out.push_str(&format!("        <SplitTime name=\"{}\">\n", xml_escape(name)));
+            out.push_str(&format!(
+                "        <SplitTime name=\"{}\">\n",
+                xml_escape(name)
+            ));
             if let Some(c) = cum_real {
-                out.push_str(&format!("          <RealTime>{}</RealTime>\n", format_dotnet_timespan(c)));
+                out.push_str(&format!(
+                    "          <RealTime>{}</RealTime>\n",
+                    format_dotnet_timespan(c)
+                ));
             }
             if let Some(c) = cum_game {
-                out.push_str(&format!("          <GameTime>{}</GameTime>\n", format_dotnet_timespan(c)));
+                out.push_str(&format!(
+                    "          <GameTime>{}</GameTime>\n",
+                    format_dotnet_timespan(c)
+                ));
             }
             out.push_str("        </SplitTime>\n");
 
-            cumulative.insert(name.clone(), (cum_real.unwrap_or(prev_real), cum_game.unwrap_or(prev_game)));
+            cumulative.insert(
+                name.clone(),
+                (cum_real.unwrap_or(prev_real), cum_game.unwrap_or(prev_game)),
+            );
         }
         out.push_str("      </SplitTimes>\n");
 
         if let Some(best) = split.comparisons.get(COMPARISON_BEST_SEGMENTS) {
             out.push_str("      <BestSegmentTime>\n");
             if let Some(r) = best.real_time {
-                out.push_str(&format!("        <RealTime>{}</RealTime>\n", format_dotnet_timespan(r)));
+                out.push_str(&format!(
+                    "        <RealTime>{}</RealTime>\n",
+                    format_dotnet_timespan(r)
+                ));
             }
             if let Some(g) = best.game_time {
-                out.push_str(&format!("        <GameTime>{}</GameTime>\n", format_dotnet_timespan(g)));
+                out.push_str(&format!(
+                    "        <GameTime>{}</GameTime>\n",
+                    format_dotnet_timespan(g)
+                ));
             }
             out.push_str("      </BestSegmentTime>\n");
         }
@@ -554,10 +642,16 @@ fn build_xml(run: &Run) -> String {
             }
             out.push_str(&format!("        <Time id=\"{}\">\n", entry.run_index));
             if let Some(r) = entry.real_time {
-                out.push_str(&format!("          <RealTime>{}</RealTime>\n", format_dotnet_timespan(r)));
+                out.push_str(&format!(
+                    "          <RealTime>{}</RealTime>\n",
+                    format_dotnet_timespan(r)
+                ));
             }
             if let Some(g) = entry.game_time {
-                out.push_str(&format!("          <GameTime>{}</GameTime>\n", format_dotnet_timespan(g)));
+                out.push_str(&format!(
+                    "          <GameTime>{}</GameTime>\n",
+                    format_dotnet_timespan(g)
+                ));
             }
             out.push_str("        </Time>\n");
         }

@@ -78,21 +78,21 @@ impl AppState {
                     // number is backwards. The other clock, if it's been
                     // used this run, shows small right underneath.
                     let method = self.run.timing_method;
-                    let (primary_time, secondary_label, secondary_time, secondary_active) = match method
-                    {
-                        TimingMethod::RealTime => (
-                            self.timer.current_time(),
-                            "IGT",
-                            self.igt_timer.current_time(),
-                            self.igt_timer.state != TimerState::NotStarted,
-                        ),
-                        TimingMethod::GameTime => (
-                            self.igt_timer.current_time(),
-                            "RTA",
-                            self.timer.current_time(),
-                            self.timer.state != TimerState::NotStarted,
-                        ),
-                    };
+                    let (primary_time, secondary_label, secondary_time, secondary_active) =
+                        match method {
+                            TimingMethod::RealTime => (
+                                self.timer.current_time(),
+                                "IGT",
+                                self.igt_timer.current_time(),
+                                self.igt_timer.state != TimerState::NotStarted,
+                            ),
+                            TimingMethod::GameTime => (
+                                self.igt_timer.current_time(),
+                                "RTA",
+                                self.timer.current_time(),
+                                self.timer.state != TimerState::NotStarted,
+                            ),
+                        };
 
                     ui.add_space(10.0);
                     ui.label(
@@ -103,12 +103,12 @@ impl AppState {
                     );
 
                     if secondary_active {
-                        let loading_suffix = if method == TimingMethod::RealTime && self.igt_timer.is_paused()
-                        {
-                            format!(" {}", egui_phosphor::regular::HOURGLASS)
-                        } else {
-                            String::new()
-                        };
+                        let loading_suffix =
+                            if method == TimingMethod::RealTime && self.igt_timer.is_paused() {
+                                format!(" {}", egui_phosphor::regular::HOURGLASS)
+                            } else {
+                                String::new()
+                            };
                         ui.label(
                             RichText::new(format!(
                                 "{secondary_label}: {}{loading_suffix}",

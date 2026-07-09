@@ -55,7 +55,12 @@ pub fn section_card<R>(
 
 /// A pill-shaped selectable item (theme/split pickers): icon + label, with
 /// an accent border/fill and a trailing checkmark when selected.
-pub fn selectable_chip(ui: &mut egui::Ui, icon: &str, label: &str, selected: bool) -> egui::Response {
+pub fn selectable_chip(
+    ui: &mut egui::Ui,
+    icon: &str,
+    label: &str,
+    selected: bool,
+) -> egui::Response {
     let text = if selected {
         format!("{icon}  {label}   {}", egui_phosphor::regular::CHECK)
     } else {
@@ -66,7 +71,10 @@ pub fn selectable_chip(ui: &mut egui::Ui, icon: &str, label: &str, selected: boo
         .corner_radius(18)
         .min_size(egui::vec2(0.0, 34.0))
         .fill(if selected { ACCENT_BG } else { BG_SUNKEN })
-        .stroke(Stroke::new(if selected { 1.5 } else { 1.0 }, if selected { ACCENT } else { BORDER }));
+        .stroke(Stroke::new(
+            if selected { 1.5 } else { 1.0 },
+            if selected { ACCENT } else { BORDER },
+        ));
 
     ui.add(button)
 }

@@ -68,12 +68,10 @@ impl History {
         });
 
         ui.horizontal(|ui| {
-            let clear_button = egui::Button::new(format!(
-                "{} Clear History",
-                egui_phosphor::regular::TRASH
-            ))
-            .fill(egui::Color32::from_rgb(50, 22, 22))
-            .stroke(egui::Stroke::new(1.0, style::ERROR));
+            let clear_button =
+                egui::Button::new(format!("{} Clear History", egui_phosphor::regular::TRASH))
+                    .fill(egui::Color32::from_rgb(50, 22, 22))
+                    .stroke(egui::Stroke::new(1.0, style::ERROR));
             if ui.add(clear_button).clicked() {
                 self.confirm_clear = true;
             }
@@ -358,7 +356,9 @@ impl History {
     /// log, every split's segment history), then recomputes Best
     /// Segments/Personal Best from what remains.
     fn delete_attempt(&mut self, run_index: u32) {
-        self.run.attempt_history.retain(|a| a.run_index != run_index);
+        self.run
+            .attempt_history
+            .retain(|a| a.run_index != run_index);
         self.run.pb_history.retain(|p| p.run_index != run_index);
         for split in &mut self.run.splits {
             split.segment_history.retain(|e| e.run_index != run_index);

@@ -38,7 +38,9 @@ impl<T: Send + 'static> AsyncOp<T> {
             AsyncOp::Loading(rx) => match rx.try_recv() {
                 Ok(result) => Some(result),
                 Err(TryRecvError::Empty) => None,
-                Err(TryRecvError::Disconnected) => Some(Err("Background request was lost".to_string())),
+                Err(TryRecvError::Disconnected) => {
+                    Some(Err("Background request was lost".to_string()))
+                }
             },
             AsyncOp::Idle => None,
         };
@@ -153,7 +155,8 @@ impl SpeedrunComPicker {
     fn search(&mut self) {
         let query = self.query.clone();
         self.status = None;
-        self.games_op.start(move || speedrun_com::search_games(&query));
+        self.games_op
+            .start(move || speedrun_com::search_games(&query));
     }
 
     fn pick_game(&mut self, game: Game) {
@@ -161,7 +164,8 @@ impl SpeedrunComPicker {
         self.status = None;
         let game_id = game.id.clone();
         self.selected_game = Some(game);
-        self.categories_op.start(move || speedrun_com::categories(&game_id));
+        self.categories_op
+            .start(move || speedrun_com::categories(&game_id));
     }
 
     fn pick_category(&mut self, category: Category) {
@@ -170,7 +174,8 @@ impl SpeedrunComPicker {
         let category_id = category.id.clone();
         self.selected_category = Some(category);
         self.variables.clear();
-        self.variables_op.start(move || speedrun_com::variables(&category_id));
+        self.variables_op
+            .start(move || speedrun_com::variables(&category_id));
     }
 
     /// Loads what therun.gg actually tracks for this game, so the user can
@@ -260,7 +265,8 @@ impl SpeedrunComPicker {
                 Err(e) => {
                     self.therun_categories.clear();
                     self.therun_game_slug = None;
-                    self.therun_categories_status = Some(format!("Failed to load therun.gg categories: {e}"));
+                    self.therun_categories_status =
+                        Some(format!("Failed to load therun.gg categories: {e}"));
                 }
             }
         }
@@ -268,7 +274,10 @@ impl SpeedrunComPicker {
         if let Some(result) = self.splits_op.poll() {
             match result {
                 Ok(splits) => {
-                    self.splits_status = Some(format!("Fetched {} real splits from therun.gg.", splits.len()));
+                    self.splits_status = Some(format!(
+                        "Fetched {} real splits from therun.gg.",
+                        splits.len()
+                    ));
                     self.fetched_splits = Some(splits);
                 }
                 Err(e) => {

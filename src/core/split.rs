@@ -116,8 +116,16 @@ impl Split {
     /// `segment_history` — used after deleting an erroneous entry so a
     /// removed record doesn't linger in `comparisons`.
     pub fn recompute_best_segment(&mut self) {
-        let best_real = self.segment_history.iter().filter_map(|e| e.real_time).min();
-        let best_game = self.segment_history.iter().filter_map(|e| e.game_time).min();
+        let best_real = self
+            .segment_history
+            .iter()
+            .filter_map(|e| e.real_time)
+            .min();
+        let best_game = self
+            .segment_history
+            .iter()
+            .filter_map(|e| e.game_time)
+            .min();
 
         let best = self
             .comparisons
@@ -422,8 +430,14 @@ impl Default for Run {
 impl Default for Split {
     fn default() -> Self {
         let mut comparisons = BTreeMap::new();
-        comparisons.insert(COMPARISON_PERSONAL_BEST.to_string(), ComparisonTime::default());
-        comparisons.insert(COMPARISON_BEST_SEGMENTS.to_string(), ComparisonTime::default());
+        comparisons.insert(
+            COMPARISON_PERSONAL_BEST.to_string(),
+            ComparisonTime::default(),
+        );
+        comparisons.insert(
+            COMPARISON_BEST_SEGMENTS.to_string(),
+            ComparisonTime::default(),
+        );
 
         Self {
             name: "New Split".to_string(),

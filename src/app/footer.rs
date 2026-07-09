@@ -204,20 +204,21 @@ impl AppState {
                         if self.current_split > 0 {
                             ui.horizontal(|ui| {
                                 ui.add_space(8.0);
-                                let response = ui.add(
-                                    egui::Label::new(
-                                        RichText::new(format!(
-                                            "{} Prev {} Segment: {}",
-                                            delta_icon,
-                                            selected_comparison,
-                                            format_diff(delta_vs_selected)
-                                        ))
-                                        .color(delta_color)
-                                        .size(font_sizes.info),
+                                let response = ui
+                                    .add(
+                                        egui::Label::new(
+                                            RichText::new(format!(
+                                                "{} Prev {} Segment: {}",
+                                                delta_icon,
+                                                selected_comparison,
+                                                format_diff(delta_vs_selected)
+                                            ))
+                                            .color(delta_color)
+                                            .size(font_sizes.info),
+                                        )
+                                        .sense(egui::Sense::click()),
                                     )
-                                    .sense(egui::Sense::click()),
-                                )
-                                .on_hover_text("Click to switch comparison (or press C)");
+                                    .on_hover_text("Click to switch comparison (or press C)");
 
                                 if response.clicked() {
                                     comparison_clicked = true;

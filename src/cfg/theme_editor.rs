@@ -30,10 +30,7 @@ impl ThemeEditor {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.heading(format!(
-                "{} Edit Theme",
-                egui_phosphor::regular::PALETTE
-            ));
+            ui.heading(format!("{} Edit Theme", egui_phosphor::regular::PALETTE));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let save_button = egui::Button::new(format!(
                     "{} Save Changes",
@@ -286,108 +283,130 @@ impl ThemeEditor {
 
             ui.add_space(6.0);
 
-            style::section_card(ui, "Spacings", egui_phosphor::regular::ARROWS_OUT_LINE_VERTICAL, |ui| {
-                ui.vertical(|ui| {
-                    ui.add(
-                        egui::Slider::new(&mut self.layout.spacings.split_top, 0.0..=64.0)
-                            .text("Split Top"),
-                    );
-                    ui.add(
-                        egui::Slider::new(&mut self.layout.spacings.split_bottom, 0.0..=64.0)
-                            .text("Split Bottom"),
-                    );
-                });
-            });
+            style::section_card(
+                ui,
+                "Spacings",
+                egui_phosphor::regular::ARROWS_OUT_LINE_VERTICAL,
+                |ui| {
+                    ui.vertical(|ui| {
+                        ui.add(
+                            egui::Slider::new(&mut self.layout.spacings.split_top, 0.0..=64.0)
+                                .text("Split Top"),
+                        );
+                        ui.add(
+                            egui::Slider::new(&mut self.layout.spacings.split_bottom, 0.0..=64.0)
+                                .text("Split Bottom"),
+                        );
+                    });
+                },
+            );
         });
 
         #[cfg(windows)]
         {
             ui.add_space(6.0);
-            style::section_card(ui, "Hotkeys (Windows only)", egui_phosphor::regular::KEYBOARD, |ui| {
-                ui.vertical(|ui| {
-                    let hotkeys = &mut self.layout.hotkeys;
-                    let waiting = &mut self.waiting_for_key;
-
+            style::section_card(
+                ui,
+                "Hotkeys (Windows only)",
+                egui_phosphor::regular::KEYBOARD,
+                |ui| {
                     ui.vertical(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.vertical(|ui| {
-                                hotkey_button(ui, "Split", &hotkeys.split, "split", waiting);
-                                hotkey_button(ui, "Start", &hotkeys.start, "start", waiting);
-                                hotkey_button(ui, "Pause", &hotkeys.pause, "pause", waiting);
-                                hotkey_button(ui, "Reset", &hotkeys.reset, "reset", waiting);
-                                hotkey_button(ui, "Save Comparisons", &hotkeys.save_pb, "save_pb", waiting);
-                                hotkey_button(
-                                    ui,
-                                    "Undo Split",
-                                    &hotkeys.undo_split,
-                                    "undo_split",
-                                    waiting,
-                                );
-                                hotkey_button(ui, "Undo PB", &hotkeys.undo_pb, "undo_pb", waiting);
-                            });
+                        let hotkeys = &mut self.layout.hotkeys;
+                        let waiting = &mut self.waiting_for_key;
 
-                            ui.vertical(|ui| {
-                                hotkey_button(
-                                    ui,
-                                    "Toggle Loading",
-                                    &hotkeys.toggle_loading,
-                                    "toggle_loading",
-                                    waiting,
-                                );
-                                hotkey_button(
-                                    ui,
-                                    "Cycle Comparison",
-                                    &hotkeys.cycle_comparison,
-                                    "cycle_comparison",
-                                    waiting,
-                                );
-                                hotkey_button(
-                                    ui,
-                                    "Next Page",
-                                    &hotkeys.next_page,
-                                    "next_page",
-                                    waiting,
-                                );
-                                hotkey_button(
-                                    ui,
-                                    "Prev Page",
-                                    &hotkeys.prev_page,
-                                    "prev_page",
-                                    waiting,
-                                );
-                                hotkey_button(
-                                    ui,
-                                    "Toggle Help",
-                                    &hotkeys.toggle_help,
-                                    "toggle_help",
-                                    waiting,
-                                );
-                                hotkey_button(
-                                    ui,
-                                    "Reload All",
-                                    &hotkeys.reload_all,
-                                    "reload_all",
-                                    waiting,
-                                );
-                                hotkey_button(
-                                    ui,
-                                    "Reload Run",
-                                    &hotkeys.reload_run,
-                                    "reload_run",
-                                    waiting,
-                                );
-                                hotkey_button(
-                                    ui,
-                                    "Reload Theme",
-                                    &hotkeys.reload_theme,
-                                    "reload_theme",
-                                    waiting,
-                                );
-                            });
+                        ui.vertical(|ui| {
+                            ui.horizontal(|ui| {
+                                ui.vertical(|ui| {
+                                    hotkey_button(ui, "Split", &hotkeys.split, "split", waiting);
+                                    hotkey_button(ui, "Start", &hotkeys.start, "start", waiting);
+                                    hotkey_button(ui, "Pause", &hotkeys.pause, "pause", waiting);
+                                    hotkey_button(ui, "Reset", &hotkeys.reset, "reset", waiting);
+                                    hotkey_button(
+                                        ui,
+                                        "Save Comparisons",
+                                        &hotkeys.save_pb,
+                                        "save_pb",
+                                        waiting,
+                                    );
+                                    hotkey_button(
+                                        ui,
+                                        "Undo Split",
+                                        &hotkeys.undo_split,
+                                        "undo_split",
+                                        waiting,
+                                    );
+                                    hotkey_button(
+                                        ui,
+                                        "Undo PB",
+                                        &hotkeys.undo_pb,
+                                        "undo_pb",
+                                        waiting,
+                                    );
+                                });
+
+                                ui.vertical(|ui| {
+                                    hotkey_button(
+                                        ui,
+                                        "Toggle Loading",
+                                        &hotkeys.toggle_loading,
+                                        "toggle_loading",
+                                        waiting,
+                                    );
+                                    hotkey_button(
+                                        ui,
+                                        "Cycle Comparison",
+                                        &hotkeys.cycle_comparison,
+                                        "cycle_comparison",
+                                        waiting,
+                                    );
+                                    hotkey_button(
+                                        ui,
+                                        "Next Page",
+                                        &hotkeys.next_page,
+                                        "next_page",
+                                        waiting,
+                                    );
+                                    hotkey_button(
+                                        ui,
+                                        "Prev Page",
+                                        &hotkeys.prev_page,
+                                        "prev_page",
+                                        waiting,
+                                    );
+                                    hotkey_button(
+                                        ui,
+                                        "Toggle Help",
+                                        &hotkeys.toggle_help,
+                                        "toggle_help",
+                                        waiting,
+                                    );
+                                    hotkey_button(
+                                        ui,
+                                        "Reload All",
+                                        &hotkeys.reload_all,
+                                        "reload_all",
+                                        waiting,
+                                    );
+                                    hotkey_button(
+                                        ui,
+                                        "Reload Run",
+                                        &hotkeys.reload_run,
+                                        "reload_run",
+                                        waiting,
+                                    );
+                                    hotkey_button(
+                                        ui,
+                                        "Reload Theme",
+                                        &hotkeys.reload_theme,
+                                        "reload_theme",
+                                        waiting,
+                                    );
+                                });
+                            })
                         })
-                    })
-                });
-            });
+                    });
+                },
+            );
         }
 
         #[cfg(windows)]
