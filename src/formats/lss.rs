@@ -171,11 +171,28 @@ fn parse_dotnet_datetime(raw: &str) -> Option<DateTime<Utc>> {
 // Import
 // ---------------------------------------------------------------------
 
+/// Result of importing a `.lss` file: the converted `Run`, plus the
+/// LiveSplit format version the file declared (informational only — the
+/// parser doesn't branch on it, see module docs).
+pub struct ImportResult {
+    pub run: Run,
+    pub source_version: Option<String>,
+}
+
 /// Imports a LiveSplit `.lss` file into a `Run`. Icons embedded in the file
 /// (if any could be extracted — see module docs) are written as PNGs into
 /// `icons_dir`, with `Split::icon_path` set to `icons/<file>` relative to
 /// wherever the caller ends up saving `split.json` next to `icons_dir`.
-pub fn import(path: &Path, icons_dir: &Path) -> Result<Run, String> {
+///
+/// Deliberately does **not** branch on the declared LiveSplit version:
+/// verified against 16 real `.lss` files spanning versions 1.0 through 1.8
+/// (see the LSS_IMPORT_EXPORT plan notes), the schema drift that actually
+/// occurs (e.g. `<Metadata><Variables>` splitting into
+/// `<SpeedrunComVariables>`/`<CustomVariables>` in 1.8) is handled by
+/// checking every known field name unconditionally rather than gating on a
+/// version number — more robust than version-branching, since it doesn't
+/// depend on us knowing exactly which version introduced which field.
+pub fn import(path: &Path, icons_dir: &Path) -> Result<ImportResult, String> {
     let xml = std::fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
     let xml = xml.trim_start_matches('\u{feff}');
@@ -184,6 +201,8 @@ pub fn import(path: &Path, icons_dir: &Path) -> Result<Run, String> {
     if root.name != "Run" {
         return Err(format!("Expected a <Run> root element, found <{}>", root.name));
     }
+
+    let source_version = root.attr("version").map(str::to_string);
 
     let game_name = root.child("GameName").map(|n| n.text_trim().to_string()).unwrap_or_default();
     let category_name = root
@@ -229,13 +248,20 @@ pub fn import(path: &Path, icons_dir: &Path) -> Result<Run, String> {
                 metadata.region = Some(region.to_string());
             }
         }
-        if let Some(vars) = meta.child("Variables") {
-            for var in vars.children_named("Variable") {
-                if let Some(name) = var.attr("name") {
-                    metadata.variables.push(RunVariable {
-                        name: name.to_string(),
-                        value: var.text_trim().to_string(),
-                    });
+        // The `<Variables>` container was split into `<SpeedrunComVariables>`
+        // + `<CustomVariables>` in LiveSplit 1.8 (confirmed against a real
+        // 1.8-written file) — read all three that might be present, since a
+        // file could in principle carry either shape depending on the
+        // LiveSplit version that last wrote it.
+        for container in ["Variables", "SpeedrunComVariables", "CustomVariables"] {
+            if let Some(vars) = meta.child(container) {
+                for var in vars.children_named("Variable") {
+                    if let Some(name) = var.attr("name") {
+                        metadata.variables.push(RunVariable {
+                            name: name.to_string(),
+                            value: var.text_trim().to_string(),
+                        });
+                    }
                 }
             }
         }
@@ -333,7 +359,7 @@ pub fn import(path: &Path, icons_dir: &Path) -> Result<Run, String> {
         }
     }
 
-    Ok(run)
+    Ok(ImportResult { run, source_version })
 }
 
 /// LiveSplit embeds icons as a `.NET BinaryFormatter`-serialized

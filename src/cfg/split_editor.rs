@@ -290,9 +290,12 @@ impl SplitEditor {
                 if let Some(path) = FileDialog::new().add_filter("LiveSplit", &["lss"]).pick_file() {
                     let icons_dir = self.run_path.parent().unwrap().join("icons");
                     self.import_export_status = Some(match lss::import(&path, &icons_dir) {
-                        Ok(run) => {
-                            self.run = run;
-                            "Imported from LiveSplit. Review it, then \"Save all\" to keep it.".to_string()
+                        Ok(result) => {
+                            self.run = result.run;
+                            let version = result.source_version.as_deref().unwrap_or("unknown");
+                            format!(
+                                "Imported from LiveSplit v{version}. Review it, then \"Save all\" to keep it."
+                            )
                         }
                         Err(e) => format!("Import failed: {e}"),
                     });
