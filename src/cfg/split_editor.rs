@@ -496,7 +496,9 @@ impl SplitEditor {
                         }
                     });
 
-                    ui.collapsing("Game Time (advanced)", |ui| {
+                    egui::CollapsingHeader::new("Game Time (advanced)")
+                        .id_salt(("game_time_advanced", i))
+                        .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label("Personal Best");
                             let pb = split
