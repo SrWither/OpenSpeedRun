@@ -79,6 +79,49 @@ pub fn selectable_chip(
     ui.add(button)
 }
 
+/// An accent-filled button (`ACCENT_BG`/`ACCENT`) that still visibly
+/// reacts to hover/press. `egui::Button::fill`/`::stroke` are a single
+/// static color each, applied regardless of interaction state — that's why
+/// plain accent-filled buttons look identical whether idle, hovered, or
+/// being clicked. This paints the same static fill/stroke, then overlays a
+/// translucent tint on top for the hovered/pressed states, on top of the
+/// already-painted button.
+pub fn accent_button(ui: &mut egui::Ui, button: egui::Button<'_>) -> egui::Response {
+    accent_button_sized(ui, button, None)
+}
+
+/// Same as [`accent_button`], but allocated at a fixed size via
+/// `Ui::add_sized` (for buttons that need to line up with something else).
+pub fn accent_button_sized(
+    ui: &mut egui::Ui,
+    button: egui::Button<'_>,
+    min_size: Option<egui::Vec2>,
+) -> egui::Response {
+    let button = button.fill(ACCENT_BG).stroke(Stroke::new(1.0_f32, ACCENT));
+    let response = match min_size {
+        Some(size) => ui.add_sized(size, button),
+        None => ui.add(button),
+    };
+
+    if response.is_pointer_button_down_on() {
+        ui.painter()
+            .rect_filled(response.rect, 6.0, Color32::from_black_alpha(70));
+    } else if response.hovered() {
+        ui.painter()
+            .rect_filled(response.rect, 6.0, Color32::from_white_alpha(25));
+    }
+
+    response
+}
+
+/// A status line for after a save/import/export action: green for success,
+/// red for failure. Meant to be shown until the next action replaces or
+/// clears it, not to auto-fade.
+pub fn status_label(ui: &mut egui::Ui, text: &str, is_error: bool) {
+    let color = if is_error { ERROR } else { SUCCESS };
+    ui.label(RichText::new(text).color(color));
+}
+
 /// Applies the global visual theme once, at app startup.
 pub fn apply_style(ctx: &egui::Context) {
     let mut style = (*ctx.global_style()).clone();

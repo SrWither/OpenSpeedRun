@@ -43,6 +43,7 @@ pub struct ShaderEditor {
     code_frag: String,
     code_vert: String,
     error: Option<String>,
+    saved_message: Option<String>,
     check_status: CheckStatus,
     dirty: bool,
 
@@ -79,6 +80,7 @@ impl ShaderEditor {
             code_frag,
             code_vert,
             error: None,
+            saved_message: None,
             check_status: CheckStatus::Unchecked,
             dirty: false,
             readonly,
@@ -175,10 +177,8 @@ impl ShaderEditor {
                 self.show_new_popup = true;
             }
             let save_button =
-                egui::Button::new(format!("{} Save Both", egui_phosphor::regular::FLOPPY_DISK))
-                    .fill(style::ACCENT_BG)
-                    .stroke(egui::Stroke::new(1.0_f32, style::ACCENT));
-            if ui.add(save_button).clicked() {
+                egui::Button::new(format!("{} Save Both", egui_phosphor::regular::FLOPPY_DISK));
+            if style::accent_button(ui, save_button).clicked() {
                 let path_vert = self.path.with_extension(format!(
                     "{}{}",
                     self.path.extension().unwrap_or_default().to_string_lossy(),
@@ -190,11 +190,13 @@ impl ShaderEditor {
                 match (res_frag, res_vert) {
                     (Ok(_), Ok(_)) => {
                         self.error = None;
+                        self.saved_message = Some("Saved".to_string());
                         self.dirty = false;
                         crate::send_message("reloadshader");
                     }
                     (Err(e), _) | (_, Err(e)) => {
                         self.error = Some(format!("Error saving shaders: {e}"));
+                        self.saved_message = None;
                     }
                 }
             }
@@ -341,6 +343,7 @@ impl ShaderEditor {
                         .inner;
                     if changed {
                         self.dirty = true;
+                        self.saved_message = None;
                         self.check();
                     }
                 });
@@ -370,6 +373,7 @@ impl ShaderEditor {
                         .inner;
                     if changed {
                         self.dirty = true;
+                        self.saved_message = None;
                         self.check();
                     }
                 });
@@ -429,6 +433,8 @@ impl ShaderEditor {
 
         if let Some(err) = &self.error {
             ui.colored_label(style::ERROR, err);
+        } else if let Some(saved) = &self.saved_message {
+            style::status_label(ui, saved, false);
         }
     }
 }

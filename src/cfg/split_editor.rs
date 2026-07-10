@@ -21,7 +21,7 @@ pub struct SplitEditor {
     icon_selection_index: Option<usize>,
     icon_cache: HashMap<String, TextureHandle>,
     dragging_split_index: Option<usize>,
-    import_export_status: Option<String>,
+    import_export_status: Option<(String, bool)>,
     speedrun_com_picker: SpeedrunComPicker,
 }
 
@@ -298,13 +298,13 @@ impl SplitEditor {
                         let save_button = egui::Button::new(format!(
                             "{} Save all",
                             egui_phosphor::regular::FLOPPY_DISK
-                        ))
-                        .fill(style::ACCENT_BG)
-                        .stroke(egui::Stroke::new(1.0_f32, style::ACCENT));
-                        if ui.add(save_button).clicked() {
-                            if let Err(e) = self.run.save_to_file(self.run_path.to_str().unwrap()) {
-                                eprintln!("Error saving all: {}", e);
-                            }
+                        ));
+                        if style::accent_button(ui, save_button).clicked() {
+                            self.import_export_status =
+                                Some(match self.run.save_to_file(self.run_path.to_str().unwrap()) {
+                                    Ok(()) => ("Saved".to_string(), false),
+                                    Err(e) => (format!("Error saving all: {e}"), true),
+                                });
                             send_message("reloadrun");
                         }
                     });
@@ -331,11 +331,14 @@ impl SplitEditor {
                                         // the previous import's textures.
                                         self.icon_cache.clear();
                                         let version = result.source_version.as_deref().unwrap_or("unknown");
-                                        format!(
-                                            "Imported from LiveSplit v{version}. Review it, then \"Save all\" to keep it."
+                                        (
+                                            format!(
+                                                "Imported from LiveSplit v{version}. Review it, then \"Save all\" to keep it."
+                                            ),
+                                            false,
                                         )
                                     }
-                                    Err(e) => format!("Import failed: {e}"),
+                                    Err(e) => (format!("Import failed: {e}"), true),
                                 });
                             }
 
@@ -351,8 +354,8 @@ impl SplitEditor {
                             {
                                 let icons_base_dir = self.run_path.parent().unwrap();
                                 self.import_export_status = Some(match lss::export(&self.run, &path, icons_base_dir) {
-                                    Ok(()) => format!("Exported to {}", path.display()),
-                                    Err(e) => format!("Export failed: {e}"),
+                                    Ok(()) => (format!("Exported to {}", path.display()), false),
+                                    Err(e) => (format!("Export failed: {e}"), true),
                                 });
                             }
                         }
@@ -363,8 +366,8 @@ impl SplitEditor {
                             && let Some(dest) = FileDialog::new().pick_folder() {
                                 let run_dir = self.run_path.parent().unwrap();
                                 self.import_export_status = Some(match native::export_folder(run_dir, &dest) {
-                                    Ok(()) => format!("Exported folder to {}", dest.display()),
-                                    Err(e) => format!("Folder export failed: {e}"),
+                                    Ok(()) => (format!("Exported folder to {}", dest.display()), false),
+                                    Err(e) => (format!("Folder export failed: {e}"), true),
                                 });
                             }
 
@@ -383,11 +386,14 @@ impl SplitEditor {
                                     .to_string();
                                 self.import_export_status =
                                     Some(match native::import_folder(&src, &splits_base, &name) {
-                                        Ok(dest) => format!(
-                                            "Imported to {}. Reopen the Selector tab to see it.",
-                                            dest.display()
+                                        Ok(dest) => (
+                                            format!(
+                                                "Imported to {}. Reopen the Selector tab to see it.",
+                                                dest.display()
+                                            ),
+                                            false,
                                         ),
-                                        Err(e) => format!("Folder import failed: {e}"),
+                                        Err(e) => (format!("Folder import failed: {e}"), true),
                                     });
                             }
 
@@ -402,9 +408,9 @@ impl SplitEditor {
                         }
                     });
 
-                    if let Some(status) = &self.import_export_status {
+                    if let Some((status, is_error)) = &self.import_export_status {
                         ui.add_space(style::SPACE_SM);
-                        ui.label(RichText::new(status.as_str()).color(style::TEXT_MUTED));
+                        style::status_label(ui, status, *is_error);
                     }
                 });
             });
@@ -441,7 +447,7 @@ impl SplitEditor {
             } else {
                 "Filled from speedrun.com. \"Save all\" to keep it.".to_string()
             };
-            self.import_export_status = Some(message);
+            self.import_export_status = Some((message, false));
         }
 
         ui.separator();

@@ -10,6 +10,7 @@ use crate::style;
 pub struct ThemeEditor {
     pub current_theme_path: PathBuf,
     pub layout: LayoutConfig,
+    save_status: Option<(String, bool)>,
     #[cfg(windows)]
     pub waiting_for_key: Option<String>,
 }
@@ -23,6 +24,7 @@ impl ThemeEditor {
         Self {
             current_theme_path: theme_path,
             layout,
+            save_status: None,
             #[cfg(windows)]
             waiting_for_key: None,
         }
@@ -35,14 +37,15 @@ impl ThemeEditor {
                 let save_button = egui::Button::new(format!(
                     "{} Save Changes",
                     egui_phosphor::regular::FLOPPY_DISK
-                ))
-                .fill(style::ACCENT_BG)
-                .stroke(egui::Stroke::new(1.0_f32, style::ACCENT));
+                ));
 
-                if ui.add(save_button).clicked() {
-                    if let Err(e) = self.layout.save(self.current_theme_path.to_str().unwrap()) {
-                        eprintln!("Error saving theme: {}", e);
-                    }
+                if style::accent_button(ui, save_button).clicked() {
+                    self.save_status = Some(
+                        match self.layout.save(self.current_theme_path.to_str().unwrap()) {
+                            Ok(()) => ("Saved".to_string(), false),
+                            Err(e) => (format!("Error saving theme: {e}"), true),
+                        },
+                    );
                     send_message("reloadtheme");
                     if self.layout.options.enable_shader {
                         send_message("reloadshader");
@@ -50,6 +53,14 @@ impl ThemeEditor {
                 }
             });
         });
+
+        if let Some((status, is_error)) = &self.save_status {
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    style::status_label(ui, status, *is_error);
+                });
+            });
+        }
 
         ui.add_space(12.0);
 

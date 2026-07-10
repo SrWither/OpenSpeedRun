@@ -42,6 +42,7 @@ pub struct ConfigApp {
     show_delete_confirm: bool,
     item_to_delete: Option<(String, bool)>,
     gl: Option<Arc<glow::Context>>,
+    save_status: Option<(String, bool)>,
 }
 
 impl ConfigApp {
@@ -129,6 +130,7 @@ impl ConfigApp {
             show_delete_confirm: false,
             item_to_delete: None,
             gl,
+            save_status: None,
         }
     }
 
@@ -520,24 +522,46 @@ impl ConfigApp {
             let save_button = egui::Button::new(format!(
                 "{} Save Changes",
                 egui_phosphor::regular::FLOPPY_DISK
-            ))
-            .fill(style::ACCENT_BG)
-            .stroke(egui::Stroke::new(1.0_f32, style::ACCENT));
+            ));
 
-            if ui.add_sized([160.0, 42.0], save_button).clicked() {
+            if style::accent_button_sized(ui, save_button, Some(egui::vec2(160.0, 42.0))).clicked()
+            {
                 self.app_config.save();
 
-                if let Some(editor) = &self.theme_editor {
-                    let _ = editor.layout.save(self.app_config.theme.as_str());
-                }
+                // `app_config.theme`/`last_split_path` are relative (e.g.
+                // "themes/mario3.json"), same as everywhere else they're
+                // used — they need `config_base_dir()` joined in, unlike
+                // `ThemeEditor`/`SplitEditor`'s own Save buttons, which
+                // already store a fully-joined path from construction.
+                let theme_path = config_base_dir().join(&self.app_config.theme);
+                let split_path = config_base_dir()
+                    .join(&self.app_config.last_split_path)
+                    .join("split.json");
 
-                if let Some(editor) = &self.split_editor {
-                    let _ = editor
-                        .run
-                        .save_to_file(&format!("{}/split.json", self.app_config.last_split_path));
-                }
+                let theme_result = self
+                    .theme_editor
+                    .as_ref()
+                    .map(|editor| editor.layout.save(theme_path.to_str().unwrap()));
+                let split_result = self
+                    .split_editor
+                    .as_ref()
+                    .map(|editor| editor.run.save_to_file(split_path.to_str().unwrap()));
+
+                let error = theme_result
+                    .into_iter()
+                    .chain(split_result)
+                    .find_map(|r| r.err());
+
+                self.save_status = Some(match error {
+                    None => ("Saved".to_string(), false),
+                    Some(e) => (format!("Error saving: {e}"), true),
+                });
 
                 send_message("reloadall");
+            }
+
+            if let Some((status, is_error)) = &self.save_status {
+                style::status_label(ui, status, *is_error);
             }
         });
     }
