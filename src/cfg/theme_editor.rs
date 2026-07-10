@@ -1,7 +1,10 @@
 use eframe::egui;
 #[cfg(windows)]
 use openspeedrun::config::keys::KeyWrapper;
-use openspeedrun::{config::layout::LayoutConfig, config_base_dir};
+use openspeedrun::{
+    config::layout::{LayoutConfig, SectionKind},
+    config_base_dir,
+};
 use std::{fs, path::PathBuf};
 
 use crate::dialog::PendingDialog;
@@ -334,6 +337,62 @@ impl ThemeEditor {
                         });
                 });
             });
+
+            ui.add_space(6.0);
+
+            style::section_card(
+                ui,
+                "Section order",
+                egui_phosphor::regular::ROWS,
+                |ui| {
+                    ui.vertical(|ui| {
+                        let mut swap: Option<(usize, usize)> = None;
+                        let last = self.layout.options.section_order.len().saturating_sub(1);
+
+                        for (i, section) in self.layout.options.section_order.iter().enumerate() {
+                            let name = match section {
+                                SectionKind::Title => "Title",
+                                SectionKind::Timer => "Timer",
+                                SectionKind::Splits => "Splits",
+                                SectionKind::Footer => "Footer",
+                            };
+
+                            ui.horizontal(|ui| {
+                                ui.label(name);
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        if ui
+                                            .add_enabled(
+                                                i < last,
+                                                egui::Button::new(
+                                                    egui_phosphor::regular::ARROW_DOWN,
+                                                ),
+                                            )
+                                            .clicked()
+                                        {
+                                            swap = Some((i, i + 1));
+                                        }
+                                        if ui
+                                            .add_enabled(
+                                                i > 0,
+                                                egui::Button::new(egui_phosphor::regular::ARROW_UP),
+                                            )
+                                            .clicked()
+                                        {
+                                            swap = Some((i, i - 1));
+                                        }
+                                    },
+                                );
+                            });
+                        }
+
+                        if let Some((a, b)) = swap {
+                            self.layout.options.section_order.swap(a, b);
+                        }
+                    });
+                },
+            );
 
             ui.add_space(6.0);
 

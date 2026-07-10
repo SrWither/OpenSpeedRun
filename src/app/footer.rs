@@ -4,7 +4,7 @@ use chrono::Duration;
 use eframe::egui::{self, Color32, RichText};
 
 impl AppState {
-    pub fn draw_footer(&mut self, ui: &mut egui::Ui) {
+    pub fn draw_footer(&mut self, ui: &mut egui::Ui, top: bool) {
         let LayoutConfig {
             font_sizes,
             colors,
@@ -107,7 +107,13 @@ impl AppState {
 
         let mut comparison_clicked = false;
 
-        egui::Panel::bottom("footer")
+        let panel = if top {
+            egui::Panel::top("footer")
+        } else {
+            egui::Panel::bottom("footer")
+        };
+
+        panel
             .resizable(false)
             .min_size(64.0)
             .frame(egui::Frame {

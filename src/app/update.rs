@@ -1,6 +1,7 @@
 use crate::app::AppWrapper;
 use crate::app::resize::draw_resize_borders;
 use crate::app::state::AppState;
+use crate::config::layout::SectionKind;
 use crate::config::load::config_base_dir;
 use crate::config::shaders::ShaderBackground;
 #[cfg(unix)]
@@ -67,14 +68,39 @@ impl AppState {
     }
 
     pub fn draw_ui(&mut self, ui: &mut egui::Ui) {
-        self.draw_header(ui);
-        if self.layout.options.show_footer {
-            self.draw_footer(ui);
+        self.draw_drag_handle(ui);
+
+        let order = self.layout.options.section_order.clone();
+        let splits_pos = order.iter().position(|s| *s == SectionKind::Splits);
+        let (before, after) = match splits_pos {
+            Some(pos) => (&order[..pos], &order[pos + 1..]),
+            None => (&order[..], &[][..]),
+        };
+
+        for section in before {
+            self.draw_section(ui, *section, true);
         }
-        if self.layout.options.show_body {
+        for section in after.iter().rev() {
+            self.draw_section(ui, *section, false);
+        }
+        if splits_pos.is_some() && self.layout.options.show_body {
             self.draw_splits_panel(ui);
         }
+
         self.draw_help_window(ui.ctx());
+    }
+
+    fn draw_section(&mut self, ui: &mut egui::Ui, section: SectionKind, top: bool) {
+        match section {
+            SectionKind::Title => self.draw_title(ui, top),
+            SectionKind::Timer => self.draw_timer(ui, top),
+            SectionKind::Footer => {
+                if self.layout.options.show_footer {
+                    self.draw_footer(ui, top);
+                }
+            }
+            SectionKind::Splits => {}
+        }
     }
 }
 

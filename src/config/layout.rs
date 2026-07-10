@@ -55,6 +55,14 @@ pub struct Spacings {
     pub split_bottom: f32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SectionKind {
+    Title,
+    Timer,
+    Splits,
+    Footer,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Options {
@@ -82,6 +90,11 @@ pub struct Options {
     /// every row's name text lines up at the same x regardless of icon
     /// size/absence (see `app::splits_panel`).
     pub split_icon_size: f32,
+    /// Vertical stacking order of the main window's sections. `Splits`
+    /// always occupies the remaining central space (see `AppState::draw_ui`
+    /// in `app::update`); everything before it in this list stacks from the
+    /// top down, everything after it stacks from the bottom up.
+    pub section_order: Vec<SectionKind>,
 }
 
 #[cfg(windows)]
@@ -192,6 +205,12 @@ impl Default for Options {
             enable_overlay_server: false,
             overlay_server_port: 7331,
             split_icon_size: 20.0,
+            section_order: vec![
+                SectionKind::Title,
+                SectionKind::Timer,
+                SectionKind::Splits,
+                SectionKind::Footer,
+            ],
         }
     }
 }
