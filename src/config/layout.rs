@@ -70,6 +70,13 @@ pub struct Options {
     pub enable_shader: bool,
     pub enable_background_image: bool,
     pub window_size: (u32, u32),
+    /// Turns on a local WebSocket server (see `app::overlay`) that streams
+    /// live timer/splits/comparisons state as JSON, meant to be consumed by
+    /// an OBS browser-source overlay. Off by default — it's a listening
+    /// socket, so it shouldn't start just because a config file happens to
+    /// exist.
+    pub enable_overlay_server: bool,
+    pub overlay_server_port: u16,
 }
 
 #[cfg(windows)]
@@ -177,6 +184,8 @@ impl Default for Options {
             enable_shader: false,
             enable_background_image: false,
             window_size: (720, 1280),
+            enable_overlay_server: false,
+            overlay_server_port: 7331,
         }
     }
 }

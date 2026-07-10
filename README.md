@@ -209,6 +209,70 @@ Two caveats worth knowing before you build a config around this:
 
 Each `watch` reads a value as `value_type` (`u8`/`u16`/`u32`/`u64`/`i8`/`i16`/`i32`/`i64`, `endian` defaults to `little`), and fires `action` (`start`/`split`/`reset`/`pause`) the moment `condition` transitions into true — never on the first sample read (there's no way to tell a genuine transition from wherever the value happened to be when it attached), and never again on every subsequent sample while it continues to hold. Condition kinds: `equals`/`not_equals`/`greater_than`/`less_than` (each take a `value`), plus `increased`/`decreased`/`changed` (compare against the previous sample, no `value` needed).
 
+## Overlay Server (OBS browser source)
+
+`openspeedrun` can expose the live timer, splits, and comparisons over a local WebSocket, meant to be consumed by an OBS **browser source** (or any custom overlay/companion tool) — the same role LiveSplit's "LiveSplit Server" component plays, but JSON instead of a plaintext line protocol.
+
+Off by default (it's a listening socket, so it shouldn't turn on just because a config file exists). Enable it in `openspeedrun-cfg` → **Options** → "Enable OBS overlay server", or by hand-editing your theme's JSON:
+
+```json
+{
+  "options": {
+    "enable_overlay_server": true,
+    "overlay_server_port": 7331
+  }
+}
+```
+
+Once running, connect to `ws://127.0.0.1:7331` (bound to localhost only). Every ~33ms, each connected client gets a full JSON snapshot:
+
+```json
+{
+  "title": "Super Mario Bros",
+  "category": "Any%",
+  "attempts": 42,
+  "timing_method": "real_time",
+  "selected_comparison": "Personal Best",
+  "timer_state": "running",
+  "current_time_ms": 84230,
+  "secondary_label": null,
+  "secondary_time_ms": null,
+  "current_split_index": 2,
+  "total_splits": 8,
+  "sum_of_best_ms": 612400,
+  "best_possible_time_ms": 700100,
+  "pb_time_ms": 715300,
+  "previous_segment_delta_ms": -230,
+  "splits": [
+    {
+      "name": "World 1-1",
+      "is_current": false,
+      "cumulative_time_ms": 30120,
+      "segment_time_ms": 30120,
+      "segment_comparison_ms": 29800,
+      "delta_ms": 320
+    }
+  ]
+}
+```
+
+- `current_time_ms` / `secondary_time_ms`: the run's authoritative clock and (once it's actually been used this attempt) the other one — Real Time and Game Time, whichever way around `timing_method` has them.
+- Every `*_time_ms`/`delta_ms` field is a plain integer (milliseconds, signed where negative means "ahead"); format it however your overlay wants — the server doesn't pre-render strings.
+- `segment_time_ms`/`segment_comparison_ms` are **segment** (this split alone) times, not cumulative-from-start; `cumulative_time_ms` is the total elapsed time when that split was hit.
+
+A ready-to-use overlay showing all of the above (title/category, timer with IGT/RTA secondary clock, attempts, Sum of Best, Best Possible, PB, and a colored splits list) lives at [`exampleconfig/overlay.html`](exampleconfig/overlay.html) — point an OBS browser source (or a regular browser tab, to check it connects first) straight at that file, no build step needed. Or for a from-scratch minimal page:
+  ```html
+  <div id="timer"></div>
+  <script>
+    const ws = new WebSocket("ws://127.0.0.1:7331");
+    ws.onmessage = (event) => {
+      const state = JSON.parse(event.data);
+      document.getElementById("timer").textContent =
+        (state.current_time_ms / 1000).toFixed(2) + "s";
+    };
+  </script>
+  ```
+
 ## Hotkeys
 
 On Windows, OpenSpeedRun supports customizable hotkeys.  

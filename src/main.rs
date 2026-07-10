@@ -48,6 +48,15 @@ fn main() -> eframe::Result<()> {
     let titlebar = layout.options.titlebar;
     let window_size = layout.options.window_size;
 
+    if layout.options.enable_overlay_server {
+        let app_clone = app_state.clone();
+        let port = layout.options.overlay_server_port;
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(app::websocket_server::run(app_clone, port));
+        });
+    }
+
     let options = NativeOptions {
         renderer: eframe::Renderer::Glow,
         viewport: ViewportBuilder::default()

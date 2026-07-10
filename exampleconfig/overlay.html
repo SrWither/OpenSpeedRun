@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<!--
+  Ready-to-use OBS browser-source overlay for openspeedrun's Overlay
+  Server (see the README's "Overlay Server (OBS browser source)" section).
+
+  Usage:
+    1. Enable the server in openspeedrun-cfg -> Options -> "Enable OBS
+       overlay server" (default port 7331), then restart openspeedrun.
+    2. In OBS: Sources -> + -> Browser -> "Local file" -> pick this file.
+       (Or open it directly in a normal browser tab first to sanity-check
+       the connection before wiring it into OBS.)
+    3. If your port isn't 7331, change WS_PORT below.
+
+  No build step, no dependencies -- open as-is.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenSpeedRun Overlay</title>
+<style>
+  :root {
+    --bg: rgba(10, 10, 14, 0.72);
+    --fg: #f2f2f2;
+    --dim: #9a9a9a;
+    --ahead: #32cd32;
+    --behind: #ff6347;
+    --gold: #ffd700;
+    --current-bg: rgba(255, 255, 255, 0.08);
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--fg);
+    font-family: "JetBrains Mono", "Roboto Mono", "Courier New", monospace;
+  }
+
+  #app {
+    width: 360px;
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 12px 14px;
+    box-sizing: border-box;
+  }
+
+  #status {
+    font-size: 11px;
+    color: var(--dim);
+    margin-bottom: 4px;
+  }
+  #status.connected { color: var(--ahead); }
+  #status.disconnected { color: var(--behind); }
+
+  #title { font-size: 16px; font-weight: bold; }
+  #category { font-size: 13px; color: var(--dim); margin-bottom: 6px; }
+
+  #timer-row { display: flex; align-items: baseline; gap: 8px; margin: 6px 0; }
+  #timer { font-size: 34px; font-weight: bold; }
+  #secondary { font-size: 14px; color: var(--dim); }
+
+  #info { font-size: 12px; color: var(--dim); line-height: 1.6; margin-bottom: 8px; }
+  #info span.value { color: var(--fg); }
+  #info span.delta.ahead { color: var(--ahead); }
+  #info span.delta.behind { color: var(--behind); }
+
+  #splits { border-top: 1px solid rgba(255,255,255,0.15); padding-top: 6px; }
+  .split-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 3px 4px;
+    border-radius: 4px;
+  }
+  .split-row.current { background: var(--current-bg); font-weight: bold; }
+  .split-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .split-time { color: var(--dim); width: 70px; text-align: right; }
+  .split-delta { width: 60px; text-align: right; }
+  .split-delta.ahead { color: var(--ahead); }
+  .split-delta.behind { color: var(--behind); }
+  .split-delta.gold { color: var(--gold); }
+</style>
+</head>
+<body>
+  <div id="app">
+    <div id="status" class="disconnected">connecting…</div>
+    <div id="title">—</div>
+    <div id="category">—</div>
+
+    <div id="timer-row">
+      <div id="timer">--:--.--</div>
+      <div id="secondary"></div>
+    </div>
+
+    <div id="info">
+      Attempts: <span class="value" id="attempts">0</span><br>
+      Sum of Best: <span class="value" id="sum-of-best">--</span><br>
+      Best Possible: <span class="value" id="best-possible">--</span><br>
+      PB: <span class="value" id="pb">--</span><br>
+      Prev Segment: <span class="value delta" id="prev-delta">--</span>
+    </div>
+
+    <div id="splits"></div>
+  </div>
+
+  <script>
+    // ---- config -------------------------------------------------------
+    const WS_PORT = 7331;
+    const RECONNECT_DELAY_MS = 2000;
+
+    // ---- formatting -----------------------------------------------------
+    function formatMs(ms, { showSign = false } = {}) {
+      if (ms === null || ms === undefined) return "--";
+      const sign = ms < 0 ? "-" : (showSign ? "+" : "");
+      const abs = Math.abs(ms);
+      const totalSeconds = Math.floor(abs / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      const centis = Math.floor((abs % 1000) / 10);
+
+      const pad = (n, w = 2) => String(n).padStart(w, "0");
+      const time = hours > 0
+        ? `${hours}:${pad(minutes)}:${pad(seconds)}`
+        : `${minutes}:${pad(seconds)}`;
+      return `${sign}${time}.${pad(centis)}`;
+    }
+
+    function deltaClass(deltaMs, isGoldComparison) {
+      if (deltaMs === null || deltaMs === undefined) return "";
+      if (isGoldComparison) return "gold";
+      return deltaMs < 0 ? "ahead" : "behind";
+    }
+
+    // ---- rendering ------------------------------------------------------
+    function render(state) {
+      document.getElementById("title").textContent = state.title;
+      document.getElementById("category").textContent = state.category;
+      document.getElementById("timer").textContent = formatMs(state.current_time_ms);
+
+      const secondary = document.getElementById("secondary");
+      secondary.textContent = state.secondary_label
+        ? `${state.secondary_label}: ${formatMs(state.secondary_time_ms)}`
+        : "";
+
+      document.getElementById("attempts").textContent = state.attempts;
+      document.getElementById("sum-of-best").textContent = formatMs(state.sum_of_best_ms);
+      document.getElementById("best-possible").textContent = formatMs(state.best_possible_time_ms);
+      document.getElementById("pb").textContent = formatMs(state.pb_time_ms);
+
+      const prevDelta = document.getElementById("prev-delta");
+      prevDelta.textContent = formatMs(state.previous_segment_delta_ms, { showSign: true });
+      prevDelta.className = "value delta " +
+        (state.previous_segment_delta_ms == null ? "" : (state.previous_segment_delta_ms < 0 ? "ahead" : "behind"));
+
+      const isGold = state.selected_comparison === "Best Segments";
+      const splitsEl = document.getElementById("splits");
+      splitsEl.innerHTML = "";
+      for (const split of state.splits) {
+        const row = document.createElement("div");
+        row.className = "split-row" + (split.is_current ? " current" : "");
+
+        const name = document.createElement("div");
+        name.className = "split-name";
+        name.textContent = split.name;
+
+        const time = document.createElement("div");
+        time.className = "split-time";
+        time.textContent = formatMs(split.segment_time_ms);
+
+        const delta = document.createElement("div");
+        delta.className = "split-delta " + deltaClass(split.delta_ms, isGold);
+        delta.textContent = split.delta_ms == null ? "" : formatMs(split.delta_ms, { showSign: true });
+
+        row.append(name, time, delta);
+        splitsEl.appendChild(row);
+      }
+    }
+
+    // ---- connection (auto-reconnect, since OBS keeps this page open
+    // across openspeedrun restarts) ---------------------------------------
+    function connect() {
+      const status = document.getElementById("status");
+      const ws = new WebSocket(`ws://127.0.0.1:${WS_PORT}`);
+
+      ws.onopen = () => {
+        status.textContent = "connected";
+        status.className = "connected";
+      };
+      ws.onmessage = (event) => render(JSON.parse(event.data));
+      ws.onerror = () => ws.close();
+      ws.onclose = () => {
+        status.textContent = "disconnected — retrying…";
+        status.className = "disconnected";
+        setTimeout(connect, RECONNECT_DELAY_MS);
+      };
+    }
+
+    connect();
+  </script>
+</body>
+</html>

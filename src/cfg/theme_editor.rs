@@ -236,6 +236,19 @@ impl ThemeEditor {
                         &mut self.layout.options.enable_background_image,
                         "Show bg image",
                     );
+                    ui.checkbox(
+                        &mut self.layout.options.enable_overlay_server,
+                        "Enable OBS overlay server (ws://127.0.0.1:<port>)",
+                    );
+                    if self.layout.options.enable_overlay_server {
+                        ui.horizontal(|ui| {
+                            ui.label("Overlay server port:");
+                            ui.add(
+                                egui::DragValue::new(&mut self.layout.options.overlay_server_port)
+                                    .speed(1.0),
+                            );
+                        });
+                    }
 
                     ui.label("Window size:");
                     ui.horizontal(|ui| {
