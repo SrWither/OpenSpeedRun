@@ -15,7 +15,15 @@ fn main() {
     use std::thread;
     use std::time::Duration;
 
-    use openspeedrun::autosplitter::config::{AutosplitterConfig, Target, Watch};
+    #[cfg(target_os = "linux")]
+    use openspeedrun::autosplitter::config::Watch;
+    use openspeedrun::autosplitter::config::{AutosplitterConfig, Target};
+    // `process_memory`'s process-reading API only compiles on Linux (it's
+    // built on `/proc`, which doesn't exist on macOS or *BSD) — see that
+    // module's docs. Everything importing from it below is only used inside
+    // the `Target::ProcessMemory` arm, which is itself Linux-only for the
+    // same reason.
+    #[cfg(target_os = "linux")]
     use openspeedrun::autosplitter::process_memory::{
         ProcessMemoryReader, find_module_base, find_pid_by_name, resolve_pointer_chain,
     };
@@ -98,6 +106,17 @@ fn main() {
             }
         }
 
+        #[cfg(not(target_os = "linux"))]
+        Target::ProcessMemory { .. } => {
+            eprintln!(
+                "The 'process_memory' target needs /proc, which only exists on Linux \
+                 (not macOS or *BSD). Use the 'retroarch' target instead, or run this \
+                 on Linux."
+            );
+            process::exit(1);
+        }
+
+        #[cfg(target_os = "linux")]
         Target::ProcessMemory { process_name } => {
             // Resolves the address a watch should ultimately read: `module`
             // (if set) plus `address`, then chases `pointer_path` through

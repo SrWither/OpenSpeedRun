@@ -3,14 +3,26 @@
 //! docs and the crate-level module docs for why this needs the target
 //! process to be ptrace-readable, a real security trade-off rather than a
 //! permission to just paper over.
+//!
+//! `/proc` is Linux-specific — it doesn't exist on macOS or (by default) on
+//! *BSD, so `ProcessMemoryReader`/`find_pid_by_name` (and the private
+//! `matches_process_name` they share) only compile on Linux; callers must
+//! `#[cfg(target_os = "linux")]`-gate their use of this and offer a
+//! different message on other platforms (see `autosplitter/main.rs`).
+//! `find_module_base`/`resolve_pointer_chain` below are pure text/math with
+//! no OS dependency and stay available everywhere.
 
+#[cfg(target_os = "linux")]
 use std::fs::File;
+#[cfg(target_os = "linux")]
 use std::io::{self, Read, Seek, SeekFrom};
 
+#[cfg(target_os = "linux")]
 pub struct ProcessMemoryReader {
     mem: File,
 }
 
+#[cfg(target_os = "linux")]
 impl ProcessMemoryReader {
     /// Opens `/proc/<pid>/mem` for reading. On `EPERM`/`EACCES` this returns
     /// an error whose message explains *why* (Yama `ptrace_scope` or
@@ -58,6 +70,7 @@ impl ProcessMemoryReader {
 /// its PID. Locating a process by name never itself requires ptrace
 /// permission (only the later `/proc/<pid>/mem` open does), so this works
 /// even before any elevated access has been granted.
+#[cfg(target_os = "linux")]
 pub fn find_pid_by_name(process_name: &str) -> io::Result<Option<u32>> {
     for entry in std::fs::read_dir("/proc")? {
         let entry = entry?;
@@ -88,6 +101,7 @@ pub fn find_pid_by_name(process_name: &str) -> io::Result<Option<u32>> {
 /// kernel truncates it to 15 bytes, so a config targeting a long executable
 /// name may need to use the truncated form); `exe_basename` is the
 /// untruncated fallback when `/proc/<pid>/exe` was readable.
+#[cfg(target_os = "linux")]
 pub fn matches_process_name(comm: &str, exe_basename: Option<&str>, target: &str) -> bool {
     comm == target || exe_basename == Some(target)
 }

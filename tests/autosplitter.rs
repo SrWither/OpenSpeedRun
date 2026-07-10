@@ -1,9 +1,9 @@
 use openspeedrun::autosplitter::config::{
     Action, AutosplitterConfig, Condition, Endian, ValueType, Watch,
 };
-use openspeedrun::autosplitter::process_memory::{
-    ProcessMemoryReader, find_module_base, resolve_pointer_chain,
-};
+#[cfg(target_os = "linux")]
+use openspeedrun::autosplitter::process_memory::ProcessMemoryReader;
+use openspeedrun::autosplitter::process_memory::{find_module_base, resolve_pointer_chain};
 use openspeedrun::autosplitter::retroarch::parse_read_memory_response;
 
 #[test]
@@ -201,12 +201,14 @@ fn loads_a_process_memory_config_with_module_and_pointer_path() {
 }
 
 #[test]
+#[cfg(target_os = "linux")]
 fn process_memory_reader_reads_a_known_value_from_its_own_process() {
     // A process can always read its own /proc/self/mem regardless of
     // ptrace_scope (self-access isn't restricted), so this exercises the
     // real read path without needing a second process or elevated
     // permissions — only cross-process attachment needs those, and that
-    // part has to be tested by hand against a real target.
+    // part has to be tested by hand against a real target. `/proc` itself
+    // is Linux-only (see `process_memory`'s module docs), hence the cfg.
     let value: u32 = 0xDEADBEEF;
     let addr = &value as *const u32 as u64;
 

@@ -158,6 +158,8 @@ RetroArch (and compatible libretro cores) expose a plaintext, opt-in UDP protoco
 
 ### Native games (advanced, opt-in) — reads process memory
 
+**Linux only** — this target is built on `/proc`, which doesn't exist on macOS or (by default) *BSD. Selecting `process_memory` on another OS just prints a message and exits; use `retroarch` there instead.
+
 Autosplitting a native/unmodified game requires reading its process memory directly, via `/proc/<pid>/mem`. **This is a real reduction in process isolation, not a formality**: on Linux, reading another process's memory needs ptrace access to it, which by default (Yama's `ptrace_scope`) only your process's own children get. To use this you must do one of:
 
 - Relax it for your whole session: `echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope` (resets on reboot; lets *any* of your processes ptrace *any other*, not just this pairing).

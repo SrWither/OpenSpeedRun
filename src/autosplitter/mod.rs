@@ -12,7 +12,11 @@
 //!   OS's process-isolation guarantees, not a rubber-stamp permission, which
 //!   is why nothing in the config format defaults to it — see
 //!   `config::Target::ProcessMemory`'s docs and the README's "Native games"
-//!   section before reaching for it.
+//!   section before reaching for it. It's also Linux-only: `/proc` doesn't
+//!   exist on macOS or (by default) *BSD, so `process_memory`'s actual
+//!   implementation is `#[cfg(target_os = "linux")]`-gated (see that
+//!   module's docs) — selecting this target on another OS gets a clear
+//!   "not supported" message instead of a confusing I/O error.
 //!
 //! Either way, this binary only ever *reads* memory and only ever turns a
 //! configured transition into one of the same `start`/`split`/`reset`/
