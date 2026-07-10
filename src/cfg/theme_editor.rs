@@ -114,306 +114,339 @@ impl ThemeEditor {
 
         ui.add_space(12.0);
 
-        ui.horizontal(|ui| {
-            style::section_card(ui, "Font Sizes", egui_phosphor::regular::TEXT_AA, |ui| {
-                ui.vertical(|ui| {
-                    ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.title, 10.0..=96.0)
-                            .text("Title"),
-                    );
-                    ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.category, 10.0..=96.0)
-                            .text("Category"),
-                    );
-                    ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.timer, 10.0..=96.0)
-                            .text("Timer"),
-                    );
-                    ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.split, 10.0..=96.0)
-                            .text("Split Name"),
-                    );
-                    ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.split_timer, 10.0..=96.0)
-                            .text("Split Timer"),
-                    );
-                    ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.split_gold, 10.0..=96.0)
-                            .text("Split Gold"),
-                    );
-                    ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.split_pb, 10.0..=96.0)
-                            .text("Split PB"),
-                    );
-                    ui.add(
-                        egui::Slider::new(&mut self.layout.font_sizes.info, 10.0..=96.0)
-                            .text("Info"),
-                    );
+        egui::ScrollArea::horizontal()
+            .id_salt("theme_cards_scroll")
+            .auto_shrink([false, true])
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    style::section_card(ui, "Font Sizes", egui_phosphor::regular::TEXT_AA, |ui| {
+                        ui.vertical(|ui| {
+                            ui.add(
+                                egui::Slider::new(&mut self.layout.font_sizes.title, 10.0..=96.0)
+                                    .text("Title"),
+                            );
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut self.layout.font_sizes.category,
+                                    10.0..=96.0,
+                                )
+                                .text("Category"),
+                            );
+                            ui.add(
+                                egui::Slider::new(&mut self.layout.font_sizes.timer, 10.0..=96.0)
+                                    .text("Timer"),
+                            );
+                            ui.add(
+                                egui::Slider::new(&mut self.layout.font_sizes.split, 10.0..=96.0)
+                                    .text("Split Name"),
+                            );
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut self.layout.font_sizes.split_timer,
+                                    10.0..=96.0,
+                                )
+                                .text("Split Timer"),
+                            );
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut self.layout.font_sizes.split_gold,
+                                    10.0..=96.0,
+                                )
+                                .text("Split Gold"),
+                            );
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut self.layout.font_sizes.split_pb,
+                                    10.0..=96.0,
+                                )
+                                .text("Split PB"),
+                            );
+                            ui.add(
+                                egui::Slider::new(&mut self.layout.font_sizes.info, 10.0..=96.0)
+                                    .text("Info"),
+                            );
 
-                    if ui.button("Load Font").clicked() {
-                        self.pending_pick = Some((
-                            PendingPick::Font,
-                            PendingDialog::spawn(|| {
-                                rfd::FileDialog::new()
-                                    .add_filter("Fonts", &["ttf", "otf"])
-                                    .pick_file()
-                            }),
-                        ));
-                    }
+                            if ui.button("Load Font").clicked() {
+                                self.pending_pick = Some((
+                                    PendingPick::Font,
+                                    PendingDialog::spawn(|| {
+                                        rfd::FileDialog::new()
+                                            .add_filter("Fonts", &["ttf", "otf"])
+                                            .pick_file()
+                                    }),
+                                ));
+                            }
 
-                    ui.label("Select Font:");
+                            ui.label("Select Font:");
 
-                    let font_files = get_font_names();
+                            let font_files = get_font_names();
 
-                    egui::ComboBox::from_id_salt("font_selector")
-                        .selected_text(self.layout.font_sizes.font.as_deref().unwrap_or("Default"))
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.layout.font_sizes.font, None, "Default");
-
-                            for file in font_files {
-                                if let Some(name) = file
-                                    .strip_suffix(".ttf")
-                                    .or_else(|| file.strip_suffix(".otf"))
-                                {
+                            egui::ComboBox::from_id_salt("font_selector")
+                                .selected_text(
+                                    self.layout.font_sizes.font.as_deref().unwrap_or("Default"),
+                                )
+                                .show_ui(ui, |ui| {
                                     ui.selectable_value(
                                         &mut self.layout.font_sizes.font,
-                                        Some(name.to_string()),
-                                        name,
+                                        None,
+                                        "Default",
                                     );
-                                }
-                            }
-                        });
-                })
-            });
 
-            ui.add_space(6.0);
+                                    for file in font_files {
+                                        if let Some(name) = file
+                                            .strip_suffix(".ttf")
+                                            .or_else(|| file.strip_suffix(".otf"))
+                                        {
+                                            ui.selectable_value(
+                                                &mut self.layout.font_sizes.font,
+                                                Some(name.to_string()),
+                                                name,
+                                            );
+                                        }
+                                    }
+                                });
+                        })
+                    });
 
-            style::section_card(ui, "Colors", egui_phosphor::regular::SWATCHES, |ui| {
-                ui.vertical(|ui| {
-                    color_edit(ui, "Background", &mut self.layout.colors.background);
-                    color_edit(ui, "Title", &mut self.layout.colors.title);
-                    color_edit(ui, "Category", &mut self.layout.colors.category);
-                    color_edit(ui, "Timer", &mut self.layout.colors.timer);
-                    color_edit(ui, "Split", &mut self.layout.colors.split);
-                    color_edit(ui, "Split Selected", &mut self.layout.colors.split_selected);
-                    color_edit(ui, "Split Timer", &mut self.layout.colors.split_timer);
-                    color_edit(ui, "Gold +", &mut self.layout.colors.gold_positive);
-                    color_edit(ui, "Gold -", &mut self.layout.colors.gold_negative);
-                    color_edit(ui, "PB +", &mut self.layout.colors.pb_positive);
-                    color_edit(ui, "PB -", &mut self.layout.colors.pb_negative);
-                    color_edit(ui, "Info", &mut self.layout.colors.info);
                     ui.add_space(6.0);
-                    // open file picker for background image
-                    if ui.button("Load Image").clicked() {
-                        self.pending_pick = Some((
-                            PendingPick::Image,
-                            PendingDialog::spawn(|| {
-                                rfd::FileDialog::new()
-                                    .add_filter("Images", &["png", "jpg", "jpeg", "gif", "webp"])
-                                    .pick_file()
-                            }),
-                        ));
-                    }
 
-                    ui.label("Select Image:");
-
-                    let backgrounds_dir = config_base_dir().join("backgrounds");
-                    let mut bg_files: Vec<String> = Vec::new();
-
-                    if let Ok(entries) = fs::read_dir(&backgrounds_dir) {
-                        for entry in entries.flatten() {
-                            if let Ok(file_type) = entry.file_type()
-                                && file_type.is_file()
-                                && let Some(ext) = entry.path().extension()
-                                && matches!(
-                                    ext.to_str().unwrap_or("").to_lowercase().as_str(),
-                                    "png" | "jpg" | "jpeg" | "gif" | "webp"
-                                )
-                                && let Some(file_name) = entry.file_name().to_str()
-                            {
-                                bg_files.push(file_name.to_string());
-                            }
-                        }
-                    }
-
-                    egui::ComboBox::from_id_salt("background_image_selector")
-                        .selected_text(
-                            self.layout
-                                .colors
-                                .background_image
-                                .as_deref()
-                                .unwrap_or("None"),
-                        )
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut self.layout.colors.background_image,
-                                None,
-                                "None",
+                    style::section_card(ui, "Colors", egui_phosphor::regular::SWATCHES, |ui| {
+                        ui.vertical(|ui| {
+                            color_edit(ui, "Background", &mut self.layout.colors.background);
+                            color_edit(ui, "Title", &mut self.layout.colors.title);
+                            color_edit(ui, "Category", &mut self.layout.colors.category);
+                            color_edit(ui, "Timer", &mut self.layout.colors.timer);
+                            color_edit(ui, "Split", &mut self.layout.colors.split);
+                            color_edit(
+                                ui,
+                                "Split Selected",
+                                &mut self.layout.colors.split_selected,
                             );
-                            for bg in bg_files.iter() {
-                                ui.selectable_value(
-                                    &mut self.layout.colors.background_image,
-                                    Some(bg.clone()),
-                                    bg,
-                                );
+                            color_edit(ui, "Split Timer", &mut self.layout.colors.split_timer);
+                            color_edit(ui, "Gold +", &mut self.layout.colors.gold_positive);
+                            color_edit(ui, "Gold -", &mut self.layout.colors.gold_negative);
+                            color_edit(ui, "PB +", &mut self.layout.colors.pb_positive);
+                            color_edit(ui, "PB -", &mut self.layout.colors.pb_negative);
+                            color_edit(ui, "Info", &mut self.layout.colors.info);
+                            ui.add_space(6.0);
+                            // open file picker for background image
+                            if ui.button("Load Image").clicked() {
+                                self.pending_pick = Some((
+                                    PendingPick::Image,
+                                    PendingDialog::spawn(|| {
+                                        rfd::FileDialog::new()
+                                            .add_filter(
+                                                "Images",
+                                                &["png", "jpg", "jpeg", "gif", "webp"],
+                                            )
+                                            .pick_file()
+                                    }),
+                                ));
                             }
-                        });
-                });
-            });
 
-            ui.add_space(6.0);
+                            ui.label("Select Image:");
 
-            style::section_card(ui, "Options", egui_phosphor::regular::SLIDERS, |ui| {
-                ui.vertical(|ui| {
-                    ui.checkbox(&mut self.layout.options.show_title, "Show title");
-                    ui.checkbox(&mut self.layout.options.show_category, "Show category");
-                    ui.checkbox(&mut self.layout.options.show_splits, "Show splits");
-                    ui.checkbox(&mut self.layout.options.show_info, "Show info");
-                    ui.checkbox(&mut self.layout.options.show_body, "Show body");
-                    ui.checkbox(&mut self.layout.options.show_footer, "Show footer");
-                    ui.checkbox(
-                        &mut self.layout.options.show_relative_times,
-                        "Show relative times",
-                    );
-                    ui.checkbox(
-                        &mut self.layout.options.show_last_relative_time,
-                        "Show last relative time",
-                    );
-                    ui.checkbox(&mut self.layout.options.titlebar, "Titlebar");
-                    ui.checkbox(&mut self.layout.options.enable_shader, "Enable shader");
-                    ui.checkbox(
-                        &mut self.layout.options.enable_background_image,
-                        "Show bg image",
-                    );
-                    ui.checkbox(
-                        &mut self.layout.options.enable_overlay_server,
-                        "Enable OBS overlay server (ws://127.0.0.1:<port>)",
-                    );
-                    if self.layout.options.enable_overlay_server {
-                        ui.horizontal(|ui| {
-                            ui.label("Overlay server port:");
-                            ui.add(
-                                egui::DragValue::new(&mut self.layout.options.overlay_server_port)
-                                    .speed(1.0),
-                            );
-                        });
-                    }
+                            let backgrounds_dir = config_base_dir().join("backgrounds");
+                            let mut bg_files: Vec<String> = Vec::new();
 
-                    ui.horizontal(|ui| {
-                        ui.label("Split icon size:");
-                        ui.add(
-                            egui::Slider::new(&mut self.layout.options.split_icon_size, 8.0..=64.0)
-                                .suffix(" px"),
-                        );
-                    });
-
-                    ui.label("Window size:");
-                    ui.horizontal(|ui| {
-                        ui.add(
-                            egui::DragValue::new(&mut self.layout.options.window_size.0).speed(1.0),
-                        );
-                        ui.label("x");
-                        ui.add(
-                            egui::DragValue::new(&mut self.layout.options.window_size.1).speed(1.0),
-                        );
-                    });
-                    ui.label("Shader file:");
-                    let available_shaders = list_available_shaders();
-
-                    let mut current_shader = self.layout.colors.shader_path.clone();
-
-                    egui::ComboBox::from_id_salt("shader_select")
-                        .selected_text(&current_shader)
-                        .show_ui(ui, |ui| {
-                            for shader in available_shaders {
-                                if ui
-                                    .selectable_label(current_shader == shader, &shader)
-                                    .clicked()
-                                {
-                                    current_shader = shader.clone();
-                                    self.layout.colors.shader_path = shader;
+                            if let Ok(entries) = fs::read_dir(&backgrounds_dir) {
+                                for entry in entries.flatten() {
+                                    if let Ok(file_type) = entry.file_type()
+                                        && file_type.is_file()
+                                        && let Some(ext) = entry.path().extension()
+                                        && matches!(
+                                            ext.to_str().unwrap_or("").to_lowercase().as_str(),
+                                            "png" | "jpg" | "jpeg" | "gif" | "webp"
+                                        )
+                                        && let Some(file_name) = entry.file_name().to_str()
+                                    {
+                                        bg_files.push(file_name.to_string());
+                                    }
                                 }
                             }
+
+                            egui::ComboBox::from_id_salt("background_image_selector")
+                                .selected_text(
+                                    self.layout
+                                        .colors
+                                        .background_image
+                                        .as_deref()
+                                        .unwrap_or("None"),
+                                )
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(
+                                        &mut self.layout.colors.background_image,
+                                        None,
+                                        "None",
+                                    );
+                                    for bg in bg_files.iter() {
+                                        ui.selectable_value(
+                                            &mut self.layout.colors.background_image,
+                                            Some(bg.clone()),
+                                            bg,
+                                        );
+                                    }
+                                });
                         });
-                });
-            });
+                    });
 
-            ui.add_space(6.0);
+                    ui.add_space(6.0);
 
-            style::section_card(
-                ui,
-                "Section order",
-                egui_phosphor::regular::ROWS,
-                |ui| {
-                    ui.vertical(|ui| {
-                        let mut swap: Option<(usize, usize)> = None;
-                        let last = self.layout.options.section_order.len().saturating_sub(1);
-
-                        for (i, section) in self.layout.options.section_order.iter().enumerate() {
-                            let name = match section {
-                                SectionKind::Title => "Title",
-                                SectionKind::Timer => "Timer",
-                                SectionKind::Splits => "Splits",
-                                SectionKind::Footer => "Footer",
-                            };
+                    style::section_card(ui, "Options", egui_phosphor::regular::SLIDERS, |ui| {
+                        ui.vertical(|ui| {
+                            ui.checkbox(&mut self.layout.options.show_title, "Show title");
+                            ui.checkbox(&mut self.layout.options.show_category, "Show category");
+                            ui.checkbox(&mut self.layout.options.show_splits, "Show splits");
+                            ui.checkbox(&mut self.layout.options.show_info, "Show info");
+                            ui.checkbox(&mut self.layout.options.show_body, "Show body");
+                            ui.checkbox(&mut self.layout.options.show_footer, "Show footer");
+                            ui.checkbox(
+                                &mut self.layout.options.show_relative_times,
+                                "Show relative times",
+                            );
+                            ui.checkbox(
+                                &mut self.layout.options.show_last_relative_time,
+                                "Show last relative time",
+                            );
+                            ui.checkbox(&mut self.layout.options.titlebar, "Titlebar");
+                            ui.checkbox(&mut self.layout.options.enable_shader, "Enable shader");
+                            ui.checkbox(
+                                &mut self.layout.options.enable_background_image,
+                                "Show bg image",
+                            );
+                            ui.checkbox(
+                                &mut self.layout.options.enable_overlay_server,
+                                "Enable OBS overlay server (ws://127.0.0.1:<port>)",
+                            );
+                            if self.layout.options.enable_overlay_server {
+                                ui.horizontal(|ui| {
+                                    ui.label("Overlay server port:");
+                                    ui.add(
+                                        egui::DragValue::new(
+                                            &mut self.layout.options.overlay_server_port,
+                                        )
+                                        .speed(1.0),
+                                    );
+                                });
+                            }
 
                             ui.horizontal(|ui| {
-                                ui.label(name);
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        if ui
-                                            .add_enabled(
-                                                i < last,
-                                                egui::Button::new(
-                                                    egui_phosphor::regular::ARROW_DOWN,
-                                                ),
-                                            )
-                                            .clicked()
-                                        {
-                                            swap = Some((i, i + 1));
-                                        }
-                                        if ui
-                                            .add_enabled(
-                                                i > 0,
-                                                egui::Button::new(egui_phosphor::regular::ARROW_UP),
-                                            )
-                                            .clicked()
-                                        {
-                                            swap = Some((i, i - 1));
-                                        }
-                                    },
+                                ui.label("Split icon size:");
+                                ui.add(
+                                    egui::Slider::new(
+                                        &mut self.layout.options.split_icon_size,
+                                        8.0..=64.0,
+                                    )
+                                    .suffix(" px"),
                                 );
                             });
-                        }
 
-                        if let Some((a, b)) = swap {
-                            self.layout.options.section_order.swap(a, b);
-                        }
+                            ui.label("Window size:");
+                            ui.horizontal(|ui| {
+                                ui.add(
+                                    egui::DragValue::new(&mut self.layout.options.window_size.0)
+                                        .speed(1.0),
+                                );
+                                ui.label("x");
+                                ui.add(
+                                    egui::DragValue::new(&mut self.layout.options.window_size.1)
+                                        .speed(1.0),
+                                );
+                            });
+                            ui.label("Shader file:");
+                            let available_shaders = list_available_shaders();
+
+                            let mut current_shader = self.layout.colors.shader_path.clone();
+
+                            egui::ComboBox::from_id_salt("shader_select")
+                                .selected_text(&current_shader)
+                                .show_ui(ui, |ui| {
+                                    for shader in available_shaders {
+                                        if ui
+                                            .selectable_label(current_shader == shader, &shader)
+                                            .clicked()
+                                        {
+                                            current_shader = shader.clone();
+                                            self.layout.colors.shader_path = shader;
+                                        }
+                                    }
+                                });
+                        });
                     });
-                },
-            );
 
-            ui.add_space(6.0);
+                    ui.add_space(6.0);
 
-            style::section_card(
-                ui,
-                "Spacings",
-                egui_phosphor::regular::ARROWS_OUT_LINE_VERTICAL,
-                |ui| {
-                    ui.vertical(|ui| {
-                        ui.add(
-                            egui::Slider::new(&mut self.layout.spacings.split_top, 0.0..=64.0)
-                                .text("Split Top"),
-                        );
-                        ui.add(
-                            egui::Slider::new(&mut self.layout.spacings.split_bottom, 0.0..=64.0)
-                                .text("Split Bottom"),
-                        );
+                    style::section_card(ui, "Section order", egui_phosphor::regular::ROWS, |ui| {
+                        ui.vertical(|ui| {
+                            let mut swap: Option<(usize, usize)> = None;
+                            let last = self.layout.options.section_order.len().saturating_sub(1);
+
+                            for (i, section) in self.layout.options.section_order.iter().enumerate()
+                            {
+                                let name = match section {
+                                    SectionKind::Title => "Title",
+                                    SectionKind::Timer => "Timer",
+                                    SectionKind::Splits => "Splits",
+                                    SectionKind::Footer => "Footer",
+                                };
+
+                                ui.horizontal(|ui| {
+                                    ui.label(name);
+                                    ui.add_space(8.0);
+                                    if ui
+                                        .add_enabled(
+                                            i > 0,
+                                            egui::Button::new(egui_phosphor::regular::ARROW_UP),
+                                        )
+                                        .clicked()
+                                    {
+                                        swap = Some((i, i - 1));
+                                    }
+                                    if ui
+                                        .add_enabled(
+                                            i < last,
+                                            egui::Button::new(egui_phosphor::regular::ARROW_DOWN),
+                                        )
+                                        .clicked()
+                                    {
+                                        swap = Some((i, i + 1));
+                                    }
+                                });
+                            }
+
+                            if let Some((a, b)) = swap {
+                                self.layout.options.section_order.swap(a, b);
+                            }
+                        });
                     });
-                },
-            );
-        });
+
+                    ui.add_space(6.0);
+
+                    style::section_card(
+                        ui,
+                        "Spacings",
+                        egui_phosphor::regular::ARROWS_OUT_LINE_VERTICAL,
+                        |ui| {
+                            ui.vertical(|ui| {
+                                ui.add(
+                                    egui::Slider::new(
+                                        &mut self.layout.spacings.split_top,
+                                        0.0..=64.0,
+                                    )
+                                    .text("Split Top"),
+                                );
+                                ui.add(
+                                    egui::Slider::new(
+                                        &mut self.layout.spacings.split_bottom,
+                                        0.0..=64.0,
+                                    )
+                                    .text("Split Bottom"),
+                                );
+                            });
+                        },
+                    );
+                });
+            });
 
         #[cfg(windows)]
         {
