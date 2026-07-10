@@ -4,13 +4,20 @@ use openspeedrun::config::keys::KeyWrapper;
 use openspeedrun::{config::layout::LayoutConfig, config_base_dir};
 use std::{fs, path::PathBuf};
 
+use crate::dialog::PendingDialog;
 use crate::send_message;
 use crate::style;
+
+enum PendingPick {
+    Font,
+    Image,
+}
 
 pub struct ThemeEditor {
     pub current_theme_path: PathBuf,
     pub layout: LayoutConfig,
     save_status: Option<(String, bool)>,
+    pending_pick: Option<(PendingPick, PendingDialog)>,
     #[cfg(windows)]
     pub waiting_for_key: Option<String>,
 }
@@ -25,12 +32,52 @@ impl ThemeEditor {
             current_theme_path: theme_path,
             layout,
             save_status: None,
+            pending_pick: None,
             #[cfg(windows)]
             waiting_for_key: None,
         }
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
+        if self.pending_pick.is_some() {
+            // Without this, egui (event-driven) might not repaint again
+            // until unrelated input arrives, leaving a finished dialog's
+            // result unpicked-up for a while.
+            ui.ctx().request_repaint();
+        }
+
+        if let Some((kind, dialog)) = &self.pending_pick
+            && let Some(path) = dialog.poll()
+        {
+            if let Some(path) = path {
+                match kind {
+                    PendingPick::Font => match copy_font_to_fonts_folder(&path) {
+                        Ok(new_path) => match new_path.file_stem().and_then(|n| n.to_str()) {
+                            Some(file_name) => {
+                                self.layout.font_sizes.font = Some(file_name.to_string());
+                                send_message("reloadtheme");
+                            }
+                            None => eprintln!("Cannot obtain file name from path: {:?}", new_path),
+                        },
+                        Err(_) => eprintln!("Error copying font to fonts folder"),
+                    },
+                    PendingPick::Image => match copy_image_to_backgrounds_folder(&path) {
+                        Ok(new_path) => match new_path.file_name().and_then(|n| n.to_str()) {
+                            Some(file_name) => {
+                                self.layout.colors.background_image = Some(file_name.to_string());
+                                send_message("reloadtheme");
+                            }
+                            None => {
+                                eprintln!("Error obtaining file name from path: {:?}", new_path)
+                            }
+                        },
+                        Err(_) => eprintln!("Error copying image to backgrounds folder"),
+                    },
+                }
+            }
+            self.pending_pick = None;
+        }
+
         ui.horizontal(|ui| {
             ui.heading(format!("{} Edit Theme", egui_phosphor::regular::PALETTE));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -100,21 +147,15 @@ impl ThemeEditor {
                             .text("Info"),
                     );
 
-                    if ui.button("Load Font").clicked()
-                        && let Some(path) = rfd::FileDialog::new()
-                            .add_filter("Fonts", &["ttf", "otf"])
-                            .pick_file()
-                    {
-                        if let Ok(new_path) = copy_font_to_fonts_folder(&path) {
-                            if let Some(file_name) = new_path.file_stem().and_then(|n| n.to_str()) {
-                                self.layout.font_sizes.font = Some(file_name.to_string());
-                                send_message("reloadtheme");
-                            } else {
-                                eprintln!("Cannot obtain file name from path: {:?}", new_path);
-                            }
-                        } else {
-                            eprintln!("Error copying font to fonts folder");
-                        }
+                    if ui.button("Load Font").clicked() {
+                        self.pending_pick = Some((
+                            PendingPick::Font,
+                            PendingDialog::spawn(|| {
+                                rfd::FileDialog::new()
+                                    .add_filter("Fonts", &["ttf", "otf"])
+                                    .pick_file()
+                            }),
+                        ));
                     }
 
                     ui.label("Select Font:");
@@ -160,21 +201,15 @@ impl ThemeEditor {
                     color_edit(ui, "Info", &mut self.layout.colors.info);
                     ui.add_space(6.0);
                     // open file picker for background image
-                    if ui.button("Load Image").clicked()
-                        && let Some(path) = rfd::FileDialog::new()
-                            .add_filter("Images", &["png", "jpg", "jpeg", "gif", "webp"])
-                            .pick_file()
-                    {
-                        if let Ok(new_path) = copy_image_to_backgrounds_folder(&path) {
-                            if let Some(file_name) = new_path.file_name().and_then(|n| n.to_str()) {
-                                self.layout.colors.background_image = Some(file_name.to_string());
-                                send_message("reloadtheme");
-                            } else {
-                                eprintln!("Error obtaining file name from path: {:?}", new_path);
-                            }
-                        } else {
-                            eprintln!("Error copying image to backgrounds folder");
-                        }
+                    if ui.button("Load Image").clicked() {
+                        self.pending_pick = Some((
+                            PendingPick::Image,
+                            PendingDialog::spawn(|| {
+                                rfd::FileDialog::new()
+                                    .add_filter("Images", &["png", "jpg", "jpeg", "gif", "webp"])
+                                    .pick_file()
+                            }),
+                        ));
                     }
 
                     ui.label("Select Image:");

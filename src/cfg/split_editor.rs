@@ -11,9 +11,19 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::dialog::PendingDialog;
 use crate::send_message;
 use crate::speedrun_com_picker::SpeedrunComPicker;
 use crate::style;
+
+enum PendingAction {
+    ImportLss,
+    ExportLss,
+    ExportFolder,
+    ImportFolder,
+    /// Carries the index of the split whose icon is being replaced.
+    ChangeIcon(usize),
+}
 
 pub struct SplitEditor {
     pub run_path: PathBuf,
@@ -23,6 +33,7 @@ pub struct SplitEditor {
     dragging_split_index: Option<usize>,
     import_export_status: Option<(String, bool)>,
     speedrun_com_picker: SpeedrunComPicker,
+    pending_action: Option<(PendingAction, PendingDialog)>,
 }
 
 fn format_duration(duration: chrono::Duration) -> String {
@@ -117,6 +128,7 @@ impl SplitEditor {
             dragging_split_index: None,
             import_export_status: None,
             speedrun_com_picker: SpeedrunComPicker::default(),
+            pending_action: None,
         }
     }
 
@@ -150,7 +162,108 @@ impl SplitEditor {
         }
     }
 
+    /// Runs once a `PendingDialog` spawned for `kind` finishes — `path` is
+    /// `None` if the user cancelled the dialog, in which case there's
+    /// nothing to do.
+    fn handle_pending_action(&mut self, kind: PendingAction, path: Option<PathBuf>) {
+        let Some(path) = path else { return };
+
+        match kind {
+            PendingAction::ImportLss => {
+                let icons_dir = self.run_path.parent().unwrap().join("icons");
+                self.import_export_status = Some(match lss::import(&path, &icons_dir) {
+                    Ok(result) => {
+                        self.run = result.run;
+                        // `import` names extracted icons purely by segment
+                        // index ("imported_0.png", etc.), so a second
+                        // import reuses the same icon_path strings as the
+                        // first even though the on-disk bytes just changed
+                        // underneath them. The cache is keyed by that
+                        // string, so without clearing it here it'd keep
+                        // showing the previous import's textures.
+                        self.icon_cache.clear();
+                        let version = result.source_version.as_deref().unwrap_or("unknown");
+                        (
+                            format!(
+                                "Imported from LiveSplit v{version}. Review it, then \"Save all\" to keep it."
+                            ),
+                            false,
+                        )
+                    }
+                    Err(e) => (format!("Import failed: {e}"), true),
+                });
+            }
+
+            PendingAction::ExportLss => {
+                let icons_base_dir = self.run_path.parent().unwrap();
+                self.import_export_status =
+                    Some(match lss::export(&self.run, &path, icons_base_dir) {
+                        Ok(()) => (format!("Exported to {}", path.display()), false),
+                        Err(e) => (format!("Export failed: {e}"), true),
+                    });
+            }
+
+            PendingAction::ExportFolder => {
+                let run_dir = self.run_path.parent().unwrap();
+                self.import_export_status = Some(match native::export_folder(run_dir, &path) {
+                    Ok(()) => (format!("Exported folder to {}", path.display()), false),
+                    Err(e) => (format!("Folder export failed: {e}"), true),
+                });
+            }
+
+            PendingAction::ImportFolder => {
+                let splits_base = crate::config_base_dir().join("splits");
+                let name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("imported")
+                    .to_string();
+                self.import_export_status =
+                    Some(match native::import_folder(&path, &splits_base, &name) {
+                        Ok(dest) => (
+                            format!(
+                                "Imported to {}. Reopen the Selector tab to see it.",
+                                dest.display()
+                            ),
+                            false,
+                        ),
+                        Err(e) => (format!("Folder import failed: {e}"), true),
+                    });
+            }
+
+            PendingAction::ChangeIcon(split_index) => {
+                let base_folder = self.run_path.parent().unwrap();
+                let icons_dir = base_folder.join("icons");
+                fs::create_dir_all(&icons_dir).ok();
+
+                if let Some(filename) = path.file_name() {
+                    let dest = icons_dir.join(filename);
+                    if fs::copy(&path, &dest).is_ok()
+                        && let Some(split) = self.run.splits.get_mut(split_index)
+                    {
+                        split.icon_path = Some(format!("icons/{}", filename.to_string_lossy()));
+                        self.icon_cache.remove(split.icon_path.as_ref().unwrap());
+                    }
+                }
+            }
+        }
+    }
+
     pub fn ui(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+        if self.pending_action.is_some() {
+            // Without this, egui (event-driven) might not repaint again
+            // until unrelated input arrives, leaving a finished dialog's
+            // result unpicked-up for a while.
+            ctx.request_repaint();
+        }
+
+        if let Some((kind, dialog)) = self.pending_action.take() {
+            match dialog.poll() {
+                Some(path) => self.handle_pending_action(kind, path),
+                None => self.pending_action = Some((kind, dialog)),
+            }
+        }
+
         ui.horizontal(|ui| {
             let total_width = ui.available_width();
             let edit_width = (total_width - style::SPACE_MD) * 0.42;
@@ -160,260 +273,263 @@ impl SplitEditor {
                 egui::vec2(edit_width, 0.0),
                 egui::Layout::top_down(egui::Align::Min),
                 |ui| {
-                ui.set_width(edit_width);
-                style::section_card(ui, "Edit Run", egui_phosphor::regular::FLAG_CHECKERED, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label("Name run:");
-                        ui.text_edit_singleline(&mut self.run.title);
-                    });
-
-                    ui.horizontal(|ui| {
-                        ui.label("Category:");
-                        ui.text_edit_singleline(&mut self.run.category);
-                    });
-
-                    ui.horizontal(|ui| {
-                        ui.label("Start offset (seconds):");
-                        let mut offset_secs = self.run.start_offset.unwrap_or(0);
-                        let mut changed = false;
-                        changed |= ui
-                            .add(
-                                egui::DragValue::new(&mut offset_secs)
-                                    .range(0..=600)
-                                    .speed(1)
-                                    .prefix("⏱ "),
-                            )
-                            .changed();
-                        if changed {
-                            self.run.start_offset = Some(offset_secs);
-                        }
-                    });
-
-                    ui.horizontal(|ui| {
-                        ui.label("Splits per page:");
-                        let mut value = self.run.splits_per_page.unwrap_or(5);
-                        if ui
-                            .add(egui::DragValue::new(&mut value).range(1..=50))
-                            .changed()
-                        {
-                            self.run.splits_per_page = Some(value);
-                        }
-                    });
-
-                    ui.horizontal(|ui| {
-                        ui.label("Auto-update PB:");
-                        ui.checkbox(&mut self.run.auto_update_pb, "");
-                    });
-
-                    ui.horizontal(|ui| {
-                        ui.label("Timing method:");
-                        egui::ComboBox::from_id_salt("timing_method")
-                            .selected_text(match self.run.timing_method {
-                                TimingMethod::RealTime => "Real Time",
-                                TimingMethod::GameTime => "Game Time",
-                            })
-                            .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut self.run.timing_method, TimingMethod::RealTime, "Real Time");
-                                ui.selectable_value(&mut self.run.timing_method, TimingMethod::GameTime, "Game Time");
-                            });
-                    });
-
-                    ui.horizontal(|ui| {
-                        ui.label("Compare against:");
-                        let comparison_names = self.run.comparison_names();
-                        egui::ComboBox::from_id_salt("selected_comparison")
-                            .selected_text(self.run.selected_comparison.clone())
-                            .show_ui(ui, |ui| {
-                                for name in &comparison_names {
-                                    ui.selectable_value(
-                                        &mut self.run.selected_comparison,
-                                        name.clone(),
-                                        name,
-                                    );
-                                }
-                            });
-                    });
-
-                    ui.add_space(style::SPACE_SM);
-                    ui.collapsing("Category metadata", |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label("Platform:");
-                            let mut platform = self.run.metadata.platform.clone().unwrap_or_default();
-                            if ui.text_edit_singleline(&mut platform).changed() {
-                                self.run.metadata.platform =
-                                    if platform.is_empty() { None } else { Some(platform) };
-                            }
-                        });
-                        ui.horizontal(|ui| {
-                            ui.label("Region:");
-                            let mut region = self.run.metadata.region.clone().unwrap_or_default();
-                            if ui.text_edit_singleline(&mut region).changed() {
-                                self.run.metadata.region =
-                                    if region.is_empty() { None } else { Some(region) };
-                            }
-                        });
-
-                        ui.label("Variables:");
-                        let mut variable_to_remove = None;
-                        for (i, variable) in self.run.metadata.variables.iter_mut().enumerate() {
+                    ui.set_width(edit_width);
+                    style::section_card(
+                        ui,
+                        "Edit Run",
+                        egui_phosphor::regular::FLAG_CHECKERED,
+                        |ui| {
                             ui.horizontal(|ui| {
-                                ui.text_edit_singleline(&mut variable.name);
-                                ui.label("=");
-                                ui.text_edit_singleline(&mut variable.value);
-                                if ui
-                                    .button(RichText::new(egui_phosphor::regular::TRASH))
-                                    .clicked()
-                                {
-                                    variable_to_remove = Some(i);
+                                ui.label("Name run:");
+                                ui.text_edit_singleline(&mut self.run.title);
+                            });
+
+                            ui.horizontal(|ui| {
+                                ui.label("Category:");
+                                ui.text_edit_singleline(&mut self.run.category);
+                            });
+
+                            ui.horizontal(|ui| {
+                                ui.label("Start offset (seconds):");
+                                let mut offset_secs = self.run.start_offset.unwrap_or(0);
+                                let mut changed = false;
+                                changed |= ui
+                                    .add(
+                                        egui::DragValue::new(&mut offset_secs)
+                                            .range(0..=600)
+                                            .speed(1)
+                                            .prefix("⏱ "),
+                                    )
+                                    .changed();
+                                if changed {
+                                    self.run.start_offset = Some(offset_secs);
                                 }
                             });
-                        }
-                        if let Some(i) = variable_to_remove {
-                            self.run.metadata.variables.remove(i);
-                        }
-                        if ui.button("Add variable").clicked() {
-                            self.run.metadata.variables.push(RunVariable::default());
-                        }
-                    });
-                });
-            });
+
+                            ui.horizontal(|ui| {
+                                ui.label("Splits per page:");
+                                let mut value = self.run.splits_per_page.unwrap_or(5);
+                                if ui
+                                    .add(egui::DragValue::new(&mut value).range(1..=50))
+                                    .changed()
+                                {
+                                    self.run.splits_per_page = Some(value);
+                                }
+                            });
+
+                            ui.horizontal(|ui| {
+                                ui.label("Auto-update PB:");
+                                ui.checkbox(&mut self.run.auto_update_pb, "");
+                            });
+
+                            ui.horizontal(|ui| {
+                                ui.label("Timing method:");
+                                egui::ComboBox::from_id_salt("timing_method")
+                                    .selected_text(match self.run.timing_method {
+                                        TimingMethod::RealTime => "Real Time",
+                                        TimingMethod::GameTime => "Game Time",
+                                    })
+                                    .show_ui(ui, |ui| {
+                                        ui.selectable_value(
+                                            &mut self.run.timing_method,
+                                            TimingMethod::RealTime,
+                                            "Real Time",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.run.timing_method,
+                                            TimingMethod::GameTime,
+                                            "Game Time",
+                                        );
+                                    });
+                            });
+
+                            ui.horizontal(|ui| {
+                                ui.label("Compare against:");
+                                let comparison_names = self.run.comparison_names();
+                                egui::ComboBox::from_id_salt("selected_comparison")
+                                    .selected_text(self.run.selected_comparison.clone())
+                                    .show_ui(ui, |ui| {
+                                        for name in &comparison_names {
+                                            ui.selectable_value(
+                                                &mut self.run.selected_comparison,
+                                                name.clone(),
+                                                name,
+                                            );
+                                        }
+                                    });
+                            });
+
+                            ui.add_space(style::SPACE_SM);
+                            ui.collapsing("Category metadata", |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label("Platform:");
+                                    let mut platform =
+                                        self.run.metadata.platform.clone().unwrap_or_default();
+                                    if ui.text_edit_singleline(&mut platform).changed() {
+                                        self.run.metadata.platform = if platform.is_empty() {
+                                            None
+                                        } else {
+                                            Some(platform)
+                                        };
+                                    }
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("Region:");
+                                    let mut region =
+                                        self.run.metadata.region.clone().unwrap_or_default();
+                                    if ui.text_edit_singleline(&mut region).changed() {
+                                        self.run.metadata.region = if region.is_empty() {
+                                            None
+                                        } else {
+                                            Some(region)
+                                        };
+                                    }
+                                });
+
+                                ui.label("Variables:");
+                                let mut variable_to_remove = None;
+                                for (i, variable) in
+                                    self.run.metadata.variables.iter_mut().enumerate()
+                                {
+                                    ui.horizontal(|ui| {
+                                        ui.text_edit_singleline(&mut variable.name);
+                                        ui.label("=");
+                                        ui.text_edit_singleline(&mut variable.value);
+                                        if ui
+                                            .button(RichText::new(egui_phosphor::regular::TRASH))
+                                            .clicked()
+                                        {
+                                            variable_to_remove = Some(i);
+                                        }
+                                    });
+                                }
+                                if let Some(i) = variable_to_remove {
+                                    self.run.metadata.variables.remove(i);
+                                }
+                                if ui.button("Add variable").clicked() {
+                                    self.run.metadata.variables.push(RunVariable::default());
+                                }
+                            });
+                        },
+                    );
+                },
+            );
 
             ui.allocate_ui_with_layout(
                 egui::vec2(actions_width, 0.0),
                 egui::Layout::top_down(egui::Align::Min),
                 |ui| {
-                ui.set_width(actions_width);
-                style::section_card(ui, "Actions", egui_phosphor::regular::SLIDERS, |ui| {
-                    ui.horizontal_wrapped(|ui| {
-                        if ui
-                            .button(format!("{} Add split", egui_phosphor::regular::PLUS))
-                            .clicked()
-                        {
-                            self.run.splits.push(Split {
-                                name: "New split".to_string(),
-                                ..Split::default()
-                            });
-                        }
-
-                        let save_button = egui::Button::new(format!(
-                            "{} Save all",
-                            egui_phosphor::regular::FLOPPY_DISK
-                        ));
-                        if style::accent_button(ui, save_button).clicked() {
-                            self.import_export_status =
-                                Some(match self.run.save_to_file(self.run_path.to_str().unwrap()) {
-                                    Ok(()) => ("Saved".to_string(), false),
-                                    Err(e) => (format!("Error saving all: {e}"), true),
-                                });
-                            send_message("reloadrun");
-                        }
-                    });
-
-                    ui.add_space(style::SPACE_SM);
-
-                    ui.horizontal_wrapped(|ui| {
-                        if ui
-                            .button(format!("{} Import .lss", egui_phosphor::regular::UPLOAD_SIMPLE))
-                            .clicked()
-                            && let Some(path) = FileDialog::new().add_filter("LiveSplit", &["lss"]).pick_file() {
-                                let icons_dir = self.run_path.parent().unwrap().join("icons");
-                                self.import_export_status = Some(match lss::import(&path, &icons_dir) {
-                                    Ok(result) => {
-                                        self.run = result.run;
-                                        // `import` names extracted icons purely
-                                        // by segment index ("imported_0.png",
-                                        // etc.), so a second import reuses the
-                                        // same icon_path strings as the first
-                                        // even though the on-disk bytes just
-                                        // changed underneath them. The cache
-                                        // is keyed by that string, so without
-                                        // clearing it here it'd keep showing
-                                        // the previous import's textures.
-                                        self.icon_cache.clear();
-                                        let version = result.source_version.as_deref().unwrap_or("unknown");
-                                        (
-                                            format!(
-                                                "Imported from LiveSplit v{version}. Review it, then \"Save all\" to keep it."
-                                            ),
-                                            false,
-                                        )
-                                    }
-                                    Err(e) => (format!("Import failed: {e}"), true),
-                                });
-                            }
-
-                        if ui
-                            .button(format!("{} Export .lss", egui_phosphor::regular::DOWNLOAD_SIMPLE))
-                            .clicked()
-                        {
-                            let default_name = format!("{}.lss", self.run.title);
-                            if let Some(path) = FileDialog::new()
-                                .set_file_name(&default_name)
-                                .add_filter("LiveSplit", &["lss"])
-                                .save_file()
+                    ui.set_width(actions_width);
+                    style::section_card(ui, "Actions", egui_phosphor::regular::SLIDERS, |ui| {
+                        ui.horizontal_wrapped(|ui| {
+                            if ui
+                                .button(format!("{} Add split", egui_phosphor::regular::PLUS))
+                                .clicked()
                             {
-                                let icons_base_dir = self.run_path.parent().unwrap();
-                                self.import_export_status = Some(match lss::export(&self.run, &path, icons_base_dir) {
-                                    Ok(()) => (format!("Exported to {}", path.display()), false),
-                                    Err(e) => (format!("Export failed: {e}"), true),
-                                });
-                            }
-                        }
-
-                        if ui
-                            .button(format!("{} Export folder", egui_phosphor::regular::FOLDER_OPEN))
-                            .clicked()
-                            && let Some(dest) = FileDialog::new().pick_folder() {
-                                let run_dir = self.run_path.parent().unwrap();
-                                self.import_export_status = Some(match native::export_folder(run_dir, &dest) {
-                                    Ok(()) => (format!("Exported folder to {}", dest.display()), false),
-                                    Err(e) => (format!("Folder export failed: {e}"), true),
+                                self.run.splits.push(Split {
+                                    name: "New split".to_string(),
+                                    ..Split::default()
                                 });
                             }
 
-                        if ui
-                            .button(format!(
-                                "{} Import folder",
-                                egui_phosphor::regular::FOLDER_SIMPLE_PLUS
-                            ))
-                            .clicked()
-                            && let Some(src) = FileDialog::new().pick_folder() {
-                                let splits_base = crate::config_base_dir().join("splits");
-                                let name = src
-                                    .file_name()
-                                    .and_then(|n| n.to_str())
-                                    .unwrap_or("imported")
-                                    .to_string();
-                                self.import_export_status =
-                                    Some(match native::import_folder(&src, &splits_base, &name) {
-                                        Ok(dest) => (
-                                            format!(
-                                                "Imported to {}. Reopen the Selector tab to see it.",
-                                                dest.display()
-                                            ),
-                                            false,
-                                        ),
-                                        Err(e) => (format!("Folder import failed: {e}"), true),
-                                    });
+                            let save_button = egui::Button::new(format!(
+                                "{} Save all",
+                                egui_phosphor::regular::FLOPPY_DISK
+                            ));
+                            if style::accent_button(ui, save_button).clicked() {
+                                self.import_export_status = Some(
+                                    match self.run.save_to_file(self.run_path.to_str().unwrap()) {
+                                        Ok(()) => ("Saved".to_string(), false),
+                                        Err(e) => (format!("Error saving all: {e}"), true),
+                                    },
+                                );
+                                send_message("reloadrun");
+                            }
+                        });
+
+                        ui.add_space(style::SPACE_SM);
+
+                        ui.horizontal_wrapped(|ui| {
+                            if ui
+                                .button(format!(
+                                    "{} Import .lss",
+                                    egui_phosphor::regular::UPLOAD_SIMPLE
+                                ))
+                                .clicked()
+                            {
+                                self.pending_action = Some((
+                                    PendingAction::ImportLss,
+                                    PendingDialog::spawn(|| {
+                                        FileDialog::new()
+                                            .add_filter("LiveSplit", &["lss"])
+                                            .pick_file()
+                                    }),
+                                ));
                             }
 
-                        if ui
-                            .button(format!(
-                                "{} Fill from speedrun.com",
-                                egui_phosphor::regular::GLOBE
-                            ))
-                            .clicked()
-                        {
-                            self.speedrun_com_picker.open = true;
+                            if ui
+                                .button(format!(
+                                    "{} Export .lss",
+                                    egui_phosphor::regular::DOWNLOAD_SIMPLE
+                                ))
+                                .clicked()
+                            {
+                                let default_name = format!("{}.lss", self.run.title);
+                                self.pending_action = Some((
+                                    PendingAction::ExportLss,
+                                    PendingDialog::spawn(move || {
+                                        FileDialog::new()
+                                            .set_file_name(default_name)
+                                            .add_filter("LiveSplit", &["lss"])
+                                            .save_file()
+                                    }),
+                                ));
+                            }
+
+                            if ui
+                                .button(format!(
+                                    "{} Export folder",
+                                    egui_phosphor::regular::FOLDER_OPEN
+                                ))
+                                .clicked()
+                            {
+                                self.pending_action = Some((
+                                    PendingAction::ExportFolder,
+                                    PendingDialog::spawn(|| FileDialog::new().pick_folder()),
+                                ));
+                            }
+
+                            if ui
+                                .button(format!(
+                                    "{} Import folder",
+                                    egui_phosphor::regular::FOLDER_SIMPLE_PLUS
+                                ))
+                                .clicked()
+                            {
+                                self.pending_action = Some((
+                                    PendingAction::ImportFolder,
+                                    PendingDialog::spawn(|| FileDialog::new().pick_folder()),
+                                ));
+                            }
+
+                            if ui
+                                .button(format!(
+                                    "{} Fill from speedrun.com",
+                                    egui_phosphor::regular::GLOBE
+                                ))
+                                .clicked()
+                            {
+                                self.speedrun_com_picker.open = true;
+                            }
+                        });
+
+                        if let Some((status, is_error)) = &self.import_export_status {
+                            ui.add_space(style::SPACE_SM);
+                            style::status_label(ui, status, *is_error);
                         }
                     });
-
-                    if let Some((status, is_error)) = &self.import_export_status {
-                        ui.add_space(style::SPACE_SM);
-                        style::status_label(ui, status, *is_error);
-                    }
-                });
-            });
+                },
+            );
         });
 
         if let Some(picked) = self.speedrun_com_picker.ui(ctx) {
@@ -536,22 +652,15 @@ impl SplitEditor {
                             ui.add(egui::Image::new(texture).max_width(20.0));
                         }
 
-                        if ui.button("Change Icon").clicked()
-                            && let Some(path) = FileDialog::new()
-                                .add_filter("Image", &["png", "jpg", "jpeg", "bmp", "gif"])
-                                .pick_file()
-                        {
-                            let base_folder = self.run_path.parent().unwrap();
-                            let icons_dir = base_folder.join("icons");
-                            fs::create_dir_all(&icons_dir).ok();
-
-                            if let Some(filename) = path.file_name() {
-                                let dest = icons_dir.join(filename);
-                                if fs::copy(&path, &dest).is_ok() {
-                                    new_icon_path =
-                                        Some(format!("icons/{}", filename.to_string_lossy()));
-                                }
-                            }
+                        if ui.button("Change Icon").clicked() {
+                            self.pending_action = Some((
+                                PendingAction::ChangeIcon(i),
+                                PendingDialog::spawn(|| {
+                                    FileDialog::new()
+                                        .add_filter("Image", &["png", "jpg", "jpeg", "bmp", "gif"])
+                                        .pick_file()
+                                }),
+                            ));
                         }
 
                         if ui.button("Select existing icon").clicked() {

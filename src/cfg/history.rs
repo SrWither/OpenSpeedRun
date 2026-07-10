@@ -7,6 +7,7 @@ use openspeedrun::core::split::{
 use openspeedrun::formats::csv;
 use rfd::FileDialog;
 
+use crate::dialog::PendingDialog;
 use crate::send_message;
 use crate::style;
 
@@ -17,12 +18,18 @@ enum Tab {
     SplitHistory,
 }
 
+enum PendingExport {
+    Attempts,
+    Segments,
+}
+
 pub struct History {
     pub run_path: PathBuf,
     pub run: Run,
     active_tab: Tab,
     confirm_clear: bool,
     export_status: Option<(String, bool)>,
+    pending_export: Option<(PendingExport, PendingDialog)>,
 }
 
 fn format_duration(duration: chrono::Duration) -> String {
@@ -49,6 +56,7 @@ impl History {
             active_tab: Tab::Attempts,
             confirm_clear: false,
             export_status: None,
+            pending_export: None,
         }
     }
 
@@ -84,36 +92,59 @@ impl History {
                 .button(format!("{} Export attempts CSV", egui_phosphor::regular::DOWNLOAD_SIMPLE))
                 .on_hover_text("One row per attempt: date, real/game time, whether it ended, whether it was a PB")
                 .clicked()
-                && let Some(path) = FileDialog::new()
-                    .set_file_name(format!("{}_attempts.csv", self.run.title))
-                    .add_filter("CSV", &["csv"])
-                    .save_file()
             {
-                self.export_status = Some(
-                    match std::fs::write(&path, csv::attempts_csv(&self.run)) {
-                        Ok(()) => (format!("Exported to {}", path.display()), false),
-                        Err(e) => (format!("Export failed: {e}"), true),
-                    },
-                );
+                let default_name = format!("{}_attempts.csv", self.run.title);
+                self.pending_export = Some((
+                    PendingExport::Attempts,
+                    PendingDialog::spawn(move || {
+                        FileDialog::new()
+                            .set_file_name(default_name)
+                            .add_filter("CSV", &["csv"])
+                            .save_file()
+                    }),
+                ));
             }
 
             if ui
                 .button(format!("{} Export segments CSV", egui_phosphor::regular::DOWNLOAD_SIMPLE))
                 .on_hover_text("One row per (attempt, split): every segment time ever recorded, not just record-breaking ones")
                 .clicked()
-                && let Some(path) = FileDialog::new()
-                    .set_file_name(format!("{}_segments.csv", self.run.title))
-                    .add_filter("CSV", &["csv"])
-                    .save_file()
             {
-                self.export_status = Some(
-                    match std::fs::write(&path, csv::segments_csv(&self.run)) {
-                        Ok(()) => (format!("Exported to {}", path.display()), false),
-                        Err(e) => (format!("Export failed: {e}"), true),
-                    },
-                );
+                let default_name = format!("{}_segments.csv", self.run.title);
+                self.pending_export = Some((
+                    PendingExport::Segments,
+                    PendingDialog::spawn(move || {
+                        FileDialog::new()
+                            .set_file_name(default_name)
+                            .add_filter("CSV", &["csv"])
+                            .save_file()
+                    }),
+                ));
             }
         });
+
+        if self.pending_export.is_some() {
+            // egui only repaints on input/events by default; without this,
+            // a finished dialog's result could sit unpicked-up until the
+            // next unrelated repaint (e.g. a mouse move).
+            ctx.request_repaint();
+        }
+
+        if let Some((kind, dialog)) = &self.pending_export
+            && let Some(path) = dialog.poll()
+        {
+            if let Some(path) = path {
+                let csv_text = match kind {
+                    PendingExport::Attempts => csv::attempts_csv(&self.run),
+                    PendingExport::Segments => csv::segments_csv(&self.run),
+                };
+                self.export_status = Some(match std::fs::write(&path, csv_text) {
+                    Ok(()) => (format!("Exported to {}", path.display()), false),
+                    Err(e) => (format!("Export failed: {e}"), true),
+                });
+            }
+            self.pending_export = None;
+        }
 
         if let Some((status, is_error)) = &self.export_status {
             style::status_label(ui, status, *is_error);

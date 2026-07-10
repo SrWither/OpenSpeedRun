@@ -1,3 +1,4 @@
+mod dialog;
 mod history;
 mod shader_editor;
 mod speedrun_com_picker;
