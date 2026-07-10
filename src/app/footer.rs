@@ -120,7 +120,7 @@ impl AppState {
                 let top = rect.top();
                 let left = rect.left();
                 let right = rect.right();
-                let stroke = egui::Stroke::new(1.0, Color32::from_gray(100));
+                let stroke = egui::Stroke::new(1.0_f32, Color32::from_gray(100));
                 ui.painter()
                     .line_segment([egui::pos2(left, top), egui::pos2(right, top)], stroke);
 

@@ -292,7 +292,7 @@ impl eframe::App for ConfigApp {
         egui::Panel::top("tabs")
             .frame(egui::Frame {
                 fill: style::BG_ELEVATED,
-                stroke: egui::Stroke::new(1.0, style::BORDER_SUBTLE),
+                stroke: egui::Stroke::new(1.0_f32, style::BORDER_SUBTLE),
                 inner_margin: egui::Margin::symmetric(style::SPACE_MD as i8, style::SPACE_SM as i8),
                 ..Default::default()
             })
@@ -522,7 +522,7 @@ impl ConfigApp {
                 egui_phosphor::regular::FLOPPY_DISK
             ))
             .fill(style::ACCENT_BG)
-            .stroke(egui::Stroke::new(1.0, style::ACCENT));
+            .stroke(egui::Stroke::new(1.0_f32, style::ACCENT));
 
             if ui.add_sized([160.0, 42.0], save_button).clicked() {
                 self.app_config.save();

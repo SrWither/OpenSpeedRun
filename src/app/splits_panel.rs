@@ -59,7 +59,7 @@ impl AppState {
                                 );
                                 ui.painter().line_segment(
                                     [rect.left_top(), rect.right_top()],
-                                    egui::Stroke::new(1.0, Color32::from_gray(100)),
+                                    egui::Stroke::new(1.0_f32, Color32::from_gray(100)),
                                 );
                             }
 
@@ -250,7 +250,7 @@ impl AppState {
                             );
                             ui.painter().line_segment(
                                 [rect.left_bottom(), rect.right_bottom()],
-                                egui::Stroke::new(1.0, Color32::from_gray(100)),
+                                egui::Stroke::new(1.0_f32, Color32::from_gray(100)),
                             );
                         }
                     });

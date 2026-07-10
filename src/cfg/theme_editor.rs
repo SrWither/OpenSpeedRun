@@ -37,7 +37,7 @@ impl ThemeEditor {
                     egui_phosphor::regular::FLOPPY_DISK
                 ))
                 .fill(style::ACCENT_BG)
-                .stroke(egui::Stroke::new(1.0, style::ACCENT));
+                .stroke(egui::Stroke::new(1.0_f32, style::ACCENT));
 
                 if ui.add(save_button).clicked() {
                     if let Err(e) = self.layout.save(self.current_theme_path.to_str().unwrap()) {

@@ -71,7 +71,7 @@ impl History {
             let clear_button =
                 egui::Button::new(format!("{} Clear History", egui_phosphor::regular::TRASH))
                     .fill(egui::Color32::from_rgb(50, 22, 22))
-                    .stroke(egui::Stroke::new(1.0, style::ERROR));
+                    .stroke(egui::Stroke::new(1.0_f32, style::ERROR));
             if ui.add(clear_button).clicked() {
                 self.confirm_clear = true;
             }

@@ -177,7 +177,7 @@ impl ShaderEditor {
             let save_button =
                 egui::Button::new(format!("{} Save Both", egui_phosphor::regular::FLOPPY_DISK))
                     .fill(style::ACCENT_BG)
-                    .stroke(egui::Stroke::new(1.0, style::ACCENT));
+                    .stroke(egui::Stroke::new(1.0_f32, style::ACCENT));
             if ui.add(save_button).clicked() {
                 let path_vert = self.path.with_extension(format!(
                     "{}{}",
@@ -304,7 +304,7 @@ impl ShaderEditor {
         if let CheckStatus::Error(err) = &self.check_status {
             egui::Frame::new()
                 .fill(egui::Color32::from_rgb(40, 18, 18))
-                .stroke(egui::Stroke::new(1.0, style::ERROR))
+                .stroke(egui::Stroke::new(1.0_f32, style::ERROR))
                 .corner_radius(8)
                 .inner_margin(style::SPACE_MD)
                 .show(ui, |ui| {

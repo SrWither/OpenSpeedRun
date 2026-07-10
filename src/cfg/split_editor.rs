@@ -300,7 +300,7 @@ impl SplitEditor {
                             egui_phosphor::regular::FLOPPY_DISK
                         ))
                         .fill(style::ACCENT_BG)
-                        .stroke(egui::Stroke::new(1.0, style::ACCENT));
+                        .stroke(egui::Stroke::new(1.0_f32, style::ACCENT));
                         if ui.add(save_button).clicked() {
                             if let Err(e) = self.run.save_to_file(self.run_path.to_str().unwrap()) {
                                 eprintln!("Error saving all: {}", e);
@@ -671,7 +671,7 @@ impl SplitEditor {
             painter.rect_stroke(
                 rect,
                 egui::CornerRadius::same(10),
-                egui::Stroke::new(1.0, style::ACCENT),
+                egui::Stroke::new(1.0_f32, style::ACCENT),
                 egui::StrokeKind::Outside,
             );
 

@@ -39,7 +39,7 @@ pub fn section_card<R>(
 ) -> R {
     egui::Frame::new()
         .fill(BG_ELEVATED)
-        .stroke(Stroke::new(1.0, BORDER))
+        .stroke(Stroke::new(1.0_f32, BORDER))
         .corner_radius(8)
         .inner_margin(SPACE_MD)
         .show(ui, |ui| {
@@ -72,7 +72,7 @@ pub fn selectable_chip(
         .min_size(egui::vec2(0.0, 34.0))
         .fill(if selected { ACCENT_BG } else { BG_SUNKEN })
         .stroke(Stroke::new(
-            if selected { 1.5 } else { 1.0 },
+            if selected { 1.5_f32 } else { 1.0_f32 },
             if selected { ACCENT } else { BORDER },
         ));
 
@@ -88,7 +88,7 @@ pub fn apply_style(ctx: &egui::Context) {
     visuals.override_text_color = Some(TEXT_PRIMARY);
     visuals.hyperlink_color = ACCENT;
     visuals.selection.bg_fill = ACCENT_BG;
-    visuals.selection.stroke = Stroke::new(1.0, ACCENT);
+    visuals.selection.stroke = Stroke::new(1.0_f32, ACCENT);
 
     visuals.window_fill = BG_BASE;
     visuals.panel_fill = BG_BASE;
@@ -98,7 +98,7 @@ pub fn apply_style(ctx: &egui::Context) {
 
     visuals.window_corner_radius = 8.into();
     visuals.menu_corner_radius = 6.into();
-    visuals.window_stroke = Stroke::new(1.0, BORDER);
+    visuals.window_stroke = Stroke::new(1.0_f32, BORDER);
 
     visuals.warn_fg_color = WARNING;
     visuals.error_fg_color = ERROR;
@@ -113,32 +113,32 @@ pub fn apply_style(ctx: &egui::Context) {
 
     w.noninteractive.bg_fill = BG_BASE;
     w.noninteractive.weak_bg_fill = BG_ELEVATED;
-    w.noninteractive.bg_stroke = Stroke::new(1.0, BORDER_SUBTLE);
-    w.noninteractive.fg_stroke = Stroke::new(1.0, TEXT_MUTED);
+    w.noninteractive.bg_stroke = Stroke::new(1.0_f32, BORDER_SUBTLE);
+    w.noninteractive.fg_stroke = Stroke::new(1.0_f32, TEXT_MUTED);
     w.noninteractive.corner_radius = 6.into();
 
     w.inactive.bg_fill = BG_SUNKEN;
     w.inactive.weak_bg_fill = BG_ELEVATED;
-    w.inactive.bg_stroke = Stroke::new(1.0, BORDER);
-    w.inactive.fg_stroke = Stroke::new(1.0, TEXT_PRIMARY);
+    w.inactive.bg_stroke = Stroke::new(1.0_f32, BORDER);
+    w.inactive.fg_stroke = Stroke::new(1.0_f32, TEXT_PRIMARY);
     w.inactive.corner_radius = 6.into();
 
     w.hovered.bg_fill = Color32::from_rgb(38, 40, 48);
     w.hovered.weak_bg_fill = Color32::from_rgb(38, 40, 48);
-    w.hovered.bg_stroke = Stroke::new(1.0, ACCENT_HOVER);
-    w.hovered.fg_stroke = Stroke::new(1.0, TEXT_PRIMARY);
+    w.hovered.bg_stroke = Stroke::new(1.0_f32, ACCENT_HOVER);
+    w.hovered.fg_stroke = Stroke::new(1.0_f32, TEXT_PRIMARY);
     w.hovered.corner_radius = 6.into();
 
     w.active.bg_fill = ACCENT_BG;
     w.active.weak_bg_fill = ACCENT_BG;
-    w.active.bg_stroke = Stroke::new(1.0, ACCENT);
-    w.active.fg_stroke = Stroke::new(1.0, TEXT_PRIMARY);
+    w.active.bg_stroke = Stroke::new(1.0_f32, ACCENT);
+    w.active.fg_stroke = Stroke::new(1.0_f32, TEXT_PRIMARY);
     w.active.corner_radius = 6.into();
 
     w.open.bg_fill = ACCENT_BG;
     w.open.weak_bg_fill = ACCENT_BG;
-    w.open.bg_stroke = Stroke::new(1.0, ACCENT);
-    w.open.fg_stroke = Stroke::new(1.0, TEXT_PRIMARY);
+    w.open.bg_stroke = Stroke::new(1.0_f32, ACCENT);
+    w.open.fg_stroke = Stroke::new(1.0_f32, TEXT_PRIMARY);
     w.open.corner_radius = 6.into();
 
     style.spacing.item_spacing = egui::vec2(8.0, 8.0);
