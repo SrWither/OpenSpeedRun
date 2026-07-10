@@ -320,6 +320,16 @@ impl SplitEditor {
                                 self.import_export_status = Some(match lss::import(&path, &icons_dir) {
                                     Ok(result) => {
                                         self.run = result.run;
+                                        // `import` names extracted icons purely
+                                        // by segment index ("imported_0.png",
+                                        // etc.), so a second import reuses the
+                                        // same icon_path strings as the first
+                                        // even though the on-disk bytes just
+                                        // changed underneath them. The cache
+                                        // is keyed by that string, so without
+                                        // clearing it here it'd keep showing
+                                        // the previous import's textures.
+                                        self.icon_cache.clear();
                                         let version = result.source_version.as_deref().unwrap_or("unknown");
                                         format!(
                                             "Imported from LiveSplit v{version}. Review it, then \"Save all\" to keep it."

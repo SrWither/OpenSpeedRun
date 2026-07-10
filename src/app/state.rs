@@ -557,6 +557,14 @@ impl AppState {
             self.current_page = 0;
             self.splits_per_page = self.run.splits_per_page.unwrap_or(5);
             self.update_page();
+
+            // Icon textures are cached by `icon_path` string (see
+            // `get_or_load_texture`), and re-importing a `.lss` in the
+            // config editor reuses the same "icons/imported_N.png" paths
+            // for different underlying files — without clearing the cache
+            // here, a reloaded run showing the same paths as the previous
+            // one would keep displaying the old textures.
+            self.textures.clear();
         }
     }
 
