@@ -300,6 +300,7 @@ impl ThemeEditor {
                             ui.checkbox(&mut self.layout.options.show_info, "Show info");
                             ui.checkbox(&mut self.layout.options.show_body, "Show body");
                             ui.checkbox(&mut self.layout.options.show_footer, "Show footer");
+                            ui.checkbox(&mut self.layout.options.show_graph, "Show delta graph");
                             ui.checkbox(
                                 &mut self.layout.options.show_relative_times,
                                 "Show relative times",
@@ -388,6 +389,7 @@ impl ThemeEditor {
                                     SectionKind::Timer => "Timer",
                                     SectionKind::Splits => "Splits",
                                     SectionKind::Footer => "Footer",
+                                    SectionKind::Graph => "Graph",
                                 };
 
                                 ui.horizontal(|ui| {

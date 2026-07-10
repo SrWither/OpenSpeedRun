@@ -99,6 +99,11 @@ impl AppState {
                     self.draw_footer(ui, top);
                 }
             }
+            SectionKind::Graph => {
+                if self.layout.options.show_graph {
+                    self.draw_graph(ui, top);
+                }
+            }
             SectionKind::Splits => {}
         }
     }
@@ -272,16 +277,7 @@ impl eframe::App for AppWrapper {
         let total_splits = app.run.splits.len() as i32;
         let elapsed_time = app.timer.current_time().as_seconds_f32();
 
-        let last_split_time = if app.current_split > 0 && app.current_split < app.run.splits.len() {
-            app.splits_display[app.current_split - 1]
-                .last_time
-                .map(|t| t.as_seconds_f32())
-                .unwrap_or(0.0)
-        } else {
-            0.0
-        };
-
-        let elapsed_split_time = elapsed_time - last_split_time;
+        let elapsed_split_time = app.elapsed_split_time();
 
         let timer_state = match app.timer.state {
             TimerState::NotStarted => 0,

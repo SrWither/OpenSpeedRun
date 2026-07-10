@@ -30,6 +30,7 @@ dirs = "6"
 eframe = {version = "0.34", features = ["glow"] }
 egui = "0.34"
 egui_extras = { version = "0.34", features = ["syntect"] }
+egui_plot = "0.35"
 egui-phosphor = "0.12"
 image = "0.25"
 include_dir = "0.7"

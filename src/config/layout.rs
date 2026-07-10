@@ -61,6 +61,7 @@ pub enum SectionKind {
     Timer,
     Splits,
     Footer,
+    Graph,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,6 +73,10 @@ pub struct Options {
     pub show_info: bool,
     pub show_body: bool,
     pub show_footer: bool,
+    /// Whether the delta-vs-comparison graph section renders. Off by
+    /// default so upgrading users don't get a new panel silently eating
+    /// vertical space in an already-sized window (see `app::graph`).
+    pub show_graph: bool,
     pub show_relative_times: bool,
     pub show_last_relative_time: bool,
     pub titlebar: bool,
@@ -196,6 +201,7 @@ impl Default for Options {
             show_info: true,
             show_body: true,
             show_footer: true,
+            show_graph: false,
             show_relative_times: false,
             show_last_relative_time: false,
             titlebar: true,
@@ -210,6 +216,7 @@ impl Default for Options {
                 SectionKind::Timer,
                 SectionKind::Splits,
                 SectionKind::Footer,
+                SectionKind::Graph,
             ],
         }
     }
@@ -217,10 +224,21 @@ impl Default for Options {
 
 impl LayoutConfig {
     pub fn load_or_default(path: &str) -> Self {
-        fs::read_to_string(path)
+        let mut config: Self = fs::read_to_string(path)
             .ok()
             .and_then(|data| serde_json::from_str(&data).ok())
-            .unwrap_or_default()
+            .unwrap_or_default();
+
+        // `section_order` is a concrete array in already-saved configs, so
+        // serde's `#[serde(default)]` (which only fills entirely-missing
+        // fields) won't retrofit newly added `SectionKind` variants into it.
+        // Patch it here so upgrading users can find/reorder the new section
+        // instead of it being permanently absent.
+        if !config.options.section_order.contains(&SectionKind::Graph) {
+            config.options.section_order.push(SectionKind::Graph);
+        }
+
+        config
     }
 
     pub fn save(&self, path: &str) -> std::io::Result<()> {

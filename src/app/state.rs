@@ -521,14 +521,18 @@ impl AppState {
         self.reset_splits();
     }
 
-    /// Signed seconds ahead (negative) or behind (positive) `selected_comparison`,
-    /// summed over every completed split plus the segment currently in
-    /// progress — mirrors LiveSplit's live-updating delta. `0.0` wherever a
-    /// split has no comparison time to measure against yet.
-    pub fn live_delta(&self, elapsed_split_time: f32) -> f32 {
+    /// Cumulative signed delta (seconds ahead as negative, behind as
+    /// positive) vs `selected_comparison`, sampled at every split reached so
+    /// far, plus one final point for the segment currently in progress —
+    /// the same accumulation `live_delta` reports the final value of, kept
+    /// here so callers (e.g. the delta graph) can see the trend instead of
+    /// just the endpoint. Splits with no comparison time to measure against
+    /// yet are skipped rather than treated as zero delta.
+    pub fn delta_series(&self, elapsed_split_time: f32) -> Vec<(usize, f32)> {
         let method = self.run.timing_method;
         let comparison = self.run.selected_comparison.as_str();
         let mut delta = Duration::zero();
+        let mut series = Vec::new();
 
         for i in 0..self.current_split.min(self.splits_display.len()) {
             let Some(actual_total) = self.splits_display[i].last_time_for(method) else {
@@ -544,6 +548,7 @@ impl AppState {
 
             if let Some(cmp_segment) = self.run.splits[i].comparison_time(comparison, method) {
                 delta += (actual_total - prev_actual) - cmp_segment;
+                series.push((i, delta.as_seconds_f32()));
             }
         }
 
@@ -551,10 +556,41 @@ impl AppState {
             && let Some(cmp_segment) = split.comparison_time(comparison, method)
         {
             let live_segment = Duration::milliseconds((elapsed_split_time * 1000.0) as i64);
-            delta += live_segment - cmp_segment;
+            let live_total = delta + live_segment - cmp_segment;
+            series.push((self.current_split, live_total.as_seconds_f32()));
         }
 
-        delta.as_seconds_f32()
+        series
+    }
+
+    /// Signed seconds ahead (negative) or behind (positive) `selected_comparison`,
+    /// summed over every completed split plus the segment currently in
+    /// progress — mirrors LiveSplit's live-updating delta. `0.0` wherever a
+    /// split has no comparison time to measure against yet.
+    pub fn live_delta(&self, elapsed_split_time: f32) -> f32 {
+        self.delta_series(elapsed_split_time)
+            .last()
+            .map(|(_, v)| *v)
+            .unwrap_or(0.0)
+    }
+
+    /// Elapsed time in the segment currently in progress — the live clock
+    /// minus the time the previous split was hit at. Shared by the shader
+    /// uniform (`app::update`) and the delta graph (`app::graph`) so both
+    /// agree on what "in progress" means.
+    pub fn elapsed_split_time(&self) -> f32 {
+        let elapsed_time = self.timer.current_time().as_seconds_f32();
+        let last_split_time =
+            if self.current_split > 0 && self.current_split < self.run.splits.len() {
+                self.splits_display[self.current_split - 1]
+                    .last_time
+                    .map(|t| t.as_seconds_f32())
+                    .unwrap_or(0.0)
+            } else {
+                0.0
+            };
+
+        elapsed_time - last_split_time
     }
 
     /// Sum of the "Best Segments" comparison across every split (the

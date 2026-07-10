@@ -1,5 +1,6 @@
 pub mod fonts;
 pub mod footer;
+pub mod graph;
 pub mod header;
 pub mod help_window;
 pub mod overlay;
