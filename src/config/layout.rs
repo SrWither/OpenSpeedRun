@@ -77,6 +77,11 @@ pub struct Options {
     /// exist.
     pub enable_overlay_server: bool,
     pub overlay_server_port: u16,
+    /// Side length (in points) of the fixed slot each split's icon is drawn
+    /// into — fixed rather than following the icon's own pixel size so
+    /// every row's name text lines up at the same x regardless of icon
+    /// size/absence (see `app::splits_panel`).
+    pub split_icon_size: f32,
 }
 
 #[cfg(windows)]
@@ -186,6 +191,7 @@ impl Default for Options {
             window_size: (720, 1280),
             enable_overlay_server: false,
             overlay_server_port: 7331,
+            split_icon_size: 20.0,
         }
     }
 }

@@ -65,20 +65,50 @@ impl AppState {
 
                             ui.add_space(spacings.split_top);
 
+                            // Reserve a fixed-size slot for the icon —
+                            // whether or not this split has one, and
+                            // regardless of a present icon's own dimensions —
+                            // so the name text always starts at the same x
+                            // position instead of shifting row to row with
+                            // icon size/absence. Configurable per theme
+                            // (`Options::split_icon_size`).
+                            let icon_slot = options.split_icon_size;
+
                             let row = ui.horizontal(|ui| {
-                                ui.set_min_height(32.0);
+                                ui.set_min_height(icon_slot + 12.0);
                                 ui.set_min_width(ui.available_width());
                                 ui.add_space(10.0);
-
-                                // Display the split icon if available
                                 let texture = split
                                     .icon_path
                                     .as_ref()
                                     .and_then(|path| self.get_or_load_texture(&ctx, path));
 
+                                let (icon_rect, _) = ui.allocate_exact_size(
+                                    egui::vec2(icon_slot, icon_slot),
+                                    egui::Sense::hover(),
+                                );
                                 if let Some(tex) = texture {
-                                    ui.add(egui::Image::new(&tex).max_width(20.0));
+                                    // `Image::paint_at` stretches to fill
+                                    // whatever rect it's given verbatim — it
+                                    // doesn't apply `fit_to_exact_size`/aspect
+                                    // ratio at all (that logic only runs on
+                                    // the `ui.add()` path, which allocates its
+                                    // own rect). So non-square icons need
+                                    // their draw rect computed here: scaled
+                                    // (up or down) to fill the slot on
+                                    // whichever axis is more constrained, then
+                                    // centered — capping both axes is what
+                                    // keeps a very tall/wide icon from
+                                    // overflowing the row.
+                                    let native = tex.size_vec2();
+                                    let scale = (icon_slot / native.x).min(icon_slot / native.y);
+                                    let draw_rect = egui::Rect::from_center_size(
+                                        icon_rect.center(),
+                                        native * scale,
+                                    );
+                                    egui::Image::new(&tex).paint_at(ui, draw_rect);
                                 }
+                                ui.add_space(4.0);
 
                                 let name_text = if is_current {
                                     RichText::new(&split.name)

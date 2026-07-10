@@ -261,6 +261,14 @@ impl ThemeEditor {
                         });
                     }
 
+                    ui.horizontal(|ui| {
+                        ui.label("Split icon size:");
+                        ui.add(
+                            egui::Slider::new(&mut self.layout.options.split_icon_size, 8.0..=64.0)
+                                .suffix(" px"),
+                        );
+                    });
+
                     ui.label("Window size:");
                     ui.horizontal(|ui| {
                         ui.add(
