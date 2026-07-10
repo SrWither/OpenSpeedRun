@@ -4,6 +4,8 @@ use openspeedrun::Run;
 use openspeedrun::core::split::{
     COMPARISON_BEST_SEGMENTS, COMPARISON_PERSONAL_BEST, ComparisonTime, TimingMethod,
 };
+use openspeedrun::formats::csv;
+use rfd::FileDialog;
 
 use crate::send_message;
 use crate::style;
@@ -20,6 +22,7 @@ pub struct History {
     pub run: Run,
     active_tab: Tab,
     confirm_clear: bool,
+    export_status: Option<(String, bool)>,
 }
 
 fn format_duration(duration: chrono::Duration) -> String {
@@ -45,6 +48,7 @@ impl History {
             run,
             active_tab: Tab::Attempts,
             confirm_clear: false,
+            export_status: None,
         }
     }
 
@@ -75,7 +79,45 @@ impl History {
             if ui.add(clear_button).clicked() {
                 self.confirm_clear = true;
             }
+
+            if ui
+                .button(format!("{} Export attempts CSV", egui_phosphor::regular::DOWNLOAD_SIMPLE))
+                .on_hover_text("One row per attempt: date, real/game time, whether it ended, whether it was a PB")
+                .clicked()
+                && let Some(path) = FileDialog::new()
+                    .set_file_name(format!("{}_attempts.csv", self.run.title))
+                    .add_filter("CSV", &["csv"])
+                    .save_file()
+            {
+                self.export_status = Some(
+                    match std::fs::write(&path, csv::attempts_csv(&self.run)) {
+                        Ok(()) => (format!("Exported to {}", path.display()), false),
+                        Err(e) => (format!("Export failed: {e}"), true),
+                    },
+                );
+            }
+
+            if ui
+                .button(format!("{} Export segments CSV", egui_phosphor::regular::DOWNLOAD_SIMPLE))
+                .on_hover_text("One row per (attempt, split): every segment time ever recorded, not just record-breaking ones")
+                .clicked()
+                && let Some(path) = FileDialog::new()
+                    .set_file_name(format!("{}_segments.csv", self.run.title))
+                    .add_filter("CSV", &["csv"])
+                    .save_file()
+            {
+                self.export_status = Some(
+                    match std::fs::write(&path, csv::segments_csv(&self.run)) {
+                        Ok(()) => (format!("Exported to {}", path.display()), false),
+                        Err(e) => (format!("Export failed: {e}"), true),
+                    },
+                );
+            }
         });
+
+        if let Some((status, is_error)) = &self.export_status {
+            style::status_label(ui, status, *is_error);
+        }
 
         if self.confirm_clear {
             egui::Window::new("Confirm Clear History")
