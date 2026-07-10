@@ -81,7 +81,7 @@ impl AppState {
                                 }
 
                                 let name_text = if is_current {
-                                    RichText::new(format!("> {}", split.name))
+                                    RichText::new(&split.name)
                                         .color(split_selected_color)
                                         .strong()
                                         .size(font_sizes.split + 2.0)
@@ -224,6 +224,22 @@ impl AppState {
 
                             if is_current {
                                 row.response.scroll_to_me(Some(egui::Align::Center));
+
+                                // A solid accent bar rather than a background
+                                // tint: it stays legible over a shader or
+                                // background image, which a translucent fill
+                                // wouldn't (invisible over dark content, muddy
+                                // over busy/animated ones).
+                                const ACCENT_BAR_WIDTH: f32 = 3.0;
+                                let bar_rect = egui::Rect::from_min_max(
+                                    row.response.rect.left_top(),
+                                    egui::pos2(
+                                        row.response.rect.left() + ACCENT_BAR_WIDTH,
+                                        row.response.rect.bottom(),
+                                    ),
+                                );
+                                ui.painter()
+                                    .rect_filled(bar_rect, 0.0, split_selected_color);
                             }
 
                             ui.add_space(spacings.split_bottom);
