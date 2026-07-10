@@ -173,6 +173,109 @@ fn export_then_import_round_trips_icon_bytes() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+/// Standard-alphabet base64 decoder, only for this test to check the raw
+/// bytes `lss::export` writes — not a claim that the crate needs a real
+/// base64 dependency (see `lss.rs`'s own private encoder/decoder, which
+/// exist for exactly the same one-off reason).
+fn base64_decode(input: &str) -> Vec<u8> {
+    fn value(c: u8) -> u8 {
+        match c {
+            b'A'..=b'Z' => c - b'A',
+            b'a'..=b'z' => c - b'a' + 26,
+            b'0'..=b'9' => c - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => panic!("unexpected base64 byte: {c}"),
+        }
+    }
+    let cleaned: Vec<u8> = input.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
+    let mut out = Vec::new();
+    for chunk in cleaned.chunks(4) {
+        let pad = chunk.iter().filter(|&&b| b == b'=').count();
+        let mut buf = [0u8; 4];
+        for (i, &b) in chunk.iter().enumerate() {
+            buf[i] = if b == b'=' { 0 } else { value(b) };
+        }
+        let n = ((buf[0] as u32) << 18)
+            | ((buf[1] as u32) << 12)
+            | ((buf[2] as u32) << 6)
+            | (buf[3] as u32);
+        out.push((n >> 16) as u8);
+        if pad < 2 {
+            out.push((n >> 8) as u8);
+        }
+        if pad < 1 {
+            out.push(n as u8);
+        }
+    }
+    out
+}
+
+/// Real bytes captured from LiveSplit itself (installed under Wine): a
+/// `<Icon>` value it wrote for a genuine 32x32 PNG, base64-decoded straight
+/// out of a `.lss` file LiveSplit saved. This is the exact `.NET
+/// BinaryFormatter`-wrapped `System.Drawing.Bitmap` framing real LiveSplit
+/// expects — not a spec-only reconstruction.
+#[rustfmt::skip]
+const LIVESPLIT_REAL_ICON_BYTES: &[u8] = b"\
+\x00\x01\x00\x00\x00\xff\xff\xff\xff\x01\x00\x00\x00\x00\x00\x00\
+\x00\x0c\x02\x00\x00\x00\x51\x53\x79\x73\x74\x65\x6d\x2e\x44\x72\
+\x61\x77\x69\x6e\x67\x2c\x20\x56\x65\x72\x73\x69\x6f\x6e\x3d\x34\
+\x2e\x30\x2e\x30\x2e\x30\x2c\x20\x43\x75\x6c\x74\x75\x72\x65\x3d\
+\x6e\x65\x75\x74\x72\x61\x6c\x2c\x20\x50\x75\x62\x6c\x69\x63\x4b\
+\x65\x79\x54\x6f\x6b\x65\x6e\x3d\x62\x30\x33\x66\x35\x66\x37\x66\
+\x31\x31\x64\x35\x30\x61\x33\x61\x05\x01\x00\x00\x00\x15\x53\x79\
+\x73\x74\x65\x6d\x2e\x44\x72\x61\x77\x69\x6e\x67\x2e\x42\x69\x74\
+\x6d\x61\x70\x01\x00\x00\x00\x04\x44\x61\x74\x61\x07\x02\x02\x00\
+\x00\x00\x09\x03\x00\x00\x00\x0f\x03\x00\x00\x00\x7d\x00\x00\x00\
+\x02\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\
+\x52\x00\x00\x00\x20\x00\x00\x00\x20\x08\x06\x00\x00\x00\x73\x7a\
+\x7a\xf4\x00\x00\x00\x09\x70\x48\x59\x73\x00\x00\x0e\xc4\x00\x00\
+\x0e\xc4\x01\x95\x2b\x0e\x1b\x00\x00\x00\x2f\x49\x44\x41\x54\x58\
+\x85\xed\xce\x21\x01\x00\x00\x08\x03\xb0\xc7\x79\xff\x3c\x74\x81\
+\x18\x98\x89\xf9\x65\xda\xfd\x14\x01\x01\x01\x01\x01\x01\x01\x01\
+\x01\x01\x01\x01\x01\x01\x81\xef\xc0\x01\x17\x12\xac\x79\xf7\xbb\
+\xe8\x36\x00\x00\x00\x00\x49\x45\x4e\x44\xae\x42\x60\x82\x0b";
+
+#[test]
+fn export_wraps_icons_byte_for_byte_like_real_livesplit() {
+    // The real capture's own PNG payload starts right after the fixed NRBF
+    // prefix (161 bytes in) and ends one byte before the end (the trailing
+    // byte is LiveSplit's MessageEnd record, not part of the PNG).
+    let png_bytes = &LIVESPLIT_REAL_ICON_BYTES[161..LIVESPLIT_REAL_ICON_BYTES.len() - 1];
+    assert_eq!(
+        &png_bytes[..8],
+        b"\x89PNG\r\n\x1a\n",
+        "sanity check: this should be a PNG"
+    );
+
+    let dir = scratch_dir("real_icon");
+    let icons_dir = dir.join("icons");
+    std::fs::create_dir_all(&icons_dir).unwrap();
+    std::fs::write(icons_dir.join("split0.png"), png_bytes).unwrap();
+
+    let mut run = Run::new("Test Game", "Any%", &["A"]);
+    run.splits[0].icon_path = Some("icons/split0.png".to_string());
+
+    let lss_path = dir.join("test.lss");
+    lss::export(&run, &lss_path, &dir).expect("export failed");
+
+    let xml = std::fs::read_to_string(&lss_path).unwrap();
+    let start = xml
+        .find("<Icon>")
+        .expect("should have written a non-empty Icon tag")
+        + "<Icon>".len();
+    let end = xml[start..].find("</Icon>").unwrap() + start;
+    let exported_bytes = base64_decode(&xml[start..end]);
+
+    assert_eq!(
+        exported_bytes, LIVESPLIT_REAL_ICON_BYTES,
+        "exported icon framing doesn't match what real LiveSplit wrote byte-for-byte"
+    );
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 #[test]
 fn export_without_an_icon_path_writes_a_self_closing_tag() {
     let dir = scratch_dir("noicon");

@@ -13,18 +13,17 @@
 //!   entries, and neither are ours on export.
 //!
 //! Known limitations (see the LSS_IMPORT_EXPORT plan): LiveSplit wraps icon
-//! bytes in a `.NET BinaryFormatter`-serialized `System.Drawing.Bitmap`, not
-//! a plain PNG — replicating that framing exactly isn't attempted (see
-//! `extract_icon`/`build_xml`'s icon handling below). Import extracts the
-//! embedded PNG with a signature scan, which works for both LiveSplit's
-//! wrapped form and our own unwrapped one; export always writes a plain
-//! base64 PNG with no wrapper, which round-trips losslessly through this
-//! module but may not display if the file is later opened in *real*
-//! LiveSplit (its BinaryFormatter deserializer will fail on the missing
-//! framing — expected to be skipped rather than fatal, but unverified
-//! against actual LiveSplit). `AutoSplitterSettings` is ignored both ways.
-//! `AttemptCount`/`AttemptHistory` fidelity is limited by the fact that
-//! `Run::attempts` only counts completed runs, not resets.
+//! bytes in a `.NET BinaryFormatter`-serialized `System.Drawing.Bitmap`
+//! rather than a plain PNG. `wrap_bitmap_icon` reproduces that exact framing
+//! (see its doc comment for how it was reverse-engineered against real
+//! LiveSplit output, byte for byte) rather than approximating it, so icons
+//! exported here now do show up correctly in real LiveSplit, not just on
+//! reimport into this app. Import extracts the embedded PNG with a
+//! signature scan, which works for both the wrapped form and a plain
+//! unwrapped PNG (a form no real tool writes, but harmless to also accept).
+//! `AutoSplitterSettings` is ignored both ways. `AttemptCount`/
+//! `AttemptHistory` fidelity is limited by the fact that `Run::attempts`
+//! only counts completed runs, not resets.
 
 use chrono::{DateTime, Duration, Utc};
 use quick_xml::events::Event;
@@ -477,6 +476,65 @@ fn base64_decode(input: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// Wraps a PNG's raw bytes in the exact `.NET BinaryFormatter` (NRBF) framing
+/// LiveSplit uses for a `System.Drawing.Bitmap`, so the icon actually shows
+/// up when the exported `.lss` is opened in real LiveSplit — not just on
+/// reimport into this app.
+///
+/// Reverse-engineered by parsing icons LiveSplit itself wrote (three
+/// different PNGs, added via LiveSplit running under Wine, byte-diffed
+/// against the MS-NRBF spec's record layouts) rather than guessed from the
+/// spec alone: every byte here except the length field and the PNG payload
+/// itself is identical across all three captures. The structure is a fixed
+/// record sequence, not a general object-graph serializer:
+///
+/// 1. `SerializationHeaderRecord` (type `0x00`): RootId=1, HeaderId=-1,
+///    version 1.0.
+/// 2. `BinaryLibrary` (type `0x0C`), LibraryId=2, naming the assembly
+///    `System.Drawing, Version=4.0.0.0, Culture=neutral,
+///    PublicKeyToken=b03f5f7f11d50a3a`.
+/// 3. `ClassWithMembersAndTypes` (type `0x05`) for `System.Drawing.Bitmap`,
+///    ObjectId=1, one member `Data` typed as a `Byte[]` (PrimitiveArray of
+///    PrimitiveType Byte), referencing LibraryId=2.
+/// 4. `MemberReference` (type `0x09`) as the `Data` member's value, pointing
+///    at ObjectId=3.
+/// 5. `ArraySinglePrimitive` (type `0x0F`), ObjectId=3, holding the actual
+///    byte array: a length-prefixed `Byte` (`PrimitiveTypeEnum` 2) array —
+///    this is where the PNG bytes themselves live.
+/// 6. `MessageEnd` (type `0x0B`).
+fn wrap_bitmap_icon(png: &[u8]) -> Vec<u8> {
+    // Every byte here is captured verbatim from real LiveSplit output (see
+    // the doc comment above) — including the two length-prefix bytes before
+    // "System.Drawing, Version=..." (`\x51` = 81) and "System.Drawing.Bitmap"
+    // (`\x15` = 21), which are easy to drop by mistake if this is ever
+    // retranscribed since one of them happens to render as printable ASCII.
+    #[rustfmt::skip]
+    const FIXED_PREFIX: &[u8] =
+        b"\x00\x01\x00\x00\x00\xff\xff\xff\xff\x01\x00\x00\x00\x00\x00\x00\x00\
+          \x0c\x02\x00\x00\x00\
+          \x51\x53\x79\x73\x74\x65\x6d\x2e\x44\x72\x61\x77\x69\x6e\x67\x2c\x20\
+          \x56\x65\x72\x73\x69\x6f\x6e\x3d\x34\x2e\x30\x2e\x30\x2e\x30\x2c\x20\
+          \x43\x75\x6c\x74\x75\x72\x65\x3d\x6e\x65\x75\x74\x72\x61\x6c\x2c\x20\
+          \x50\x75\x62\x6c\x69\x63\x4b\x65\x79\x54\x6f\x6b\x65\x6e\x3d\x62\x30\
+          \x33\x66\x35\x66\x37\x66\x31\x31\x64\x35\x30\x61\x33\x61\
+          \x05\x01\x00\x00\x00\
+          \x15\x53\x79\x73\x74\x65\x6d\x2e\x44\x72\x61\x77\x69\x6e\x67\x2e\
+          \x42\x69\x74\x6d\x61\x70\
+          \x01\x00\x00\x00\x04\x44\x61\x74\x61\x07\x02\x02\x00\x00\x00\
+          \x09\x03\x00\x00\x00\
+          \x0f\x03\x00\x00\x00";
+    const MESSAGE_END: u8 = 0x0b;
+    const PRIMITIVE_TYPE_BYTE: u8 = 0x02;
+
+    let mut out = Vec::with_capacity(FIXED_PREFIX.len() + 4 + 1 + png.len() + 1);
+    out.extend_from_slice(FIXED_PREFIX);
+    out.extend_from_slice(&(png.len() as u32).to_le_bytes());
+    out.push(PRIMITIVE_TYPE_BYTE);
+    out.extend_from_slice(png);
+    out.push(MESSAGE_END);
+    out
+}
+
 /// Minimal standard-alphabet base64 encoder, the write-side counterpart of
 /// `base64_decode` — kept for the same reason (one CDATA blob doesn't
 /// justify a whole crate dependency).
@@ -622,7 +680,7 @@ fn build_xml(run: &Run, icons_base_dir: &Path) -> String {
         match icon_bytes {
             Some(bytes) => {
                 out.push_str("      <Icon>");
-                out.push_str(&base64_encode(&bytes));
+                out.push_str(&base64_encode(&wrap_bitmap_icon(&bytes)));
                 out.push_str("</Icon>\n");
             }
             None => out.push_str("      <Icon />\n"),
