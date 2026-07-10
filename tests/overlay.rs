@@ -12,7 +12,7 @@ fn ms(n: i64) -> Duration {
 fn fresh_run_reports_not_started_and_nothing_reached() {
     let mut app = AppState {
         run: Run::new("Game", "Any%", &["A", "B"]),
-        ..Default::default()
+        ..AppState::empty_for_test()
     };
     app.splits_display = app.run.splits.clone();
     app.current_split = 0;
@@ -37,7 +37,7 @@ fn fresh_run_reports_not_started_and_nothing_reached() {
 fn reached_split_reports_segment_time_and_delta_against_comparison() {
     let mut app = AppState {
         run: Run::new("Game", "Any%", &["A", "B"]),
-        ..Default::default()
+        ..AppState::empty_for_test()
     };
     app.run.splits[0]
         .comparisons
@@ -65,7 +65,7 @@ fn reached_split_reports_segment_time_and_delta_against_comparison() {
 fn second_split_segment_time_excludes_the_first_splits_cumulative_time() {
     let mut app = AppState {
         run: Run::new("Game", "Any%", &["A", "B"]),
-        ..Default::default()
+        ..AppState::empty_for_test()
     };
     app.splits_display = app.run.splits.clone();
     app.splits_display[0].last_time = Some(ms(30_000));
@@ -82,7 +82,7 @@ fn second_split_segment_time_excludes_the_first_splits_cumulative_time() {
 fn game_time_run_uses_igt_as_primary_and_exposes_rta_as_secondary() {
     let mut app = AppState {
         run: Run::new("Game", "Any%", &["A"]),
-        ..Default::default()
+        ..AppState::empty_for_test()
     };
     app.run.timing_method = TimingMethod::GameTime;
     app.splits_display = app.run.splits.clone();
@@ -104,7 +104,7 @@ fn game_time_run_uses_igt_as_primary_and_exposes_rta_as_secondary() {
 fn secondary_clock_is_absent_until_it_has_actually_been_used() {
     let mut app = AppState {
         run: Run::new("Game", "Any%", &["A"]),
-        ..Default::default()
+        ..AppState::empty_for_test()
     };
     app.splits_display = app.run.splits.clone();
     app.timer.state = TimerState::Running;
@@ -120,7 +120,7 @@ fn secondary_clock_is_absent_until_it_has_actually_been_used() {
 fn best_possible_and_pb_totals_sum_across_splits() {
     let mut app = AppState {
         run: Run::new("Game", "Any%", &["A", "B"]),
-        ..Default::default()
+        ..AppState::empty_for_test()
     };
     for (i, (best, pb)) in [(10_000, 12_000), (20_000, 25_000)].into_iter().enumerate() {
         let split = &mut app.run.splits[i];
@@ -149,7 +149,7 @@ fn best_possible_and_pb_totals_sum_across_splits() {
 fn pb_time_is_none_when_any_split_is_missing_a_personal_best() {
     let mut app = AppState {
         run: Run::new("Game", "Any%", &["A", "B"]),
-        ..Default::default()
+        ..AppState::empty_for_test()
     };
     app.run.splits[0]
         .comparisons
@@ -168,7 +168,7 @@ fn pb_time_is_none_when_any_split_is_missing_a_personal_best() {
 fn best_possible_time_accounts_for_progress_already_made() {
     let mut app = AppState {
         run: Run::new("Game", "Any%", &["A", "B"]),
-        ..Default::default()
+        ..AppState::empty_for_test()
     };
     app.run.splits[1]
         .comparisons
@@ -190,7 +190,7 @@ fn best_possible_time_accounts_for_progress_already_made() {
 fn snapshot_serializes_to_the_documented_json_field_names() {
     let mut app = AppState {
         run: Run::new("Game", "Any%", &["A"]),
-        ..Default::default()
+        ..AppState::empty_for_test()
     };
     app.splits_display = app.run.splits.clone();
 

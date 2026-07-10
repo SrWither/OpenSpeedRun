@@ -100,6 +100,49 @@ impl Default for AppState {
 }
 
 impl AppState {
+    /// Builds an `AppState` with empty/zero defaults for every field,
+    /// touching neither disk nor `~/.config/openspeedrun` — unlike
+    /// `AppState::default()`, which reads (and, on first run, *writes*) real
+    /// files there. That makes `default()` unsafe to call from more than one
+    /// test at a time: two tests racing "create the default split/theme"
+    /// against the same shared config directory can catch each other
+    /// mid-write via plain `std::fs::write`'s truncate-then-write (fixed
+    /// now with `config::atomic_write`, but real concurrent first-run writes
+    /// to the *same* file are still a wasted race, not a feature). Tests
+    /// that only care about a handful of fields should build this and set
+    /// those directly, rather than pull in `default()`'s I/O for fields they
+    /// don't even look at.
+    pub fn empty_for_test() -> Self {
+        Self {
+            timer: Timer::new(),
+            igt_timer: Timer::new(),
+            run: Run::default(),
+            layout: LayoutConfig::default(),
+            current_split: 0,
+            textures: HashMap::new(),
+            split_base_path: std::path::PathBuf::new(),
+            current_page: 0,
+            splits_per_page: 5,
+            splits_display: Vec::new(),
+            splits_backup: Vec::new(),
+            show_help: false,
+            start_time: std::time::Instant::now(),
+            last_elapsed: 0.0,
+            shader: None,
+            gl: None,
+            fonts_loaded: false,
+            transparent_set: false,
+            background_image: None,
+            background_image_name: None,
+            background_gl_texture: None,
+            loaded_fonts: None,
+            last_segment_is_gold: false,
+            last_run_is_pb: false,
+        }
+    }
+}
+
+impl AppState {
     pub fn split(&mut self) {
         match self.timer.state {
             TimerState::NotStarted => self.start_run(),

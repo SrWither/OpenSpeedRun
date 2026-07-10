@@ -206,7 +206,7 @@ impl LayoutConfig {
 
     pub fn save(&self, path: &str) -> std::io::Result<()> {
         let json = serde_json::to_string_pretty(self).unwrap();
-        std::fs::write(path, json)?;
+        crate::config::atomic_write(std::path::Path::new(path), &json)?;
         Ok(())
     }
 }

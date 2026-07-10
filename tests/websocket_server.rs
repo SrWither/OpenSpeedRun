@@ -13,7 +13,7 @@ async fn overlay_server_streams_a_json_snapshot_to_a_connecting_client() {
     let app = Arc::new(Mutex::new(AppState {
         splits_display: run.splits.clone(),
         run,
-        ..Default::default()
+        ..AppState::empty_for_test()
     }));
 
     // Port 0: let the OS pick a free one, so this doesn't collide with a
@@ -48,7 +48,7 @@ async fn overlay_server_keeps_streaming_updated_snapshots() {
     let app = Arc::new(Mutex::new(AppState {
         splits_display: run.splits.clone(),
         run,
-        ..Default::default()
+        ..AppState::empty_for_test()
     }));
 
     let listener = websocket_server::bind(0)

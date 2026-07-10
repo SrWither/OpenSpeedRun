@@ -1,8 +1,8 @@
 use dirs::config_dir;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::config::atomic_write;
 use crate::config::layout::LayoutConfig;
 use crate::core::split::Run;
 
@@ -53,7 +53,7 @@ impl AppConfig {
             std::fs::create_dir_all(parent).ok();
         }
         let json = serde_json::to_string_pretty(self).unwrap();
-        let _ = fs::write(path, json);
+        let _ = atomic_write(&path, &json);
     }
 
     fn ensure_default_split_if_missing(config: &AppConfig) {
@@ -94,7 +94,7 @@ impl AppConfig {
 
             match serde_json::to_string_pretty(&theme_config) {
                 Ok(json) => {
-                    if let Err(e) = fs::write(&theme_path, json) {
+                    if let Err(e) = atomic_write(&theme_path, &json) {
                         eprintln!("❌ Failed to write default theme: {}", e);
                     } else {
                         println!("✅ Default theme created at: {}", theme_path.display());
