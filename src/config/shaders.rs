@@ -1,5 +1,6 @@
 use eframe::glow;
 use glow::HasContext;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -76,8 +77,8 @@ pub const UNIFORM_DOCS: &[UniformDoc] = &[
     },
     UniformDoc {
         names: &["iChannel{n}", "u_channel{n}", "channel{n}"],
-        glsl_type: "sampler2D",
-        description: "Extra shader-only texture inputs configured in this shader's Manage Channels popup, starting at n = 0. Independent from bgImage.",
+        glsl_type: "sampler2D / samplerCube",
+        description: "Extra shader-only texture inputs configured in this shader's Manage Channels popup, starting at n = 0. Independent from bgImage. Declare as samplerCube if that channel is set to Cubemap, sampler2D otherwise.",
     },
     UniformDoc {
         names: CURRENT_SPLIT_NAMES,
@@ -438,7 +439,7 @@ impl ShaderBackground {
         date: (i32, i32, i32, f32),
         delta_time: f32,
         background_gl_texture: Option<&glow::NativeTexture>,
-        extra_channels: &[Option<glow::NativeTexture>],
+        extra_channels: &[Option<(glow::NativeTexture, ChannelTarget)>],
         current_split: i32,
         total_splits: i32,
         elapsed_time: f32,
@@ -482,14 +483,16 @@ impl ShaderBackground {
                 gl.uniform_1_i32(u.texture.as_ref(), 0); // sampler2D en unidad 0
             }
 
-            for (i, tex) in extra_channels.iter().enumerate() {
-                let Some(tex) = tex else { continue };
+            for (i, channel) in extra_channels.iter().enumerate() {
+                let Some((tex, target)) = channel else {
+                    continue;
+                };
                 let Some(loc) = u.extra_channels.get(i).and_then(|l| l.as_ref()) else {
                     continue;
                 };
                 let unit = 1 + i as u32;
                 gl.active_texture(glow::TEXTURE0 + unit);
-                gl.bind_texture(glow::TEXTURE_2D, Some(*tex));
+                gl.bind_texture(target.gl_target(), Some(*tex));
                 gl.uniform_1_i32(Some(loc), unit as i32);
             }
 
@@ -538,17 +541,65 @@ pub fn shader_channels_path(shader_path: &Path) -> std::path::PathBuf {
     ))
 }
 
-/// Loads a shader's configured channel images (`None` for empty slots),
-/// or an empty list if the shader has no channels configured yet.
-pub fn load_shader_channels(shader_path: &Path) -> Vec<Option<String>> {
-    fs::read_to_string(shader_channels_path(shader_path))
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
+/// One configured shader channel — mirrors Shadertoy's per-channel input
+/// types. Currently a flat 2D image or a 6-face cubemap; `None` entries are
+/// unset (the channel's uniform location is still resolved, it's just not
+/// bound to any texture until an image is picked).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ShaderChannel {
+    Image(Option<String>),
+    Cubemap([Option<String>; 6]),
+}
+
+impl Default for ShaderChannel {
+    fn default() -> Self {
+        ShaderChannel::Image(None)
+    }
+}
+
+/// Face order for `ShaderChannel::Cubemap`, matching GL's
+/// `TEXTURE_CUBE_MAP_POSITIVE_X` .. `NEGATIVE_Z`, which are sequential in
+/// this exact order — see `ChannelTarget`/texture upload in `app::texture`.
+pub const CUBEMAP_FACE_LABELS: [&str; 6] = ["+X", "-X", "+Y", "-Y", "+Z", "-Z"];
+
+/// Which GL texture target a channel's texture should be bound to when
+/// rendering. Kept separate from `ShaderChannel` because this describes the
+/// *loaded GL texture*, not the on-disk config.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChannelTarget {
+    Image,
+    Cubemap,
+}
+
+impl ChannelTarget {
+    pub fn gl_target(self) -> u32 {
+        match self {
+            ChannelTarget::Image => glow::TEXTURE_2D,
+            ChannelTarget::Cubemap => glow::TEXTURE_CUBE_MAP,
+        }
+    }
+}
+
+/// Loads a shader's configured channels, or an empty list if the shader has
+/// none configured yet.
+pub fn load_shader_channels(shader_path: &Path) -> Vec<ShaderChannel> {
+    let Ok(data) = fs::read_to_string(shader_channels_path(shader_path)) else {
+        return Vec::new();
+    };
+
+    if let Ok(channels) = serde_json::from_str::<Vec<ShaderChannel>>(&data) {
+        return channels;
+    }
+
+    // Back-compat: sidecars saved before cubemap support stored plain
+    // `Option<String>` image filenames.
+    serde_json::from_str::<Vec<Option<String>>>(&data)
+        .map(|old| old.into_iter().map(ShaderChannel::Image).collect())
         .unwrap_or_default()
 }
 
 /// Persists a shader's channel configuration next to the shader file.
-pub fn save_shader_channels(shader_path: &Path, channels: &[Option<String>]) -> Result<(), String> {
+pub fn save_shader_channels(shader_path: &Path, channels: &[ShaderChannel]) -> Result<(), String> {
     let json = serde_json::to_string_pretty(channels).map_err(|e| e.to_string())?;
     fs::write(shader_channels_path(shader_path), json).map_err(|e| e.to_string())
 }

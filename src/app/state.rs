@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::config::layout::LayoutConfig;
 use crate::config::load::{AppConfig, config_base_dir};
-use crate::config::shaders::{ShaderBackground, load_shader_channels};
+use crate::config::shaders::{ShaderBackground, ShaderChannel, load_shader_channels};
 #[cfg(unix)]
 use crate::core::server::UICommand;
 use crate::core::split::{
@@ -45,15 +45,16 @@ pub struct AppState {
     pub background_image: Option<TextureHandle>,
     pub background_image_name: Option<String>,
     pub background_gl_texture: Option<glow::NativeTexture>,
-    /// GL textures for `shader_channel_paths`, keyed by image filename so
-    /// the same file picked into more than one slot is only uploaded once.
-    /// See `app::texture::get_or_load_shader_channels`.
+    /// GL textures for `shader_channel_paths`, keyed by a cache key derived
+    /// from the channel's image path(s) so the same file(s) picked into
+    /// more than one slot are only uploaded once. See
+    /// `app::texture::get_or_load_shader_channels`.
     pub shader_channel_cache: HashMap<String, glow::NativeTexture>,
-    /// Channel images configured for the currently loaded shader (a
-    /// property of the shader file itself, not the theme — see
+    /// Channels configured for the currently loaded shader (a property of
+    /// the shader file itself, not the theme — see
     /// `config::shaders::load_shader_channels`). Refreshed whenever the
     /// shader is (re)loaded.
-    pub shader_channel_paths: Vec<Option<String>>,
+    pub shader_channel_paths: Vec<ShaderChannel>,
     pub loaded_fonts: Option<FontDefinitions>,
     /// Whether the most recently completed split beat its "Best Segments"
     /// comparison. Sticky until the next split (or a reset).

@@ -6,7 +6,13 @@ use eframe::{
 };
 use image::GenericImageView;
 
-use crate::{app::state::AppState, config::load::config_base_dir};
+use crate::{
+    app::state::AppState,
+    config::{
+        load::config_base_dir,
+        shaders::{ChannelTarget, ShaderChannel},
+    },
+};
 
 impl AppState {
     pub fn get_or_load_texture(&mut self, ctx: &Context, path: &str) -> Option<TextureHandle> {
@@ -70,15 +76,17 @@ impl AppState {
         Some(texture)
     }
 
-    /// Loads (and caches, by filename) the GL textures for
-    /// `shader_channel_paths` (the current shader's own channel config, not
-    /// the theme's), in slot order — `None` for empty slots, so the
-    /// returned `Vec`'s index lines up with the uniform indices
-    /// `ShaderUniforms::resolve` resolved (`iChannel{i}`, etc). Unlike
-    /// `get_or_load_background_image`, this never touches the 2D `egui`
-    /// painter — these channels are shader-only inputs. Images live in the
-    /// `shaders/` folder, alongside the shader file, not `backgrounds/`.
-    pub fn get_or_load_shader_channels(&mut self) -> Vec<Option<glow::NativeTexture>> {
+    /// Loads (and caches) the GL textures for `shader_channel_paths` (the
+    /// current shader's own channel config, not the theme's), in slot
+    /// order — `None` for empty/incomplete slots, so the returned `Vec`'s
+    /// index lines up with the uniform indices `ShaderUniforms::resolve`
+    /// resolved (`iChannel{i}`, etc). Unlike `get_or_load_background_image`,
+    /// this never touches the 2D `egui` painter — these channels are
+    /// shader-only inputs. Images live in the `shaders/` folder, alongside
+    /// the shader file, not `backgrounds/`.
+    pub fn get_or_load_shader_channels(
+        &mut self,
+    ) -> Vec<Option<(glow::NativeTexture, ChannelTarget)>> {
         let Some(gl) = self.gl.clone() else {
             return Vec::new();
         };
@@ -86,17 +94,34 @@ impl AppState {
         self.shader_channel_paths
             .clone()
             .iter()
-            .map(|slot| {
-                let name = slot.as_ref()?;
-                if let Some(tex) = self.shader_channel_cache.get(name) {
-                    return Some(*tex);
-                }
+            .map(|channel| match channel {
+                ShaderChannel::Image(name) => {
+                    let name = name.as_ref()?;
+                    if let Some(tex) = self.shader_channel_cache.get(name) {
+                        return Some((*tex, ChannelTarget::Image));
+                    }
 
-                let full_path = config_base_dir().join("shaders").join(name);
-                let (rgba, size) = Self::load_image_rgba(&full_path)?;
-                let tex = Self::create_gl_texture(&gl, &rgba, size)?;
-                self.shader_channel_cache.insert(name.clone(), tex);
-                Some(tex)
+                    let full_path = config_base_dir().join("shaders").join(name);
+                    let (rgba, size) = Self::load_image_rgba(&full_path)?;
+                    let tex = Self::create_gl_texture(&gl, &rgba, size)?;
+                    self.shader_channel_cache.insert(name.clone(), tex);
+                    Some((tex, ChannelTarget::Image))
+                }
+                ShaderChannel::Cubemap(faces) => {
+                    let cache_key = faces
+                        .iter()
+                        .map(|f| f.as_deref().unwrap_or(""))
+                        .collect::<Vec<_>>()
+                        .join("\u{1}");
+
+                    if let Some(tex) = self.shader_channel_cache.get(&cache_key) {
+                        return Some((*tex, ChannelTarget::Cubemap));
+                    }
+
+                    let tex = Self::create_gl_cubemap_texture(&gl, faces)?;
+                    self.shader_channel_cache.insert(cache_key, tex);
+                    Some((tex, ChannelTarget::Cubemap))
+                }
             })
             .collect()
     }
@@ -155,6 +180,70 @@ impl AppState {
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MAG_FILTER,
                 glow::LINEAR as i32,
+            );
+
+            Some(tex_id)
+        }
+    }
+
+    /// Uploads a 6-face cubemap in GL's `POSITIVE_X..NEGATIVE_Z` order
+    /// (matching `CUBEMAP_FACE_LABELS`). All 6 faces must be set and load
+    /// successfully — a partially-configured cubemap has no coherent
+    /// "missing face" fallback, so it's simplest to just not bind anything
+    /// until every face is picked.
+    fn create_gl_cubemap_texture(
+        gl: &glow::Context,
+        faces: &[Option<String>; 6],
+    ) -> Option<glow::NativeTexture> {
+        let mut loaded = Vec::with_capacity(6);
+        for face in faces {
+            let name = face.as_ref()?;
+            let full_path = config_base_dir().join("shaders").join(name);
+            loaded.push(Self::load_image_rgba(&full_path)?);
+        }
+
+        unsafe {
+            let tex_id = gl.create_texture().ok()?;
+            gl.bind_texture(glow::TEXTURE_CUBE_MAP, Some(tex_id));
+
+            for (i, (rgba, size)) in loaded.iter().enumerate() {
+                gl.tex_image_2d(
+                    glow::TEXTURE_CUBE_MAP_POSITIVE_X + i as u32,
+                    0,
+                    glow::RGBA as i32,
+                    size.0 as i32,
+                    size.1 as i32,
+                    0,
+                    glow::RGBA,
+                    glow::UNSIGNED_BYTE,
+                    PixelUnpackData::Slice(Some(rgba)),
+                );
+            }
+
+            gl.tex_parameter_i32(
+                glow::TEXTURE_CUBE_MAP,
+                glow::TEXTURE_MIN_FILTER,
+                glow::LINEAR as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_CUBE_MAP,
+                glow::TEXTURE_MAG_FILTER,
+                glow::LINEAR as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_CUBE_MAP,
+                glow::TEXTURE_WRAP_S,
+                glow::CLAMP_TO_EDGE as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_CUBE_MAP,
+                glow::TEXTURE_WRAP_T,
+                glow::CLAMP_TO_EDGE as i32,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_CUBE_MAP,
+                glow::TEXTURE_WRAP_R,
+                glow::CLAMP_TO_EDGE as i32,
             );
 
             Some(tex_id)

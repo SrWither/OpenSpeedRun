@@ -201,7 +201,7 @@ impl AppWrapper {
         app: &mut AppState,
         elapsed: f32,
         delta_time: f32,
-        extra_channels: &[Option<glow::NativeTexture>],
+        extra_channels: &[Option<(glow::NativeTexture, crate::config::shaders::ChannelTarget)>],
         current_split: i32,
         total_splits: i32,
         elapsed_time: f32,
