@@ -63,7 +63,7 @@ impl AppState {
                         plot_ui.hline(
                             HLine::new("zero", 0.0)
                                 .color(Color32::from_gray(100))
-                                .width(1.0),
+                                .width(1.0_f32),
                         );
 
                         // Negate so "ahead" (a negative delta) plots upward,
@@ -87,7 +87,7 @@ impl AppState {
                             plot_ui.line(
                                 Line::new("delta", PlotPoints::new(vec![from, to]))
                                     .color(color)
-                                    .width(2.0),
+                                    .width(2.0_f32),
                             );
                         }
                     });
