@@ -2,22 +2,22 @@ use eframe::egui;
 use egui::{Color32, RichText, Stroke};
 
 // === Palette ===
-// Blue/light-blue accent, dark neutral surfaces. Chosen deliberately to not
+// Orange/amber accent, dark neutral surfaces. Chosen deliberately to not
 // clash with the timer's own user-configurable gold/PB colors, which live
 // in a completely different part of the app.
-pub const ACCENT: Color32 = Color32::from_rgb(74, 158, 255);
-pub const ACCENT_HOVER: Color32 = Color32::from_rgb(110, 180, 255);
-pub const ACCENT_BG: Color32 = Color32::from_rgb(24, 44, 66);
+pub const ACCENT: Color32 = Color32::from_rgb(255, 158, 74);
+pub const ACCENT_HOVER: Color32 = Color32::from_rgb(255, 180, 110);
+pub const ACCENT_BG: Color32 = Color32::from_rgb(66, 44, 24);
 
-pub const BG_BASE: Color32 = Color32::from_rgb(17, 18, 21);
-pub const BG_ELEVATED: Color32 = Color32::from_rgb(27, 28, 33);
-pub const BG_SUNKEN: Color32 = Color32::from_rgb(12, 13, 15);
+pub const BG_BASE: Color32 = Color32::from_rgb(21, 19, 17);
+pub const BG_ELEVATED: Color32 = Color32::from_rgb(33, 30, 27);
+pub const BG_SUNKEN: Color32 = Color32::from_rgb(15, 14, 12);
 
-pub const BORDER: Color32 = Color32::from_rgb(56, 59, 68);
-pub const BORDER_SUBTLE: Color32 = Color32::from_rgb(38, 40, 47);
+pub const BORDER: Color32 = Color32::from_rgb(68, 62, 56);
+pub const BORDER_SUBTLE: Color32 = Color32::from_rgb(47, 42, 38);
 
-pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(230, 231, 235);
-pub const TEXT_MUTED: Color32 = Color32::from_rgb(150, 152, 162);
+pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(235, 232, 230);
+pub const TEXT_MUTED: Color32 = Color32::from_rgb(162, 155, 150);
 
 pub const SUCCESS: Color32 = Color32::from_rgb(80, 200, 130);
 pub const ERROR: Color32 = Color32::from_rgb(235, 95, 95);
@@ -166,8 +166,8 @@ pub fn apply_style(ctx: &egui::Context) {
     w.inactive.fg_stroke = Stroke::new(1.0_f32, TEXT_PRIMARY);
     w.inactive.corner_radius = 6.into();
 
-    w.hovered.bg_fill = Color32::from_rgb(38, 40, 48);
-    w.hovered.weak_bg_fill = Color32::from_rgb(38, 40, 48);
+    w.hovered.bg_fill = Color32::from_rgb(48, 42, 38);
+    w.hovered.weak_bg_fill = Color32::from_rgb(48, 42, 38);
     w.hovered.bg_stroke = Stroke::new(1.0_f32, ACCENT_HOVER);
     w.hovered.fg_stroke = Stroke::new(1.0_f32, TEXT_PRIMARY);
     w.hovered.corner_radius = 6.into();

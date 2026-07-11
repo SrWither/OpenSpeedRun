@@ -781,7 +781,12 @@ impl SplitEditor {
             let offset = egui::vec2(-size.x - 12.0, -size.y / 2.0);
             let rect = egui::Rect::from_min_size(cursor_pos + offset, size);
 
-            let bg_color = egui::Color32::from_rgba_unmultiplied(27, 28, 33, 230);
+            let bg_color = egui::Color32::from_rgba_unmultiplied(
+                style::BG_ELEVATED.r(),
+                style::BG_ELEVATED.g(),
+                style::BG_ELEVATED.b(),
+                230,
+            );
             painter.rect_filled(rect, egui::CornerRadius::same(10), bg_color);
             painter.rect_stroke(
                 rect,
