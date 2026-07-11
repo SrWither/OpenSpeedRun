@@ -118,7 +118,7 @@ impl ThemeEditor {
             .id_salt("theme_cards_scroll")
             .auto_shrink([false, true])
             .show(ui, |ui| {
-                ui.horizontal(|ui| {
+                ui.horizontal_top(|ui| {
                     style::section_card(ui, "Font Sizes", egui_phosphor::regular::TEXT_AA, |ui| {
                         ui.vertical(|ui| {
                             ui.add(
