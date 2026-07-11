@@ -70,6 +70,37 @@ impl AppState {
         Some(texture)
     }
 
+    /// Loads (and caches, by filename) the GL textures for
+    /// `shader_channel_paths` (the current shader's own channel config, not
+    /// the theme's), in slot order — `None` for empty slots, so the
+    /// returned `Vec`'s index lines up with the uniform indices
+    /// `ShaderUniforms::resolve` resolved (`iChannel{i}`, etc). Unlike
+    /// `get_or_load_background_image`, this never touches the 2D `egui`
+    /// painter — these channels are shader-only inputs. Images live in the
+    /// `shaders/` folder, alongside the shader file, not `backgrounds/`.
+    pub fn get_or_load_shader_channels(&mut self) -> Vec<Option<glow::NativeTexture>> {
+        let Some(gl) = self.gl.clone() else {
+            return Vec::new();
+        };
+
+        self.shader_channel_paths
+            .clone()
+            .iter()
+            .map(|slot| {
+                let name = slot.as_ref()?;
+                if let Some(tex) = self.shader_channel_cache.get(name) {
+                    return Some(*tex);
+                }
+
+                let full_path = config_base_dir().join("shaders").join(name);
+                let (rgba, size) = Self::load_image_rgba(&full_path)?;
+                let tex = Self::create_gl_texture(&gl, &rgba, size)?;
+                self.shader_channel_cache.insert(name.clone(), tex);
+                Some(tex)
+            })
+            .collect()
+    }
+
     fn load_image_rgba(path: &Path) -> Option<(Vec<u8>, (u32, u32))> {
         match image::open(path) {
             Ok(img) => {

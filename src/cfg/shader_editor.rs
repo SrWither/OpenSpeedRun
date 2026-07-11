@@ -1,13 +1,17 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::dialog::PendingDialog;
 use crate::style;
 use crate::syntax;
 use eframe::egui;
 use eframe::glow;
 use egui::RichText;
-use openspeedrun::config::shaders::{ShaderBackground, UNIFORM_DOCS};
+use openspeedrun::config::layout::LayoutConfig;
+use openspeedrun::config::shaders::{
+    ShaderBackground, UNIFORM_DOCS, load_shader_channels, save_shader_channels,
+};
 
 const DEFAULT_SHADER: &str = r#"
 #version 100
@@ -53,6 +57,15 @@ pub struct ShaderEditor {
     show_new_popup: bool,
     new_shader_name: String,
     show_uniform_help: bool,
+
+    show_channels_popup: bool,
+    /// Slot index + in-flight native file dialog for a "Load Image" click
+    /// inside the channels popup.
+    pending_channel_pick: Option<(usize, PendingDialog)>,
+    /// This shader's own channel configuration — a property of the shader
+    /// file (persisted to its `.channels.json` sidecar), not of whichever
+    /// theme happens to select it.
+    channels: Vec<Option<String>>,
 }
 
 impl ShaderEditor {
@@ -75,6 +88,8 @@ impl ShaderEditor {
             (String::new(), String::new())
         };
 
+        let channels = load_shader_channels(&path);
+
         let mut editor = Self {
             path,
             code_frag,
@@ -88,6 +103,9 @@ impl ShaderEditor {
             show_new_popup: false,
             new_shader_name: String::new(),
             show_uniform_help: false,
+            show_channels_popup: false,
+            pending_channel_pick: None,
+            channels,
         };
 
         if !editor.readonly {
@@ -111,7 +129,38 @@ impl ShaderEditor {
         };
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, ui: &mut egui::Ui, layout: &mut LayoutConfig, theme_path: &Path) {
+        if self.pending_channel_pick.is_some() {
+            // Without this, egui (event-driven) might not repaint again
+            // until unrelated input arrives, leaving a finished dialog's
+            // result unpicked-up for a while.
+            ui.ctx().request_repaint();
+        }
+
+        if let Some((slot, dialog)) = &self.pending_channel_pick
+            && let Some(path) = dialog.poll()
+        {
+            if let Some(path) = path {
+                match copy_image_to_shaders_folder(&path) {
+                    Ok(new_path) => match new_path.file_name().and_then(|n| n.to_str()) {
+                        Some(file_name) => {
+                            if let Some(entry) = self.channels.get_mut(*slot) {
+                                *entry = Some(file_name.to_string());
+                            }
+                            if let Err(e) = save_shader_channels(&self.path, &self.channels) {
+                                self.error = Some(format!("Error saving channels: {e}"));
+                            } else {
+                                crate::send_message("reloadshader");
+                            }
+                        }
+                        None => eprintln!("Error obtaining file name from path: {:?}", new_path),
+                    },
+                    Err(_) => eprintln!("Error copying image to shaders folder"),
+                }
+            }
+            self.pending_channel_pick = None;
+        }
+
         // syntax highlighting theme and layouter
         let syntax_set = syntax::load_syntax_set();
         let theme = syntax::get_theme("base16-eighties.dark");
@@ -189,9 +238,26 @@ impl ShaderEditor {
                 let res_vert = fs::write(&path_vert, &self.code_vert);
                 match (res_frag, res_vert) {
                     (Ok(_), Ok(_)) => {
-                        self.error = None;
-                        self.saved_message = Some("Saved".to_string());
+                        // The "Active shader" selector above only updates
+                        // `layout` in memory — persist it here too, so
+                        // picking a different shader and hitting Save Both
+                        // doesn't silently leave the old selection on disk.
+                        match layout.save(theme_path.to_string_lossy().as_ref()) {
+                            Ok(()) => {
+                                self.error = None;
+                                self.saved_message = Some("Saved".to_string());
+                            }
+                            Err(e) => {
+                                self.error = Some(format!("Error saving theme: {e}"));
+                                self.saved_message = None;
+                            }
+                        }
                         self.dirty = false;
+                        // The running app only re-reads `shader_path` off
+                        // disk on "reloadtheme" — "reloadshader" alone just
+                        // recompiles whichever shader it already has in
+                        // memory, so it must come after, not instead of.
+                        crate::send_message("reloadtheme");
                         crate::send_message("reloadshader");
                     }
                     (Err(e), _) | (_, Err(e)) => {
@@ -217,6 +283,33 @@ impl ShaderEditor {
                 &mut self.show_uniform_help,
                 format!("{} Uniforms", egui_phosphor::regular::BOOK_OPEN),
             );
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Active shader:");
+            let available_shaders = list_available_shaders();
+            let mut current_shader = layout.colors.shader_path.clone();
+
+            egui::ComboBox::from_id_salt("shader_select")
+                .selected_text(&current_shader)
+                .show_ui(ui, |ui| {
+                    for shader in available_shaders {
+                        if ui
+                            .selectable_label(current_shader == shader, &shader)
+                            .clicked()
+                        {
+                            current_shader = shader.clone();
+                            layout.colors.shader_path = shader;
+                        }
+                    }
+                });
+
+            ui.separator();
+
+            if ui.button("Manage Channels...").clicked() {
+                self.show_channels_popup = true;
+            }
+            ui.label(format!("{} channel(s) configured", self.channels.len()));
         });
 
         ui.separator();
@@ -417,7 +510,15 @@ impl ShaderEditor {
                                         self.error = None;
                                         self.readonly = false;
                                         self.dirty = false;
+                                        self.channels = Vec::new();
                                         self.check();
+                                        layout.colors.shader_path = filename_frag.clone();
+                                        if let Err(e) =
+                                            layout.save(theme_path.to_string_lossy().as_ref())
+                                        {
+                                            self.error = Some(format!("Error saving theme: {e}"));
+                                        }
+                                        crate::send_message("reloadtheme");
                                         crate::send_message("reloadshader");
                                     }
                                 } else {
@@ -431,10 +532,158 @@ impl ShaderEditor {
                 });
         }
 
+        if self.show_channels_popup {
+            egui::Window::new("Shader Channels")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .show(ui.ctx(), |ui| {
+                    let channel_images = list_shader_folder_images();
+                    let mut remove_idx: Option<usize> = None;
+                    let mut changed = false;
+
+                    for i in 0..self.channels.len() {
+                        ui.horizontal(|ui| {
+                            ui.label(format!("iChannel{i}"));
+
+                            if ui.button("Load Image").clicked() {
+                                self.pending_channel_pick = Some((
+                                    i,
+                                    PendingDialog::spawn(|| {
+                                        rfd::FileDialog::new()
+                                            .add_filter(
+                                                "Images",
+                                                &["png", "jpg", "jpeg", "gif", "webp"],
+                                            )
+                                            .pick_file()
+                                    }),
+                                ));
+                            }
+
+                            let before = self.channels[i].clone();
+                            let selected_text = before.as_deref().unwrap_or("None").to_string();
+
+                            egui::ComboBox::from_id_salt(format!("shader_channel_popup_{i}"))
+                                .selected_text(selected_text)
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(&mut self.channels[i], None, "None");
+                                    for img in &channel_images {
+                                        ui.selectable_value(
+                                            &mut self.channels[i],
+                                            Some(img.clone()),
+                                            img,
+                                        );
+                                    }
+                                });
+
+                            if self.channels[i] != before {
+                                changed = true;
+                            }
+
+                            if ui
+                                .button(egui_phosphor::regular::TRASH)
+                                .on_hover_text("Remove channel")
+                                .clicked()
+                            {
+                                remove_idx = Some(i);
+                            }
+                        });
+                    }
+
+                    if let Some(i) = remove_idx {
+                        self.channels.remove(i);
+                        changed = true;
+                    }
+
+                    ui.add_space(6.0);
+
+                    if ui.button("Add Channel").clicked() {
+                        self.channels.push(None);
+                        changed = true;
+                    }
+
+                    if changed {
+                        if let Err(e) = save_shader_channels(&self.path, &self.channels) {
+                            self.error = Some(format!("Error saving channels: {e}"));
+                        } else {
+                            crate::send_message("reloadshader");
+                        }
+                    }
+
+                    ui.add_space(6.0);
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        if ui.button("Close").clicked() {
+                            self.show_channels_popup = false;
+                        }
+                    });
+                });
+        }
+
         if let Some(err) = &self.error {
             ui.colored_label(style::ERROR, err);
         } else if let Some(saved) = &self.saved_message {
             style::status_label(ui, saved, false);
         }
     }
+}
+
+fn list_available_shaders() -> Vec<String> {
+    let shader_dir = crate::config_base_dir().join("shaders");
+    if let Ok(entries) = fs::read_dir(shader_dir) {
+        entries
+            .filter_map(Result::ok)
+            .filter_map(|entry| {
+                let path = entry.path();
+                if path.extension().map(|e| e == "glsl").unwrap_or(false) {
+                    path.file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|s| s.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    } else {
+        vec![]
+    }
+}
+
+/// Images already living in the `shaders/` folder, i.e. channel textures
+/// that travel alongside whichever shader put them there.
+fn list_shader_folder_images() -> Vec<String> {
+    let shader_dir = crate::config_base_dir().join("shaders");
+    let mut files: Vec<String> = Vec::new();
+
+    if let Ok(entries) = fs::read_dir(shader_dir) {
+        for entry in entries.flatten() {
+            if let Ok(file_type) = entry.file_type()
+                && file_type.is_file()
+                && let Some(ext) = entry.path().extension()
+                && matches!(
+                    ext.to_str().unwrap_or("").to_lowercase().as_str(),
+                    "png" | "jpg" | "jpeg" | "gif" | "webp"
+                )
+                && let Some(file_name) = entry.file_name().to_str()
+            {
+                files.push(file_name.to_string());
+            }
+        }
+    }
+
+    files
+}
+
+/// Copies a picked channel image into the `shaders/` folder, so it travels
+/// alongside the shader file rather than living in the shared backgrounds
+/// folder.
+fn copy_image_to_shaders_folder(image_path: &PathBuf) -> Result<PathBuf, String> {
+    let shader_dir = crate::config_base_dir().join("shaders");
+    std::fs::create_dir_all(&shader_dir)
+        .map_err(|e| format!("Error creating shaders directory: {}", e))?;
+
+    let new_path = shader_dir.join(image_path.file_name().unwrap());
+    std::fs::copy(image_path, &new_path).map_err(|e| format!("Error copying image: {}", e))?;
+
+    Ok(new_path)
 }

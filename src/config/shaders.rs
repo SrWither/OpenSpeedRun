@@ -9,7 +9,7 @@ const RESOLUTION_NAMES: &[&str] = &["u_resolution", "resolution", "iResolution"]
 const MOUSE_NAMES: &[&str] = &["u_mouse", "mouse", "iMouse"];
 const DATE_NAMES: &[&str] = &["u_date", "date", "iDate"];
 const DELTA_TIME_NAMES: &[&str] = &["deltaTime", "u_deltaTime", "iTimeDelta"];
-const TEXTURE_NAMES: &[&str] = &["u_texture", "iChannel0", "image"];
+const TEXTURE_NAMES: &[&str] = &["bgImage", "u_bgImage", "iBgImage"];
 const CURRENT_SPLIT_NAMES: &[&str] = &["current_split", "u_current_split", "iCurrentSplit"];
 const TOTAL_SPLITS_NAMES: &[&str] = &["total_splits", "u_total_splits", "iTotalSplits"];
 const ELAPSED_TIME_NAMES: &[&str] = &["elapsed_time", "u_elapsed_time", "iElapsedTime"];
@@ -73,6 +73,11 @@ pub const UNIFORM_DOCS: &[UniformDoc] = &[
         names: TEXTURE_NAMES,
         glsl_type: "sampler2D",
         description: "Background image texture, when enabled in the theme.",
+    },
+    UniformDoc {
+        names: &["iChannel{n}", "u_channel{n}", "channel{n}"],
+        glsl_type: "sampler2D",
+        description: "Extra shader-only texture inputs configured in this shader's Manage Channels popup, starting at n = 0. Independent from bgImage.",
     },
     UniformDoc {
         names: CURRENT_SPLIT_NAMES,
@@ -161,10 +166,27 @@ struct ShaderUniforms {
     live_delta: Option<glow::UniformLocation>,
     best_possible_time: Option<glow::UniformLocation>,
     pb_time: Option<glow::UniformLocation>,
+    /// Resolved locations for the extra shader-only channels, independent
+    /// from `texture` (`bgImage`). Index `i` here is `iChannel{i}`/
+    /// `u_channel{i}`/`channel{i}`, starting at 0, resolved for exactly as
+    /// many channels as were configured when this shader was (re)compiled.
+    extra_channels: Vec<Option<glow::UniformLocation>>,
 }
 
 impl ShaderUniforms {
-    fn resolve(gl: &glow::Context, program: glow::NativeProgram) -> Self {
+    fn resolve(gl: &glow::Context, program: glow::NativeProgram, channel_count: usize) -> Self {
+        let extra_channels = (0..channel_count)
+            .map(|i| {
+                let names = [
+                    format!("u_channel{i}"),
+                    format!("iChannel{i}"),
+                    format!("channel{i}"),
+                ];
+                let name_refs: Vec<&str> = names.iter().map(String::as_str).collect();
+                ShaderBackground::get_uniform_location_any(gl, program, &name_refs)
+            })
+            .collect();
+
         Self {
             time: ShaderBackground::get_uniform_location_any(gl, program, TIME_NAMES),
             resolution: ShaderBackground::get_uniform_location_any(gl, program, RESOLUTION_NAMES),
@@ -213,6 +235,7 @@ impl ShaderUniforms {
                 BEST_POSSIBLE_TIME_NAMES,
             ),
             pb_time: ShaderBackground::get_uniform_location_any(gl, program, PB_TIME_NAMES),
+            extra_channels,
         }
     }
 }
@@ -231,6 +254,7 @@ impl ShaderBackground {
         gl: Arc<glow::Context>,
         shader_path: String,
         vertex_shader_path: String,
+        channel_count: usize,
     ) -> Option<Self> {
         let shader_exists = Path::new(&shader_path).exists();
         let vertex_exists = Path::new(&vertex_shader_path).exists();
@@ -254,7 +278,7 @@ impl ShaderBackground {
             }
         };
 
-        let uniforms = ShaderUniforms::resolve(&gl, program);
+        let uniforms = ShaderUniforms::resolve(&gl, program, channel_count);
 
         Some(Self {
             gl,
@@ -414,6 +438,7 @@ impl ShaderBackground {
         date: (i32, i32, i32, f32),
         delta_time: f32,
         background_gl_texture: Option<&glow::NativeTexture>,
+        extra_channels: &[Option<glow::NativeTexture>],
         current_split: i32,
         total_splits: i32,
         elapsed_time: f32,
@@ -457,6 +482,17 @@ impl ShaderBackground {
                 gl.uniform_1_i32(u.texture.as_ref(), 0); // sampler2D en unidad 0
             }
 
+            for (i, tex) in extra_channels.iter().enumerate() {
+                let Some(tex) = tex else { continue };
+                let Some(loc) = u.extra_channels.get(i).and_then(|l| l.as_ref()) else {
+                    continue;
+                };
+                let unit = 1 + i as u32;
+                gl.active_texture(glow::TEXTURE0 + unit);
+                gl.bind_texture(glow::TEXTURE_2D, Some(*tex));
+                gl.uniform_1_i32(Some(loc), unit as i32);
+            }
+
             gl.uniform_1_i32(u.current_split.as_ref(), current_split);
             gl.uniform_1_i32(u.total_splits.as_ref(), total_splits);
             gl.uniform_1_f32(u.elapsed_time.as_ref(), elapsed_time);
@@ -484,4 +520,35 @@ impl Drop for ShaderBackground {
             self.gl.delete_vertex_array(self.vao);
         }
     }
+}
+
+/// Sidecar path for a shader's channel configuration, e.g. `foo.glsl` ->
+/// `foo.glsl.channels.json`, mirroring the `foo.glsl.vert` convention.
+/// Channels are a property of the shader file itself (so they travel with
+/// it, independent of whichever theme happens to select that shader), not
+/// of the theme.
+pub fn shader_channels_path(shader_path: &Path) -> std::path::PathBuf {
+    shader_path.with_extension(format!(
+        "{}{}",
+        shader_path
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy(),
+        ".channels.json"
+    ))
+}
+
+/// Loads a shader's configured channel images (`None` for empty slots),
+/// or an empty list if the shader has no channels configured yet.
+pub fn load_shader_channels(shader_path: &Path) -> Vec<Option<String>> {
+    fs::read_to_string(shader_channels_path(shader_path))
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+/// Persists a shader's channel configuration next to the shader file.
+pub fn save_shader_channels(shader_path: &Path, channels: &[Option<String>]) -> Result<(), String> {
+    let json = serde_json::to_string_pretty(channels).map_err(|e| e.to_string())?;
+    fs::write(shader_channels_path(shader_path), json).map_err(|e| e.to_string())
 }

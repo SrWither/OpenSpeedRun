@@ -347,8 +347,14 @@ impl eframe::App for ConfigApp {
                     }
                 }
 
-                if let Some(editor) = &mut self.shader_editor {
-                    editor.ui(ui);
+                if let (Some(editor), Some(theme_editor)) =
+                    (&mut self.shader_editor, &mut self.theme_editor)
+                {
+                    editor.ui(
+                        ui,
+                        &mut theme_editor.layout,
+                        &theme_editor.current_theme_path,
+                    );
                 } else {
                     ui.label("Select a theme to edit its shader.");
                 }

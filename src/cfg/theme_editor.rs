@@ -246,24 +246,7 @@ impl ThemeEditor {
 
                             ui.label("Select Image:");
 
-                            let backgrounds_dir = config_base_dir().join("backgrounds");
-                            let mut bg_files: Vec<String> = Vec::new();
-
-                            if let Ok(entries) = fs::read_dir(&backgrounds_dir) {
-                                for entry in entries.flatten() {
-                                    if let Ok(file_type) = entry.file_type()
-                                        && file_type.is_file()
-                                        && let Some(ext) = entry.path().extension()
-                                        && matches!(
-                                            ext.to_str().unwrap_or("").to_lowercase().as_str(),
-                                            "png" | "jpg" | "jpeg" | "gif" | "webp"
-                                        )
-                                        && let Some(file_name) = entry.file_name().to_str()
-                                    {
-                                        bg_files.push(file_name.to_string());
-                                    }
-                                }
-                            }
+                            let bg_files = list_available_backgrounds();
 
                             egui::ComboBox::from_id_salt("background_image_selector")
                                 .selected_text(
@@ -354,24 +337,6 @@ impl ThemeEditor {
                                         .speed(1.0),
                                 );
                             });
-                            ui.label("Shader file:");
-                            let available_shaders = list_available_shaders();
-
-                            let mut current_shader = self.layout.colors.shader_path.clone();
-
-                            egui::ComboBox::from_id_salt("shader_select")
-                                .selected_text(&current_shader)
-                                .show_ui(ui, |ui| {
-                                    for shader in available_shaders {
-                                        if ui
-                                            .selectable_label(current_shader == shader, &shader)
-                                            .clicked()
-                                        {
-                                            current_shader = shader.clone();
-                                            self.layout.colors.shader_path = shader;
-                                        }
-                                    }
-                                });
                         });
                     });
 
@@ -641,25 +606,30 @@ fn hotkey_button(
     });
 }
 
-fn list_available_shaders() -> Vec<String> {
-    let shader_dir = config_base_dir().join("shaders");
-    if let Ok(entries) = std::fs::read_dir(shader_dir) {
-        entries
-            .filter_map(Result::ok)
-            .filter_map(|entry| {
-                let path = entry.path();
-                if path.extension().map(|e| e == "glsl").unwrap_or(false) {
-                    path.file_name()
-                        .and_then(|n| n.to_str())
-                        .map(|s| s.to_string())
-                } else {
-                    None
-                }
-            })
-            .collect()
-    } else {
-        vec![]
+fn list_images_in_dir(dir: PathBuf) -> Vec<String> {
+    let mut files: Vec<String> = Vec::new();
+
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            if let Ok(file_type) = entry.file_type()
+                && file_type.is_file()
+                && let Some(ext) = entry.path().extension()
+                && matches!(
+                    ext.to_str().unwrap_or("").to_lowercase().as_str(),
+                    "png" | "jpg" | "jpeg" | "gif" | "webp"
+                )
+                && let Some(file_name) = entry.file_name().to_str()
+            {
+                files.push(file_name.to_string());
+            }
+        }
     }
+
+    files
+}
+
+fn list_available_backgrounds() -> Vec<String> {
+    list_images_in_dir(config_base_dir().join("backgrounds"))
 }
 
 fn copy_image_to_backgrounds_folder(image_path: &PathBuf) -> Result<PathBuf, String> {

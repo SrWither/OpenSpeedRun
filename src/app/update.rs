@@ -3,14 +3,14 @@ use crate::app::resize::draw_resize_borders;
 use crate::app::state::AppState;
 use crate::config::layout::SectionKind;
 use crate::config::load::config_base_dir;
-use crate::config::shaders::ShaderBackground;
+use crate::config::shaders::{ShaderBackground, load_shader_channels};
 #[cfg(unix)]
 use crate::core::server::UICommand;
 use crate::core::timer::TimerState;
 #[cfg(windows)]
 use crate::core::winserver::UICommand;
 use chrono::{Datelike, Timelike};
-use eframe::egui;
+use eframe::{egui, glow};
 use egui::Color32;
 
 impl AppState {
@@ -124,13 +124,18 @@ impl AppWrapper {
                         let vertex_path = config_base_dir()
                             .join("shaders")
                             .join(format!("{}.vert", shader_name));
+                        let channels = load_shader_channels(&shader_path);
+                        let channel_count = channels.len();
 
                         if let Some(shader) = ShaderBackground::new(
                             gl.clone(),
                             shader_path.to_string_lossy().to_string(),
                             vertex_path.to_string_lossy().to_string(),
+                            channel_count,
                         ) {
-                            self.app_state.lock().unwrap().shader = Some(shader);
+                            let mut state = self.app_state.lock().unwrap();
+                            state.shader = Some(shader);
+                            state.shader_channel_paths = channels;
                         } else {
                             eprintln!("Error: no se pudo recargar el shader '{}'", shader_name);
                         }
@@ -196,6 +201,7 @@ impl AppWrapper {
         app: &mut AppState,
         elapsed: f32,
         delta_time: f32,
+        extra_channels: &[Option<glow::NativeTexture>],
         current_split: i32,
         total_splits: i32,
         elapsed_time: f32,
@@ -232,6 +238,7 @@ impl AppWrapper {
                 date,
                 delta_time,
                 app.background_gl_texture.as_ref(),
+                extra_channels,
                 current_split,
                 total_splits,
                 elapsed_time,
@@ -293,6 +300,7 @@ impl eframe::App for AppWrapper {
         let live_delta = app.live_delta(elapsed_split_time);
         let best_possible_time = app.best_possible_time();
         let pb_time = app.pb_time();
+        let extra_channels = app.get_or_load_shader_channels();
 
         self.apply_transparency_if_needed(&ctx, &mut app);
         self.render_shader_if_enabled(
@@ -300,6 +308,7 @@ impl eframe::App for AppWrapper {
             &mut app,
             elapsed,
             delta_time,
+            &extra_channels,
             current_split,
             total_splits,
             elapsed_time,

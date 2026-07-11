@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::config::layout::LayoutConfig;
 use crate::config::load::{AppConfig, config_base_dir};
-use crate::config::shaders::ShaderBackground;
+use crate::config::shaders::{ShaderBackground, load_shader_channels};
 #[cfg(unix)]
 use crate::core::server::UICommand;
 use crate::core::split::{
@@ -18,6 +18,7 @@ use crate::core::split::{
 use crate::core::timer::{Timer, TimerState};
 #[cfg(windows)]
 use crate::core::winserver::UICommand;
+use std::path::Path;
 
 pub struct AppState {
     pub timer: Timer,
@@ -44,6 +45,15 @@ pub struct AppState {
     pub background_image: Option<TextureHandle>,
     pub background_image_name: Option<String>,
     pub background_gl_texture: Option<glow::NativeTexture>,
+    /// GL textures for `shader_channel_paths`, keyed by image filename so
+    /// the same file picked into more than one slot is only uploaded once.
+    /// See `app::texture::get_or_load_shader_channels`.
+    pub shader_channel_cache: HashMap<String, glow::NativeTexture>,
+    /// Channel images configured for the currently loaded shader (a
+    /// property of the shader file itself, not the theme — see
+    /// `config::shaders::load_shader_channels`). Refreshed whenever the
+    /// shader is (re)loaded.
+    pub shader_channel_paths: Vec<Option<String>>,
     pub loaded_fonts: Option<FontDefinitions>,
     /// Whether the most recently completed split beat its "Best Segments"
     /// comparison. Sticky until the next split (or a reset).
@@ -92,6 +102,8 @@ impl Default for AppState {
             background_image: None,
             background_image_name: None,
             background_gl_texture: None,
+            shader_channel_cache: HashMap::new(),
+            shader_channel_paths: Vec::new(),
             loaded_fonts: None,
             last_segment_is_gold: false,
             last_run_is_pb: false,
@@ -135,6 +147,8 @@ impl AppState {
             background_image: None,
             background_image_name: None,
             background_gl_texture: None,
+            shader_channel_cache: HashMap::new(),
+            shader_channel_paths: Vec::new(),
             loaded_fonts: None,
             last_segment_is_gold: false,
             last_run_is_pb: false,
@@ -720,7 +734,11 @@ impl AppWrapper {
         {
             let mut state = app_state.lock().unwrap();
             state.gl = Some(gl.clone());
-            state.shader = ShaderBackground::new(gl.clone(), shader_path, vertex_shader_path);
+            let channels = load_shader_channels(Path::new(&shader_path));
+            let channel_count = channels.len();
+            state.shader_channel_paths = channels;
+            state.shader =
+                ShaderBackground::new(gl.clone(), shader_path, vertex_shader_path, channel_count);
         }
 
         Self {
