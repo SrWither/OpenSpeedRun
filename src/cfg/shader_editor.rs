@@ -183,6 +183,28 @@ impl ShaderEditor {
             self.pending_channel_pick = None;
         }
 
+        // Captured before the outer `ScrollArea` below, which otherwise
+        // reports a huge/unbounded `available_height()` to its contents —
+        // `editor_height` needs the real panel height to size the code
+        // editors correctly.
+        let total_height = ui.available_height();
+
+        egui::ScrollArea::vertical()
+            .id_salt("shader_editor_scroll")
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                self.ui_contents(ui, layout, theme_path, total_height);
+            });
+    }
+
+    #[allow(clippy::too_many_lines)]
+    fn ui_contents(
+        &mut self,
+        ui: &mut egui::Ui,
+        layout: &mut LayoutConfig,
+        theme_path: &Path,
+        total_height: f32,
+    ) {
         // syntax highlighting theme and layouter
         let syntax_set = syntax::load_syntax_set();
         let theme = syntax::get_theme("base16-eighties.dark");
@@ -425,12 +447,18 @@ impl ShaderEditor {
                 .corner_radius(8)
                 .inner_margin(style::SPACE_MD)
                 .show(ui, |ui| {
-                    ui.label(RichText::new(err).color(style::ERROR).monospace());
+                    egui::ScrollArea::vertical()
+                        .id_salt("shader_error_scroll")
+                        .max_height(180.0)
+                        .auto_shrink([false, true])
+                        .show(ui, |ui| {
+                            ui.label(RichText::new(err).color(style::ERROR).monospace());
+                        });
                 });
             ui.add_space(6.0);
         }
 
-        let editor_height = (ui.available_height() - 40.0).max(200.0);
+        let editor_height = (total_height - 40.0).max(200.0);
         let column_width = (ui.available_width() - style::SPACE_MD) / 2.0;
 
         ui.horizontal(|ui| {
@@ -558,149 +586,170 @@ impl ShaderEditor {
             egui::Window::new("Shader Channels")
                 .collapsible(false)
                 .resizable(false)
+                .max_height(560.0)
                 .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
                 .show(ui.ctx(), |ui| {
                     let channel_images = list_shader_folder_images();
                     let mut remove_idx: Option<usize> = None;
                     let mut changed = false;
 
-                    for i in 0..self.channels.len() {
-                        ui.group(|ui| {
-                            ui.horizontal(|ui| {
-                                ui.label(RichText::new(format!("iChannel{i}")).strong());
-
-                                let is_cubemap =
-                                    matches!(self.channels[i], ShaderChannel::Cubemap(_));
-
-                                egui::ComboBox::from_id_salt(format!("shader_channel_kind_{i}"))
-                                    .selected_text(if is_cubemap { "Cubemap" } else { "2D Image" })
-                                    .show_ui(ui, |ui| {
-                                        if ui.selectable_label(!is_cubemap, "2D Image").clicked()
-                                            && is_cubemap
-                                        {
-                                            self.channels[i] = ShaderChannel::Image(None);
-                                            changed = true;
-                                        }
-                                        if ui.selectable_label(is_cubemap, "Cubemap").clicked()
-                                            && !is_cubemap
-                                        {
-                                            self.channels[i] =
-                                                ShaderChannel::Cubemap(Default::default());
-                                            changed = true;
-                                        }
-                                    });
-
-                                if ui
-                                    .button(egui_phosphor::regular::TRASH)
-                                    .on_hover_text("Remove channel")
-                                    .clicked()
-                                {
-                                    remove_idx = Some(i);
-                                }
-                            });
-
-                            match &mut self.channels[i] {
-                                ShaderChannel::Image(entry) => {
+                    egui::ScrollArea::vertical()
+                        .id_salt("shader_channels_popup_scroll")
+                        .max_height(420.0)
+                        .auto_shrink([false, true])
+                        .show(ui, |ui| {
+                            for i in 0..self.channels.len() {
+                                ui.group(|ui| {
                                     ui.horizontal(|ui| {
-                                        if ui.button("Load Image").clicked() {
-                                            self.pending_channel_pick = Some((
-                                                ChannelPickTarget::Image(i),
-                                                PendingDialog::spawn(|| {
-                                                    rfd::FileDialog::new()
-                                                        .add_filter(
-                                                            "Images",
-                                                            &["png", "jpg", "jpeg", "gif", "webp"],
-                                                        )
-                                                        .pick_file()
-                                                }),
-                                            ));
-                                        }
+                                        ui.label(RichText::new(format!("iChannel{i}")).strong());
 
-                                        let before = entry.clone();
-                                        let selected_text =
-                                            before.as_deref().unwrap_or("None").to_string();
+                                        let is_cubemap =
+                                            matches!(self.channels[i], ShaderChannel::Cubemap(_));
 
                                         egui::ComboBox::from_id_salt(format!(
-                                            "shader_channel_popup_{i}"
+                                            "shader_channel_kind_{i}"
                                         ))
-                                        .selected_text(selected_text)
+                                        .selected_text(if is_cubemap {
+                                            "Cubemap"
+                                        } else {
+                                            "2D Image"
+                                        })
                                         .show_ui(
                                             ui,
                                             |ui| {
-                                                ui.selectable_value(entry, None, "None");
-                                                for img in &channel_images {
-                                                    ui.selectable_value(
-                                                        entry,
-                                                        Some(img.clone()),
-                                                        img,
-                                                    );
+                                                if ui
+                                                    .selectable_label(!is_cubemap, "2D Image")
+                                                    .clicked()
+                                                    && is_cubemap
+                                                {
+                                                    self.channels[i] = ShaderChannel::Image(None);
+                                                    changed = true;
+                                                }
+                                                if ui
+                                                    .selectable_label(is_cubemap, "Cubemap")
+                                                    .clicked()
+                                                    && !is_cubemap
+                                                {
+                                                    self.channels[i] =
+                                                        ShaderChannel::Cubemap(Default::default());
+                                                    changed = true;
                                                 }
                                             },
                                         );
 
-                                        if *entry != before {
-                                            changed = true;
+                                        if ui
+                                            .button(egui_phosphor::regular::TRASH)
+                                            .on_hover_text("Remove channel")
+                                            .clicked()
+                                        {
+                                            remove_idx = Some(i);
                                         }
                                     });
-                                }
-                                ShaderChannel::Cubemap(faces) => {
-                                    for (f, face_label) in CUBEMAP_FACE_LABELS.iter().enumerate() {
-                                        ui.horizontal(|ui| {
-                                            ui.label(format!("  {face_label}"));
 
-                                            if ui.button("Load Image").clicked() {
-                                                self.pending_channel_pick = Some((
-                                                    ChannelPickTarget::CubemapFace(i, f),
-                                                    PendingDialog::spawn(|| {
-                                                        rfd::FileDialog::new()
-                                                            .add_filter(
-                                                                "Images",
-                                                                &[
-                                                                    "png", "jpg", "jpeg", "gif",
-                                                                    "webp",
-                                                                ],
-                                                            )
-                                                            .pick_file()
-                                                    }),
-                                                ));
-                                            }
+                                    match &mut self.channels[i] {
+                                        ShaderChannel::Image(entry) => {
+                                            ui.horizontal(|ui| {
+                                                if ui.button("Load Image").clicked() {
+                                                    self.pending_channel_pick = Some((
+                                                        ChannelPickTarget::Image(i),
+                                                        PendingDialog::spawn(|| {
+                                                            rfd::FileDialog::new()
+                                                                .add_filter(
+                                                                    "Images",
+                                                                    &[
+                                                                        "png", "jpg", "jpeg",
+                                                                        "gif", "webp",
+                                                                    ],
+                                                                )
+                                                                .pick_file()
+                                                        }),
+                                                    ));
+                                                }
 
-                                            let before = faces[f].clone();
-                                            let selected_text =
-                                                before.as_deref().unwrap_or("None").to_string();
+                                                let before = entry.clone();
+                                                let selected_text =
+                                                    before.as_deref().unwrap_or("None").to_string();
 
-                                            egui::ComboBox::from_id_salt(format!(
-                                                "shader_channel_popup_{i}_{f}"
-                                            ))
-                                            .selected_text(selected_text)
-                                            .show_ui(
-                                                ui,
-                                                |ui| {
-                                                    ui.selectable_value(
-                                                        &mut faces[f],
-                                                        None,
-                                                        "None",
-                                                    );
+                                                egui::ComboBox::from_id_salt(format!(
+                                                    "shader_channel_popup_{i}"
+                                                ))
+                                                .selected_text(selected_text)
+                                                .show_ui(ui, |ui| {
+                                                    ui.selectable_value(entry, None, "None");
                                                     for img in &channel_images {
                                                         ui.selectable_value(
-                                                            &mut faces[f],
+                                                            entry,
                                                             Some(img.clone()),
                                                             img,
                                                         );
                                                     }
-                                                },
-                                            );
+                                                });
 
-                                            if faces[f] != before {
-                                                changed = true;
+                                                if *entry != before {
+                                                    changed = true;
+                                                }
+                                            });
+                                        }
+                                        ShaderChannel::Cubemap(faces) => {
+                                            for (f, face_label) in
+                                                CUBEMAP_FACE_LABELS.iter().enumerate()
+                                            {
+                                                ui.horizontal(|ui| {
+                                                    ui.label(format!("  {face_label}"));
+
+                                                    if ui.button("Load Image").clicked() {
+                                                        self.pending_channel_pick = Some((
+                                                            ChannelPickTarget::CubemapFace(i, f),
+                                                            PendingDialog::spawn(|| {
+                                                                rfd::FileDialog::new()
+                                                                    .add_filter(
+                                                                        "Images",
+                                                                        &[
+                                                                            "png", "jpg", "jpeg",
+                                                                            "gif", "webp",
+                                                                        ],
+                                                                    )
+                                                                    .pick_file()
+                                                            }),
+                                                        ));
+                                                    }
+
+                                                    let before = faces[f].clone();
+                                                    let selected_text = before
+                                                        .as_deref()
+                                                        .unwrap_or("None")
+                                                        .to_string();
+
+                                                    egui::ComboBox::from_id_salt(format!(
+                                                        "shader_channel_popup_{i}_{f}"
+                                                    ))
+                                                    .selected_text(selected_text)
+                                                    .show_ui(ui, |ui| {
+                                                        ui.selectable_value(
+                                                            &mut faces[f],
+                                                            None,
+                                                            "None",
+                                                        );
+                                                        for img in &channel_images {
+                                                            ui.selectable_value(
+                                                                &mut faces[f],
+                                                                Some(img.clone()),
+                                                                img,
+                                                            );
+                                                        }
+                                                    });
+
+                                                    if faces[f] != before {
+                                                        changed = true;
+                                                    }
+                                                });
                                             }
-                                        });
+                                        }
                                     }
-                                }
+                                });
+                                ui.add_space(4.0);
                             }
                         });
-                        ui.add_space(4.0);
-                    }
 
                     if let Some(i) = remove_idx {
                         self.channels.remove(i);
